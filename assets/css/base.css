@@ -1,0 +1,278 @@
+/* ==========================================================================
+   FHL ADVOCACIA — BASE
+   Reset, tipografia, primitivas de layout, estados de revelação, acessibilidade.
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: auto; /* o smooth scroll é do Lenis, não do navegador */
+}
+
+body {
+  margin: 0;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--font-sans);
+  font-size: var(--t-body);
+  line-height: var(--lh-body);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  transition: background-color 0.6s var(--e-suave), color 0.6s var(--e-suave);
+}
+
+body.is-locked { overflow: hidden; }
+
+h1, h2, h3, h4, p, figure, blockquote, dl, dd { margin: 0; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+img, svg, video { display: block; max-width: 100%; }
+img { height: auto; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { background: none; border: 0; padding: 0; cursor: pointer; }
+address { font-style: normal; }
+
+/* --------------------------------------------------------------------------
+   GRÃO (4.5) — tile 128×128, estático. Nunca animado.
+   -------------------------------------------------------------------------- */
+.grain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-grain);
+  opacity: 0.035;
+  background-image: url('../img/noise.png');
+  background-repeat: repeat;
+  mix-blend-mode: overlay;
+}
+
+/* --------------------------------------------------------------------------
+   TIPOGRAFIA (4.2)
+   -------------------------------------------------------------------------- */
+.display {
+  font-size: var(--t-display);
+  line-height: var(--lh-display);
+  letter-spacing: var(--tr-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  text-wrap: balance;
+  margin: 0;
+}
+
+.h1 {
+  font-size: var(--t-h1);
+  line-height: var(--lh-h1);
+  letter-spacing: var(--tr-h1);
+  font-weight: 700;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.h2 {
+  font-size: var(--t-h2);
+  line-height: var(--lh-h2);
+  letter-spacing: var(--tr-h2);
+  font-weight: 500;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.h3 {
+  font-size: var(--t-h3);
+  line-height: var(--lh-h3);
+  letter-spacing: var(--tr-h3);
+  font-weight: 500;
+  text-wrap: balance;
+}
+
+.lead {
+  font-size: var(--t-lead);
+  line-height: var(--lh-lead);
+  font-weight: 400;
+  max-width: var(--measure);
+  text-wrap: pretty;
+}
+
+.body { max-width: var(--measure); text-wrap: pretty; }
+.small { font-size: var(--t-small); line-height: 1.5; }
+
+/* Rótulo (eyebrow). O contraste de escala com .display é a estrutura do site. */
+.label {
+  font-size: var(--t-label);
+  line-height: 1.4;
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--c-action);
+  margin: 0;
+}
+.label--mute { color: var(--c-text-muted); }
+
+/* Serifada — papel restrito (4.2): artigo, pull-quote e numerais. */
+.serif { font-family: var(--font-serif); }
+
+.numeral {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.text-muted { color: var(--c-text-muted); }
+.text-accent { color: var(--c-action); }
+
+/* Português: nunca justificar, nunca hifenizar. */
+p { hyphens: none; text-align: left; }
+
+/* --------------------------------------------------------------------------
+   LAYOUT
+   -------------------------------------------------------------------------- */
+.wrap {
+  width: 100%;
+  max-width: var(--max-width);
+  margin-inline: auto;
+  padding-inline: var(--grid-margin);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--grid-cols), minmax(0, 1fr));
+  gap: var(--grid-gutter);
+}
+
+.section {
+  position: relative;
+  padding-block: var(--s-section);
+  background: var(--c-bg);
+  color: var(--c-text);
+}
+.section--fn { padding-block: var(--s-section-fn); }
+.section--flush-top { padding-top: 0; }
+
+.stack > * + * { margin-top: var(--s-3); }
+.stack-lg > * + * { margin-top: var(--s-5); }
+
+.rule {
+  height: var(--rule-w);
+  background: var(--c-rule);
+  border: 0;
+  margin: 0;
+  width: 100%;
+}
+
+@media (max-width: 767px) {
+  .grid { --grid-cols: 6; }
+}
+
+/* --------------------------------------------------------------------------
+   REVELAÇÕES (7.1) — quatro gestos nomeados, nada além disto.
+   Os estados iniciais só existem com JS ativo: sem JS o conteúdo aparece
+   normalmente. É o que impede uma página em branco se o GSAP falhar.
+   -------------------------------------------------------------------------- */
+.js .r-mask { visibility: hidden; }
+
+.js .r-rise {
+  opacity: 0;
+  transform: translate3d(0, 30px, 0);
+  will-change: transform, opacity;
+}
+
+.js .r-wipe {
+  clip-path: inset(0 0 100% 0);
+  will-change: clip-path;
+}
+
+.js .r-rule {
+  transform: scaleX(0);
+  transform-origin: left;
+  will-change: transform;
+}
+
+/* Máscara por linha/palavra criada pelo splitter em motion.js.
+
+   A folga vertical não é decorativa: com line-height 0.90 nos títulos display,
+   um overflow:hidden encostado na caixa de texto DECEPA os diacríticos —
+   o circunflexo de "CONSEQUÊNCIA", o agudo de "CLÁUSULA", a cedilha de "AÇÃO".
+   Em um site em português isso apareceria em quase todo título.
+
+   O valor não é chutado: medido no canvas, a caixa de tinta das maiúsculas da
+   Galano vai a 0.69em sem acento e a 0.89em com acento — os diacríticos sobem
+   0.20em acima da altura de caixa. Com line-height 0.90 sobra ainda menos.
+   A máscara cresce 0.24em para cada lado e devolve o espaço em margem
+   negativa: a caixa de recorte fica maior, o layout continua idêntico. */
+.line-mask { display: block; overflow: hidden; }
+.line-inner { display: block; will-change: transform; }
+.word-mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  padding-top: 0.24em;
+  margin-top: -0.24em;
+  padding-bottom: 0.24em;
+  margin-bottom: -0.24em;
+}
+.word-inner { display: inline-block; will-change: transform; }
+
+/* Terminada a revelação, o recorte não serve mais para nada e só cria risco
+   de cortar texto. motion.js remove a classe e a máscara deixa de recortar. */
+.word-mask.is-revealed { overflow: visible; }
+
+/* --------------------------------------------------------------------------
+   ACESSIBILIDADE (12)
+   -------------------------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--c-focus);
+  outline-offset: 3px;
+  border-radius: var(--r-none);
+}
+
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: var(--grid-margin);
+  z-index: 999;
+  background: var(--c-mint);
+  color: var(--c-abyss);
+  padding: var(--s-2) var(--s-3);
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  font-weight: 500;
+  text-decoration: none;
+}
+.skip-link:focus { top: var(--s-2); }
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   MOVIMENTO REDUZIDO (12) — comportamento completo
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* Nada fica escondido esperando animação que não vai rodar. */
+  .js .r-mask,
+  .js .r-rise,
+  .js .r-wipe,
+  .js .r-rule {
+    visibility: visible;
+    opacity: 1;
+    transform: none;
+    clip-path: none;
+  }
+}

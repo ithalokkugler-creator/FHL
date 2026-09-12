@@ -1,0 +1,14 @@
+# Terminações de linha normalizadas em LF. O site é servido na web e o build
+# gera LF; sem isto, o Git no Windows converteria para CRLF no checkout.
+* text=auto eol=lf
+
+# Binários — nunca normalizar.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.otf binary
+*.ttf binary

@@ -1,0 +1,752 @@
+/* ==========================================================================
+   FHL ADVOCACIA — COMPONENTES
+   Header, cortina de menu, botões, links, formulário, rodapé.
+   Preparação, seções 7.3 a 7.5.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   MARCA
+   As três pétalas da logomarca da FHL, extraídas do Logo.jpg com fundo
+   transparente e quantizadas nas três cores exatas da identidade.
+   -------------------------------------------------------------------------- */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--c-text);
+  text-decoration: none;
+  line-height: 1;
+}
+.brand__mark {
+  width: auto;
+  height: 34px;
+  flex: 0 0 auto;
+}
+.brand__name {
+  display: inline-flex;
+  align-items: baseline;
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.brand__word {
+  font-weight: 500;
+  font-size: 0.62em;
+  letter-spacing: var(--tr-label);
+  margin-left: 0.55em;
+  color: var(--c-text-muted);
+}
+
+@media (max-width: 560px) {
+  .brand__mark { height: 26px; }
+  .brand__name { font-size: 16px; }
+  .brand__word { display: none; }
+}
+
+/* --------------------------------------------------------------------------
+   HEADER (7.5)
+   Só logo + MENU. Todo o resto vive dentro da cortina — é o que mantém
+   o herói limpo e dá o momento de transição.
+   -------------------------------------------------------------------------- */
+.header {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: var(--z-header);
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  transition: transform 0.4s var(--e-suave),
+              background-color 0.4s var(--e-suave),
+              backdrop-filter 0.4s var(--e-suave);
+}
+.header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.header.is-hidden { transform: translate3d(0, -100%, 0); }
+.header.is-solid {
+  background: color-mix(in srgb, var(--c-petrol) 80%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.header__actions {
+  display: flex;
+  align-items: center;
+  gap: clamp(16px, 2.5vw, 34px);
+}
+
+/* CTA permanente do header. O contato estava só no fim da página; agora
+   fica alcançável de qualquer ponto do site. */
+.header__cta {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 10px 22px;
+  border: 1px solid var(--c-action);
+  border-radius: var(--r-pill);
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--c-action);
+  text-decoration: none;
+  overflow: hidden;
+  isolation: isolate;
+  transition: color 0.4s var(--e-suave);
+}
+.header__cta::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--c-action);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 0.4s var(--e-suave);
+}
+.header__cta:hover,
+.header__cta:focus-visible { color: var(--c-petrol); }
+.header__cta:hover::before,
+.header__cta:focus-visible::before { transform: scaleY(1); }
+
+@media (max-width: 560px) {
+  /* Em tela estreita o botão flutuante de WhatsApp já cobre o contato. */
+  .header__cta { display: none; }
+}
+
+/* Botão MENU */
+.menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--c-text);
+}
+.menu-toggle__glyph {
+  position: relative;
+  width: 22px;
+  height: 10px;
+}
+.menu-toggle__glyph i {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+  transition: transform 0.35s var(--e-cortina), opacity 0.2s linear;
+}
+.menu-toggle__glyph i:nth-child(1) { top: 0; }
+.menu-toggle__glyph i:nth-child(2) { bottom: 0; }
+.menu-toggle[aria-expanded='true'] .menu-toggle__glyph i:nth-child(1) {
+  transform: translateY(4.5px) rotate(45deg);
+}
+.menu-toggle[aria-expanded='true'] .menu-toggle__glyph i:nth-child(2) {
+  transform: translateY(-4.5px) rotate(-45deg);
+}
+.menu-toggle[aria-expanded='true'] { color: var(--c-abyss); }
+
+/* --------------------------------------------------------------------------
+   CORTINA DE MENU (7.4)
+   Dois painéis que se encontram no centro — o gesto do acordo.
+   A referência varre um painel só; aqui a convergência carrega o conceito.
+   -------------------------------------------------------------------------- */
+.menu {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-menu);
+  visibility: hidden;
+  pointer-events: none;
+}
+.menu.is-open { visibility: visible; pointer-events: auto; }
+
+.menu__panel {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 50.5%;   /* meio pixel de sobreposição: evita costura em telas ímpares */
+  background: var(--c-mint);
+  will-change: transform;
+}
+.menu__panel--top { top: 0; transform: translate3d(0, -100%, 0); }
+.menu__panel--bottom { bottom: 0; transform: translate3d(0, 100%, 0); }
+
+/* O filete que pulsa na linha de encontro dos dois painéis */
+.menu__seam {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: var(--c-abyss);
+  opacity: 0;
+  transform: scaleX(0);
+}
+
+.menu__inner {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-block: var(--header-h) var(--s-5);
+  color: var(--c-abyss);
+  /* Rede de segurança: se ainda assim o conteúdo não couber (tela muito baixa,
+     zoom alto, fonte aumentada pelo sistema), o menu rola em vez de cortar. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Espaço entre a navegação e o bloco de endereço/contato: fluido, porque em
+   viewport baixo os 96px fixos empurravam o bloco para fora da tela. */
+.menu__nav { margin-bottom: clamp(24px, 5vh, 96px); }
+.menu__item { overflow: hidden; }
+.menu__link {
+  display: inline-block;
+  /* O teto tem que considerar a ALTURA, não só a largura: são seis itens
+     empilhados mais o bloco de contato. Com 7vw puro, numa tela larga e baixa
+     os itens somavam mais que a viewport e o endereço, o telefone e a inscrição
+     na OAB ficavam cortados pela borda do painel. */
+  font-size: clamp(22px, min(5vw, 6.4vh), 60px);
+  line-height: 1.08;
+  letter-spacing: var(--tr-h1);
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--c-abyss);
+  text-decoration: none;
+  transition: opacity var(--d-micro) var(--e-suave);
+  will-change: transform;
+}
+/* Efeito spotlight: o menu inteiro reage ao item sob o cursor (7.4) */
+.menu__nav:hover .menu__link { opacity: 0.45; }
+.menu__nav:hover .menu__link:hover { opacity: 1; }
+
+.menu__link-underline {
+  display: block;
+  height: 1px;
+  background: var(--c-teal);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.45s var(--e-cortina);
+}
+.menu__link:hover + .menu__link-underline,
+.menu__link:focus-visible + .menu__link-underline { transform: scaleX(1); }
+
+.menu__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(24px, 4vw, 64px);
+  color: var(--c-abyss);
+  font-size: var(--t-small);
+  flex-shrink: 0;   /* nunca é o bloco espremido quando o espaço aperta */
+}
+.menu__meta a { color: inherit; }
+.menu__meta-label {
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  opacity: 0.6;
+  margin-bottom: var(--s-1);
+}
+
+/* --------------------------------------------------------------------------
+   LINKS
+   Sublinhado que entra pela esquerda e sai pela direita (7.5).
+   Nunca text-decoration padrão.
+   -------------------------------------------------------------------------- */
+a { color: inherit; }
+
+.link {
+  position: relative;
+  display: inline-block;
+  text-decoration: none;
+  color: var(--c-text);
+}
+.link::after {
+  content: '';
+  position: absolute;
+  left: 0; bottom: -2px;
+  width: 100%; height: 1px;
+  background: var(--c-action);
+  transform: scaleX(0);
+  transform-origin: right;
+  transition: transform 0.45s var(--e-cortina);
+}
+.link:hover::after,
+.link:focus-visible::after {
+  transform: scaleX(1);
+  transform-origin: left;
+}
+
+/* Link de ação com seta */
+.link-arrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--c-action);
+  text-decoration: none;
+  padding-block: var(--s-1);
+}
+.link-arrow svg {
+  width: 22px; height: 8px;
+  overflow: visible;
+  transition: transform 0.4s var(--e-suave);
+}
+.link-arrow:hover svg,
+.link-arrow:focus-visible svg { transform: translateX(6px); }
+.link-arrow__line {
+  transition: transform 0.4s var(--e-suave);
+  transform-origin: right;
+}
+.link-arrow:hover .link-arrow__line { transform: scaleX(1.35); }
+
+/* --------------------------------------------------------------------------
+   BOTÕES (7.5)
+   Preenchimento que sobe de baixo. Nada "snapa".
+   -------------------------------------------------------------------------- */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  padding: 18px 38px;
+  border: 1px solid var(--c-action);
+  border-radius: var(--r-pill);
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--c-action);
+  text-decoration: none;
+  overflow: hidden;
+  isolation: isolate;
+  will-change: transform;
+  transition: color 0.45s var(--e-suave);
+}
+.btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--c-action);
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 0.45s var(--e-suave);
+}
+.btn:hover, .btn:focus-visible { color: var(--c-bg); }
+.btn:hover::before, .btn:focus-visible::before { transform: scaleY(1); }
+.btn:disabled { opacity: 0.5; pointer-events: none; }
+.btn__label { display: block; }
+
+@media (max-width: 767px) {
+  /* Sem cursor não há botão magnético: vira feedback de toque (13). */
+  .btn:active { transform: scale(0.97); }
+}
+
+/* --------------------------------------------------------------------------
+   MARCA D'ÁGUA
+   A logomarca ampliada e recortada pela borda, tom sobre tom. Substitui o
+   ampersand da fase anterior: com a marca real em mãos, o watermark passa a
+   ser a própria identidade.
+   -------------------------------------------------------------------------- */
+.watermark {
+  position: absolute;
+  z-index: 0;
+  height: 128vh;
+  width: auto;
+  opacity: 0.05;
+  pointer-events: none;
+  user-select: none;
+  will-change: transform;
+}
+.watermark--left { left: -6vw; top: 50%; transform: translateY(-50%); }
+.watermark--right { right: -6vw; top: 50%; transform: translateY(-50%); }
+
+@media (max-width: 767px) {
+  .watermark { height: 82vh; opacity: 0.035; }
+  .watermark--left { left: -22vw; }
+  .watermark--right { right: -22vw; }
+}
+
+/* Logomarca no loader */
+.loader__logo {
+  height: clamp(52px, 9vw, 84px);
+  width: auto;
+  margin: 0 auto var(--s-3);
+}
+
+/* --------------------------------------------------------------------------
+   FORMULÁRIO (6.9 / 14)
+   -------------------------------------------------------------------------- */
+.field { position: relative; padding-top: var(--s-3); }
+.field__input {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--c-rule);
+  padding: var(--s-2) 0;
+  font-size: var(--t-lead);
+  color: var(--c-text);
+  border-radius: var(--r-none);
+}
+.field__input:focus { outline: none; }
+.field__line {
+  position: absolute;
+  left: 0; bottom: 0;
+  width: 100%; height: 1px;
+  background: var(--c-action);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s var(--e-suave);
+}
+.field__input:focus ~ .field__line { transform: scaleX(1); }
+.field__label {
+  position: absolute;
+  left: 0; top: var(--s-3);
+  font-size: var(--t-lead);
+  color: var(--c-text-muted);
+  pointer-events: none;
+  transform-origin: left top;
+  transition: transform 0.35s var(--e-suave), color 0.35s var(--e-suave);
+}
+.field__input:focus ~ .field__label,
+.field__input:not(:placeholder-shown) ~ .field__label {
+  transform: translateY(-26px) scale(0.62);
+  color: var(--c-action);
+}
+.field__error {
+  display: block;
+  font-size: var(--t-small);
+  color: var(--c-mint-hi);
+  margin-top: var(--s-1);
+  min-height: 1.2em;
+}
+.is-light .field__error { color: #A4322B; }
+
+textarea.field__input { resize: vertical; min-height: 120px; }
+
+/* Consentimento LGPD — checkbox nunca pré-marcado (14.1) */
+.consent {
+  display: flex;
+  gap: var(--s-2);
+  align-items: flex-start;
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--c-text-muted);
+  cursor: pointer;
+}
+.consent input {
+  flex: 0 0 auto;
+  width: 18px; height: 18px;
+  margin-top: 2px;
+  accent-color: var(--c-teal);
+}
+.consent a { color: var(--c-action); }
+
+/* Honeypot anti-spam — sem CAPTCHA de terceiros (14.6) */
+.hp {
+  position: absolute !important;
+  left: -9999px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.form-status {
+  font-size: var(--t-small);
+  min-height: 1.4em;
+  margin-top: var(--s-2);
+}
+
+/* --------------------------------------------------------------------------
+   RODAPÉ
+   -------------------------------------------------------------------------- */
+.footer {
+  background: var(--c-abyss);
+  color: var(--c-ink);
+  padding-block: var(--s-6) var(--s-4);
+}
+.footer__top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-5);
+  justify-content: space-between;
+  padding-bottom: var(--s-5);
+}
+.footer__col { min-width: 180px; }
+.footer__label {
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  color: var(--c-mint);
+  margin-bottom: var(--s-2);
+}
+.footer__list li + li { margin-top: var(--s-1); }
+.footer__list a { text-decoration: none; }
+.footer__bottom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  justify-content: space-between;
+  align-items: center;
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--c-petrol-ln);
+  font-size: var(--t-small);
+  color: var(--c-ink-mute);
+}
+/* Inscrição na OAB: obrigatória no rodapé (3.3) */
+.footer__oab { color: var(--c-ink-mute); }
+
+/* --------------------------------------------------------------------------
+   TRANSIÇÃO DE PÁGINA (7.4)
+   Mesmos dois painéis do menu: convergem na saída, separam na entrada.
+   -------------------------------------------------------------------------- */
+.transition {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-transition);
+  pointer-events: none;
+  visibility: hidden;
+}
+.transition.is-active { visibility: visible; }
+.transition__panel {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 50.5%;
+  background: var(--c-mint);
+  will-change: transform;
+}
+.transition__panel--top { top: 0; transform: translate3d(0, -100%, 0); }
+.transition__panel--bottom { bottom: 0; transform: translate3d(0, 100%, 0); }
+
+/* --------------------------------------------------------------------------
+   LOADER (6.0) — máximo 1,8s, só na primeira visita da sessão
+   -------------------------------------------------------------------------- */
+.loader {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  background: var(--c-abyss);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.loader__panel {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 50.5%;
+  background: var(--c-abyss);
+  will-change: transform;
+}
+.loader__panel--top { top: 0; }
+.loader__panel--bottom { bottom: 0; }
+.loader__inner { position: relative; z-index: 2; text-align: center; }
+.loader__mark {
+  font-size: clamp(34px, 6vw, 58px);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--c-ink);
+}
+.loader__mark .brand__amp { color: var(--c-mint); }
+.loader__bar {
+  width: min(240px, 46vw);
+  height: 1px;
+  background: color-mix(in srgb, var(--c-ink) 20%, transparent);
+  margin: var(--s-3) auto 0;
+  overflow: hidden;
+}
+.loader__bar i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--c-mint);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+/* --------------------------------------------------------------------------
+   BANNER DE COOKIES (14.3)
+   "Recusar" tão visível quanto "Aceitar". Nada de analytics antes do aceite.
+   -------------------------------------------------------------------------- */
+.cookie {
+  position: fixed;
+  left: var(--grid-margin);
+  bottom: var(--s-3);
+  z-index: 400;
+  max-width: 480px;
+  background: var(--c-petrol-up);
+  border: 1px solid var(--c-petrol-ln);
+  padding: var(--s-4);
+  color: var(--c-ink);
+  transform: translateY(calc(100% + var(--s-5)));
+  visibility: hidden;
+}
+.cookie.is-visible { visibility: visible; }
+.cookie__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+.cookie .btn { padding: 13px 26px; }
+
+@media (max-width: 560px) {
+  .cookie {
+    left: var(--s-2);
+    right: var(--s-2);
+    bottom: var(--s-2);
+    max-width: none;
+  }
+  .cookie__actions .btn { flex: 1 1 auto; }
+}
+
+/* --------------------------------------------------------------------------
+   BOTÃO FLUTUANTE DE WHATSAPP
+   Canal direto sempre visível. Deliberadamente discreto: sem pulsar, sem abrir
+   sozinho, sem balão de "fale agora". Captação agressiva é vedada pelo
+   Provimento 205/2021 — e um escritório sério não persegue o visitante.
+   -------------------------------------------------------------------------- */
+.whats {
+  position: fixed;
+  right: clamp(16px, 3vw, 32px);
+  bottom: clamp(16px, 3vw, 32px);
+  z-index: 350;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 20px;
+  border-radius: var(--r-pill);
+  background: var(--c-mint);
+  color: var(--c-abyss);
+  text-decoration: none;
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  font-weight: 500;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.32);
+  transition: transform 0.35s var(--e-suave), background-color 0.35s var(--e-suave);
+}
+.whats svg { width: 20px; height: 20px; flex: 0 0 auto; }
+.whats:hover,
+.whats:focus-visible {
+  background: var(--c-mint-hi);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 560px) {
+  /* Vira só o ícone: o rótulo roubaria largura da leitura. */
+  .whats { padding: 14px; }
+  .whats__label { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .whats:hover { transform: none; }
+}
+
+/* --------------------------------------------------------------------------
+   CANAIS DIRETOS DE CONTATO
+   -------------------------------------------------------------------------- */
+.contato__direct {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--grid-gutter);
+  margin-block: var(--s-5) var(--s-6);
+}
+
+.channel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--s-4) var(--s-3);
+  border: 1px solid var(--c-rule);
+  border-radius: var(--r-none);
+  text-decoration: none;
+  color: var(--c-text);
+  background: transparent;
+  transition: background-color 0.4s var(--e-suave),
+              border-color 0.4s var(--e-suave),
+              transform 0.4s var(--e-suave);
+}
+.channel:hover,
+.channel:focus-visible {
+  background: color-mix(in srgb, var(--c-action) 8%, transparent);
+  border-color: var(--c-action);
+  transform: translateY(-3px);
+}
+.channel__label {
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--c-action);
+}
+.channel__value {
+  font-size: clamp(16px, 1.3vw, 19px);
+  font-weight: 500;
+  line-height: 1.3;
+}
+.channel__note {
+  font-size: var(--t-small);
+  color: var(--c-text-muted);
+}
+
+@media (max-width: 900px) {
+  .contato__direct { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .contato__direct { grid-template-columns: 1fr; }
+  .channel { padding: var(--s-3); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .channel:hover { transform: none; }
+}
+
+/* Slogan do rodapé */
+.footer__slogan {
+  margin-top: var(--s-2);
+  font-size: var(--t-small);
+  color: var(--c-ink-mute);
+  max-width: 24ch;
+}
+
+/* --------------------------------------------------------------------------
+   HEADER SOBRE FUNDO CLARO
+   O header é fixo e flutua sobre seções de fundo claro (Método, Números,
+   Contato — e a página /contato começa clara). Com a cor de texto do tema
+   escuro, a marca sumia: branco sobre off-white. site.js detecta quando uma
+   seção .is-light está sob a faixa do header e inverte as cores aqui.
+   -------------------------------------------------------------------------- */
+.header.is-light-bg,
+.header.is-light-bg .brand,
+.header.is-light-bg .brand__name,
+.header.is-light-bg .menu-toggle { color: var(--c-ink-dark); }
+
+.header.is-light-bg .brand__word { color: var(--c-ink-dark-m); }
+
+.header.is-light-bg .header__cta {
+  border-color: var(--c-teal);
+  color: var(--c-teal);
+}
+.header.is-light-bg .header__cta::before { background: var(--c-teal); }
+.header.is-light-bg .header__cta:hover,
+.header.is-light-bg .header__cta:focus-visible { color: var(--c-bone); }
+
+.header.is-solid.is-light-bg {
+  background: color-mix(in srgb, var(--c-bone) 84%, transparent);
+}
+
+/* Com a cortina aberta o header volta ao contraste do painel de menta. */
+.header.is-light-bg .menu-toggle[aria-expanded='true'] { color: var(--c-abyss); }

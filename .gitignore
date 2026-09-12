@@ -1,0 +1,16 @@
+# Dependências
+node_modules/
+
+# Saída do build — regerada por `npm run build`
+dist/
+
+# Hosts
+.vercel
+.netlify
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.local

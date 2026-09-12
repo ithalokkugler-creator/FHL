@@ -1,0 +1,213 @@
+/* ==========================================================================
+   FHL ADVOCACIA — TOKENS
+   Sistema de design. Preparação, seções 4.1 a 4.3 e 7.2.
+   Nenhum valor literal de cor, espaço ou duração deve existir fora deste arquivo.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   FONTES — Galano Grotesque (Preparação 4.2)
+   Subset latin + latin-ext, .woff2. 47 KB (.otf) -> 14 KB por peso.
+   Só existem 3 pesos e nenhum itálico. O sistema inteiro respeita isso.
+   -------------------------------------------------------------------------- */
+@font-face {
+  font-family: 'Galano Grotesque';
+  src: url('../fonts/galano-regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Galano Grotesque';
+  src: url('../fonts/galano-medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Galano Grotesque';
+  src: url('../fonts/galano-bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* --------------------------------------------------------------------------
+   Newsreader (SIL OFL) — a serifada de papel restrito (4.2).
+   Fonte variável: um arquivo cobre toda a faixa de pesos.
+   AUTO-HOSPEDADA de propósito: carregar do CDN do Google enviaria o IP do
+   visitante para servidores nos EUA sem base legal (Preparação 14.4).
+   -------------------------------------------------------------------------- */
+@font-face {
+  font-family: 'Newsreader';
+  src: url('../fonts/newsreader-regular.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Newsreader';
+  src: url('../fonts/newsreader-italic.woff2') format('woff2');
+  font-weight: 200 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+:root {
+  /* ------------------------------------------------------------------------
+     PALETA — extraída da logomarca da FHL (Logo.jpg)
+     As três pétalas da marca dão as três cores. Amostradas do arquivo:
+       teal  #2E615D · vinho #6E5551 · menta #A2CBB8, sobre preto.
+     A direção anterior (verde-petróleo + latão) foi escolhida sem logo;
+     com a marca em mãos, o latão saiu — não existe dourado na identidade.
+     ------------------------------------------------------------------------ */
+
+  /* Superfícies escuras */
+  --c-abyss:      #070D0C;
+  --c-petrol:     #0C1917;
+  --c-petrol-up:  #142B27;
+  --c-petrol-ln:  #22443D;
+
+  /* Superfícies claras */
+  --c-bone:       #F2F1EC;
+  --c-bone-dim:   #E4E4DC;
+
+  /* Texto */
+  --c-ink:        #EFF2EF;
+  --c-ink-mute:   #9FB2AC;
+  --c-ink-dark:   #0C1917;
+  --c-ink-dark-m: #465953;
+
+  /* Acento — as cores da marca */
+  --c-mint:       #A2CBB8;  /* pétala clara — acento sobre fundo ESCURO */
+  --c-mint-hi:    #C3DFD1;
+  --c-teal:       #2E615D;  /* pétala escura — acento sobre fundo CLARO */
+  --c-teal-hi:    #3C7B76;
+  --c-wine:       #6E5551;  /* pétala vinho — acento quente, preenchimentos */
+  --c-wine-hi:    #9A7A74;
+
+  /* --- Semânticos: nomeados por função, nunca por cor (anti-slop, 16) ---
+     Estes são os únicos que os componentes consomem. Ao inverter uma seção
+     para fundo claro, basta reatribuir estes seis. */
+  --c-bg:           var(--c-petrol);
+  --c-surface:      var(--c-petrol-up);
+  --c-text:         var(--c-ink);
+  --c-text-muted:   var(--c-ink-mute);
+  --c-rule:         var(--c-petrol-ln);
+  --c-action:       var(--c-mint);       /* 9,7:1 sobre o fundo escuro */
+  --c-action-hover: var(--c-mint-hi);
+  --c-focus:        var(--c-mint-hi);
+
+  /* ------------------------------------------------------------------------
+     TIPOGRAFIA (4.2)
+     ------------------------------------------------------------------------ */
+  --font-sans: 'Galano Grotesque', 'Futura', 'Avenir Next', 'Century Gothic',
+               'Trebuchet MS', system-ui, sans-serif;
+  /* Serifada em papel restrito: corpo de artigo, pull-quote e numerais.
+     Nunca em navegação, botões, títulos da home ou formulários. */
+  --font-serif: 'Newsreader', 'Iowan Old Style', 'Palatino Linotype',
+                'Palatino', 'Georgia', serif;
+
+  /* Escala reduzida a pedido do cliente: a anterior (display até 160px)
+     ocupava tela demais. Todos os degraus caíram ~35%, mantendo o contraste
+     de escala entre o rótulo de 12px e o display — que é o que dá o caráter
+     editorial. O rótulo e o corpo quase não mudaram: quem estava grande
+     demais era o topo da escala. */
+  --t-display: clamp(34px, 6.8vw, 96px);
+  --t-h1:      clamp(28px, 4vw, 54px);
+  --t-h2:      clamp(23px, 2.5vw, 38px);
+  --t-h3:      clamp(19px, 1.8vw, 26px);
+  --t-lead:    clamp(17px, 1.3vw, 21px);
+  --t-body:    16px;
+  --t-small:   14px;
+  --t-label:   12px;
+
+  --lh-display: 0.92;
+  --lh-h1:      1.02;
+  --lh-h2:      1.08;
+  --lh-h3:      1.20;
+  --lh-lead:    1.50;
+  --lh-body:    1.62;
+
+  --tr-display: -0.025em;
+  --tr-h1:      -0.02em;
+  --tr-h2:      -0.015em;
+  --tr-h3:      -0.01em;
+  --tr-label:    0.18em;
+
+  --measure: 68ch;   /* medida máxima de leitura */
+
+  /* ------------------------------------------------------------------------
+     GRID E ESPAÇAMENTO (4.3)
+     Passos deliberadamente NÃO uniformes — uniformidade é tell de IA (16).
+     ------------------------------------------------------------------------ */
+  --grid-cols: 12;
+  --grid-gutter: clamp(16px, 1.6vw, 24px);
+  --grid-margin: clamp(20px, 5vw, 80px);
+  --max-width: 1680px;
+
+  --s-1: 8px;
+  --s-2: 16px;
+  --s-3: 24px;
+  --s-4: 40px;
+  --s-5: 64px;
+  --s-6: 96px;
+  --s-7: 144px;
+  --s-8: 200px;
+
+  --s-section: clamp(96px, 15vh, 240px);   /* seções de manifesto: respiro máximo */
+  --s-section-fn: clamp(72px, 9vh, 128px); /* seções funcionais: compactas */
+
+  /* ------------------------------------------------------------------------
+     FORMA (4.7) — regra binária. Nada de raio intermediário.
+     ------------------------------------------------------------------------ */
+  --r-none: 0;
+  --r-pill: 999px;
+  --rule-w: 1px;
+
+  /* ------------------------------------------------------------------------
+     MOVIMENTO (7.2) — espelhado em assets/js/motion.js
+     ------------------------------------------------------------------------ */
+  --d-micro:   0.32s;   /* hover, focus            0,25–0,4s */
+  --d-reveal:  0.85s;   /* revelação de conteúdo   0,7–0,95s */
+  --d-curtain: 1.0s;    /* cortina de menu/página  0,9–1,2s */
+
+  --e-entrada: cubic-bezier(0.16, 1, 0.3, 1);      /* ≈ expo.out */
+  --e-saida:   cubic-bezier(0.55, 0.085, 0.68, 0.53);
+  --e-suave:   cubic-bezier(0.215, 0.61, 0.355, 1); /* ≈ power3.out */
+  --e-cortina: cubic-bezier(0.87, 0, 0.13, 1);      /* ≈ expo.inOut */
+
+  /* ------------------------------------------------------------------------
+     CAMADAS
+     ------------------------------------------------------------------------ */
+  --z-canvas: 0;
+  --z-content: 10;
+  --z-header: 100;
+  --z-menu: 200;
+  --z-transition: 500;
+  --z-grain: 9000;
+  --z-cursor: 10000;
+
+  --header-h: 84px;
+}
+
+/* --------------------------------------------------------------------------
+   INVERSÃO PARA FUNDO CLARO
+   Aplicada na seção Método, Números e Contato. Só reatribui os semânticos —
+   nenhum componente precisa saber em que fundo está.
+   -------------------------------------------------------------------------- */
+.is-light {
+  --c-bg:           var(--c-bone);
+  --c-surface:      var(--c-bone-dim);
+  --c-text:         var(--c-ink-dark);
+  --c-text-muted:   var(--c-ink-dark-m);
+  --c-rule:         rgba(12, 25, 23, 0.14);
+  /* A menta reprova em fundo claro (1,6:1). O acento vira a pétala escura
+     da própria marca: teal #2E615D dá 6,2:1 sobre o off-white. */
+  --c-action:       var(--c-teal);
+  --c-action-hover: var(--c-ink-dark);
+  --c-focus:        var(--c-teal);
+}
+
+@media (max-width: 767px) {
+  :root { --header-h: 68px; }
+}

@@ -1,0 +1,891 @@
+/* ==========================================================================
+   FHL ADVOCACIA — SEÇÕES
+   Narrativa do scroll, seção por seção. Preparação, seção 6.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   6.1 HERÓI
+   -------------------------------------------------------------------------- */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;   /* 100vh quebra com a barra de URL móvel (13) */
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  background: var(--c-petrol);
+}
+.hero__canvas,
+.hero__fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--z-canvas);
+  display: block;
+}
+.hero__fallback { object-fit: cover; }
+.hero__canvas { opacity: 0; transition: opacity 1.2s var(--e-suave); }
+.hero__canvas.is-ready { opacity: 1; }
+
+/* O único gradiente do site inteiro (4.5) */
+.hero__vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 40%,
+              transparent 40%, rgba(10, 22, 20, 0.55) 100%);
+}
+
+.hero__inner {
+  position: relative;
+  z-index: var(--z-content);
+  width: 100%;
+  padding-top: var(--header-h);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.hero__label { margin-bottom: clamp(28px, 5vh, 56px); }
+
+/* O empilhamento de uma palavra por linha FICOU SÓ NO MANIFESTO.
+   No herói o título agora tem oito palavras e vinha ocupando a tela inteira —
+   as palavras correm inline e quebram sozinhas dentro de uma medida curta.
+   A revelação em máscara, palavra a palavra, continua igual. */
+.hero__title {
+  display: block;
+  font-size: clamp(30px, min(5.2vw, 6.4vh), 68px);
+  max-width: 17ch;
+  margin-inline: auto;
+}
+
+.hero__cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3) var(--s-4);
+  margin-top: clamp(28px, 4vh, 48px);
+}
+
+.hero__foot {
+  position: absolute;
+  left: var(--grid-margin);
+  right: var(--grid-margin);
+  bottom: clamp(24px, 5vh, 48px);
+  z-index: var(--z-content);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+.hero__social {
+  display: flex;
+  gap: var(--s-4);
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.hero__scroll {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--c-text-muted);
+}
+.hero__scroll i {
+  display: block;
+  width: 1px; height: 34px;
+  background: linear-gradient(to bottom, var(--c-mint), transparent);
+}
+
+@media (max-width: 767px) {
+  /* O teto é ditado pela PALAVRA MAIS LONGA do título, não pelo gosto:
+     com uma palavra por linha, "CONSEQUÊNCIA" a 13vw mede 386px contra 335px
+     disponíveis num iPhone de 375px — e como a máscara recorta, a palavra
+     era cortada sem nem gerar barra de rolagem. A 10.5vw ela cabe, inclusive
+     num aparelho de 320px. */
+  .hero__title { font-size: clamp(23px, 6.6vw, 32px); max-width: none; }
+  .hero__cta { gap: var(--s-2) var(--s-3); }
+  .hero__foot { flex-direction: column; align-items: flex-start; }
+  .hero__scroll { display: none; }
+}
+
+/* --------------------------------------------------------------------------
+   6.2 MANIFESTO
+   -------------------------------------------------------------------------- */
+.manifesto { background: var(--c-abyss); overflow: hidden; }
+.manifesto__inner { position: relative; z-index: var(--z-content); }
+.manifesto__title { margin-block: var(--s-4) var(--s-6); }
+.manifesto__title .word-mask { display: block; }
+.manifesto__aside {
+  grid-column: 7 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-4);
+}
+
+@media (max-width: 900px) {
+  .manifesto__aside { grid-column: 1 / -1; }
+}
+
+/* --------------------------------------------------------------------------
+   6.3 ATUAÇÃO — seção com pin (300vh)
+   -------------------------------------------------------------------------- */
+.atuacao { background: var(--c-petrol); position: relative; }
+.atuacao__sticky {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  padding-block: var(--s-6);
+}
+.atuacao__head { margin-bottom: var(--s-6); }
+
+.atuacao__index { grid-column: 1 / span 5; }
+.atuacao__list li + li { margin-top: var(--s-1); }
+
+.atuacao__item {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  width: 100%;
+  text-align: left;
+  padding: var(--s-2) 0 var(--s-2) 0;
+  color: var(--c-text);
+  text-decoration: none;
+  opacity: 0.35;
+  transition: opacity 0.5s var(--e-suave), transform 0.3s var(--e-suave);
+}
+.atuacao__item:hover { opacity: 0.7; transform: translateX(6px); }
+.atuacao__item.is-active { opacity: 1; transform: none; }
+
+/* Filete de menta que cresce à esquerda do item ativo */
+.atuacao__item::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 50%;
+  width: 12px; height: 1px;
+  background: var(--c-mint);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.5s var(--e-cortina);
+}
+.atuacao__item.is-active::before { transform: scaleX(1); }
+
+.atuacao__num {
+  font-family: var(--font-serif);
+  font-size: var(--t-small);
+  color: var(--c-mint);
+  flex: 0 0 auto;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.atuacao__name {
+  font-size: clamp(17px, 1.8vw, 26px);
+  line-height: 1.15;
+  font-weight: 500;
+  letter-spacing: var(--tr-h3);
+  text-transform: uppercase;
+}
+
+.atuacao__progress {
+  margin-top: var(--s-4);
+  height: 1px;
+  background: var(--c-rule);
+  position: relative;
+}
+.atuacao__progress i {
+  position: absolute;
+  inset: 0;
+  background: var(--c-mint);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+/* Painel de conteúdo à direita */
+.atuacao__panels {
+  grid-column: 7 / -1;
+  position: relative;
+  min-height: 340px;
+}
+.atuacao__panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-3);
+  clip-path: inset(0 0 100% 0);
+  pointer-events: none;
+}
+.atuacao__panel.is-active { clip-path: inset(0 0 0% 0); pointer-events: auto; }
+.atuacao__panel-title { color: var(--c-text); }
+.atuacao__panel-text { color: var(--c-text-muted); max-width: 44ch; }
+
+@media (max-width: 900px) {
+  /* Pin desligado em mobile: vira pilha vertical (6.3) */
+  .atuacao__sticky { min-height: 0; display: block; padding-block: 0; }
+  .atuacao__index, .atuacao__panels { grid-column: 1 / -1; }
+  .atuacao__panels { position: static; min-height: 0; }
+  .atuacao__panel {
+    position: static;
+    clip-path: none;
+    pointer-events: auto;
+    padding: var(--s-3) 0 var(--s-5);
+    border-bottom: 1px solid var(--c-rule);
+  }
+  .atuacao__index { display: none; }
+  .atuacao__panel-title { margin-bottom: var(--s-1); }
+}
+
+/* --------------------------------------------------------------------------
+   6.4 MÉTODO — primeira quebra de luz do site
+   -------------------------------------------------------------------------- */
+.metodo {
+  background: var(--c-bone);
+  color: var(--c-ink-dark);
+  /* Método e Números são um só bloco claro. Com o padding cheio das duas
+     seções sobrava um vão de 200px de branco puro entre a última etapa e o
+     primeiro numeral — espaço vazio sem função. */
+  padding-bottom: var(--s-5);
+}
+.metodo__head { margin-bottom: var(--s-6); }
+
+.metodo__step {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(72px, 0.8fr) minmax(0, 3fr) minmax(0, 6fr);
+  gap: var(--s-4);
+  align-items: baseline;
+  padding: var(--s-4) var(--s-3);
+  border-top: 1px solid var(--c-rule);
+  transition: background-color 0.4s var(--e-suave);
+}
+.metodo__step:last-child { border-bottom: 1px solid var(--c-rule); }
+.metodo__step:hover { background: var(--c-bone-dim); }
+
+.metodo__num {
+  font-family: var(--font-serif);
+  font-size: clamp(26px, 3vw, 46px);
+  color: var(--c-teal);
+  line-height: 0.9;
+  transition: transform 0.4s var(--e-suave);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.metodo__step:hover .metodo__num { transform: translateX(8px); }
+.metodo__title { text-transform: uppercase; letter-spacing: var(--tr-h3); }
+.metodo__text { color: var(--c-ink-dark-m); max-width: 52ch; }
+
+@media (max-width: 767px) {
+  .metodo__step {
+    grid-template-columns: 1fr;
+    gap: var(--s-2);
+    padding-inline: 0;
+  }
+  .metodo__step:hover { background: transparent; }
+}
+
+/* --------------------------------------------------------------------------
+   6.5 NÚMEROS INSTITUCIONAIS
+   Conformidade OAB (3.3): nada aqui se refere a resultado obtido em processo.
+   Não adicionar "% de êxito", "causas ganhas" ou "valores recuperados"
+   em nenhuma circunstância — Provimento 205/2021, Art. 4, §2.
+   -------------------------------------------------------------------------- */
+.numeros { background: var(--c-bone); color: var(--c-ink-dark); }
+.numeros__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-5) var(--grid-gutter);
+  border-top: 1px solid var(--c-rule);
+  padding-top: var(--s-5);
+}
+.numeros__value {
+  font-family: var(--font-serif);
+  font-size: clamp(40px, 5.5vw, 82px);
+  line-height: 0.92;
+  color: var(--c-ink-dark);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.numeros__label {
+  margin-top: var(--s-2);
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--c-teal);
+  line-height: 1.5;
+}
+.numeros__note {
+  margin-top: var(--s-5);
+  font-size: var(--t-small);
+  color: var(--c-ink-dark-m);
+  max-width: 60ch;
+}
+
+@media (max-width: 767px) {
+  .numeros__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* --------------------------------------------------------------------------
+   6.6 LINGUAGEM — o clímax
+   Substitui a parede de depoimentos da referência, que seria vedada
+   pelo Art. 3, IV e Art. 4, §2 do Provimento 205/2021.
+   -------------------------------------------------------------------------- */
+.linguagem { background: var(--c-petrol); position: relative; overflow: hidden; }
+.linguagem__sticky {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  padding-block: var(--s-6);
+}
+.linguagem__inner { position: relative; z-index: var(--z-content); width: 100%; }
+
+/* Ao contrário do herói e do manifesto, ESTE título NÃO empilha uma palavra
+   por linha: são 11 palavras, e a seção tem pin de 100vh. As palavras correm
+   inline e quebram naturalmente dentro de uma medida curta. */
+.linguagem__title {
+  margin-block: var(--s-3) var(--s-5);
+  max-width: 16ch;
+  font-size: clamp(24px, min(3.4vw, 5.4vh), 46px);
+  line-height: 1.03;
+}
+
+.linguagem__doc {
+  grid-column: 7 / -1;
+  align-self: center;
+  background: var(--c-petrol-up);
+  border-left: 2px solid var(--c-mint);
+  padding: var(--s-5) var(--s-4);
+  font-size: clamp(16px, 1.2vw, 19px);
+  line-height: 2.1;   /* respiro: as trocas acontecem entre as linhas */
+  max-width: 62ch;
+}
+.linguagem__doc p { margin: 0; }
+.linguagem__doc-label {
+  display: block;
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  color: var(--c-text-muted);
+  margin-bottom: var(--s-3);
+}
+
+/* Cada expressão trocada durante o scrub.
+   A largura do .term é fixada por JS em max(antigo, novo) para que a troca
+   anime SOMENTE transform e opacity — a regra de performance da preparação
+   (11.8) proíbe animar width/height em scrub. O leve respiro em volta do
+   termo trocado lê como campo de formulário, o que combina com o tema. */
+.term {
+  position: relative;
+  display: inline-block;
+  vertical-align: baseline;
+  white-space: nowrap;
+}
+.term__old {
+  position: relative;   /* o risco mede o TEXTO ANTIGO, não a caixa fixa */
+  display: inline-block;
+  will-change: opacity, filter;
+}
+.term__new {
+  position: absolute;
+  left: 0; top: 0;
+  opacity: 0;
+  color: var(--c-mint-hi);
+  transform: translateY(0.6em);
+  white-space: nowrap;
+  will-change: transform, opacity;
+}
+/* risco em menta que varre o termo antigo.
+   Fica dentro de .term__old: se ficasse no .term herdaria a largura fixa
+   (max entre antigo e novo) e se estenderia para além do texto riscado. */
+.term__strike {
+  position: absolute;
+  left: 0; top: 52%;
+  width: 100%; height: 1px;
+  background: var(--c-mint);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.term__underline {
+  position: absolute;
+  left: 0; bottom: -2px;
+  width: 100%; height: 1px;
+  background: var(--c-mint);
+  opacity: 0;
+  transform-origin: left;
+}
+
+/* Sob movimento reduzido mostramos o texto já traduzido, e o original
+   fica disponível no <details> ao lado (Preparação 12). */
+@media (prefers-reduced-motion: reduce) {
+  .term { white-space: normal; }
+  .term__old, .term__strike, .term__underline { display: none; }
+  .term__new { position: static; opacity: 1; transform: none; }
+}
+
+.linguagem__coda {
+  padding-bottom: var(--s-section);
+  padding-top: var(--s-5);
+}
+.linguagem__coda .lead { max-width: 56ch; margin-left: auto; }
+
+@media (max-width: 900px) {
+  .linguagem__sticky { min-height: 0; display: block; padding-bottom: var(--s-4); }
+  .linguagem__doc { grid-column: 1 / -1; margin-top: var(--s-4); }
+  .linguagem__title { max-width: none; }
+  .linguagem__coda .lead { margin-left: 0; }
+  .linguagem__inner > .grid > div:first-child { grid-column: 1 / -1 !important; }
+}
+
+/* --------------------------------------------------------------------------
+   6.7 EQUIPE
+   -------------------------------------------------------------------------- */
+.equipe { background: var(--c-abyss); }
+.equipe__head { margin-bottom: var(--s-6); }
+.equipe__grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-5) var(--grid-gutter);
+  align-items: start;
+}
+.equipe__card { text-decoration: none; display: block; }
+.equipe__media {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4 / 5;
+  background: var(--c-petrol-up);
+}
+.equipe__media img,
+.equipe__media .equipe__avatar,
+.equipe__media .equipe__ph {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  filter: saturate(0.35);
+  transform: scale(1);
+  transition: filter 0.5s var(--e-suave), transform 0.6s var(--e-suave);
+}
+.equipe__card:hover .equipe__media img,
+.equipe__card:hover .equipe__avatar,
+.equipe__card:hover .equipe__ph {
+  filter: saturate(0.8);
+  transform: scale(1.03);
+}
+/* Silhueta 2D sobre fundo quase preto — placeholder até o ensaio fotográfico
+   existir. Não recebe o tratamento de saturação: não há foto para dessaturar. */
+.equipe__avatar {
+  filter: none !important;
+  transform: none !important;
+  object-fit: cover;
+}
+
+/* Placeholder de iniciais (mantido para retrocompatibilidade) */
+.equipe__ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(34px, 4vw, 60px);
+  font-weight: 700;
+  color: var(--c-petrol-ln);
+  background: var(--c-petrol-up);
+  letter-spacing: -0.03em;
+}
+.equipe__name {
+  margin-top: var(--s-3);
+  position: relative;
+  display: inline-block;
+  text-transform: uppercase;
+  letter-spacing: var(--tr-h3);
+}
+.equipe__name::after {
+  content: '';
+  position: absolute;
+  left: 0; bottom: -4px;
+  width: 100%; height: 1px;
+  background: var(--c-mint);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.45s var(--e-cortina);
+}
+.equipe__card:hover .equipe__name::after { transform: scaleX(1); }
+
+/* Inscrição na OAB em pílula. O raio 999px é permitido pela regra binária
+   de forma (4.7) — é a mesma família do botão primário. */
+.equipe__full {
+  margin-top: 4px;
+  font-size: var(--t-small);
+  color: var(--c-text-muted);
+  line-height: 1.35;
+}
+.equipe__oab {
+  display: inline-block;
+  margin-top: var(--s-2);
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  border: 1px solid color-mix(in srgb, var(--c-mint) 32%, transparent);
+  background: color-mix(in srgb, var(--c-mint) 12%, transparent);
+  color: var(--c-mint);
+  font-size: var(--t-label);
+  letter-spacing: 0.08em;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.equipe__rule {
+  height: 1px;
+  border: 0;
+  margin: var(--s-3) 0;
+  background: var(--c-rule);
+}
+
+.equipe__block + .equipe__block { margin-top: var(--s-3); }
+.equipe__block-label {
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--c-mint);
+  margin-bottom: var(--s-1);
+}
+.equipe__block-text {
+  font-size: var(--t-small);
+  line-height: 1.6;
+  color: var(--c-text-muted);
+}
+
+@media (max-width: 1100px) { .equipe__grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) {
+  .equipe__grid { grid-template-columns: 1fr; }
+  /* Sem hover em toque: o estado tratado vira o padrão (13) */
+  .equipe__media img, .equipe__ph { filter: saturate(0.7); }
+}
+
+/* --------------------------------------------------------------------------
+   6.8 PUBLICAÇÕES
+   -------------------------------------------------------------------------- */
+.publicacoes { background: var(--c-petrol); }
+.publicacoes__head { margin-bottom: var(--s-5); }
+.post {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(0, 7fr) minmax(0, 3fr);
+  gap: var(--s-4);
+  align-items: baseline;
+  padding: var(--s-4) 0;
+  border-top: 1px solid var(--c-rule);
+  text-decoration: none;
+  transition: padding 0.4s var(--e-suave);
+}
+.post:last-of-type { border-bottom: 1px solid var(--c-rule); }
+.post:hover { padding-block: calc(var(--s-4) + 8px); }
+.post__date {
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  color: var(--c-text-muted);
+}
+.post__title {
+  font-size: clamp(17px, 1.5vw, 22px);
+  line-height: 1.25;
+  font-weight: 500;
+  transition: transform 0.4s var(--e-suave);
+}
+.post:hover .post__title { transform: translateX(12px); }
+.post__area {
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  color: var(--c-mint);
+  text-align: right;
+}
+
+/* Miniatura que segue o cursor — a interação de hover mais rica do site (6.8) */
+.post-thumb {
+  position: fixed;
+  top: 0; left: 0;
+  z-index: 300;
+  width: 120px; height: 160px;
+  pointer-events: none;
+  opacity: 0;
+  overflow: hidden;
+  background: var(--c-petrol-up);
+  border: 1px solid var(--c-petrol-ln);
+  will-change: transform, opacity;
+}
+.post-thumb__art {
+  width: 100%; height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 46px;
+  font-weight: 700;
+  color: var(--c-mint);
+  opacity: 0.5;
+}
+
+@media (max-width: 767px) {
+  .post {
+    grid-template-columns: 1fr;
+    gap: var(--s-1);
+  }
+  .post:hover { padding-block: var(--s-4); }
+  .post:hover .post__title { transform: none; }
+  .post__area { text-align: left; }
+  .post-thumb { display: none; }
+}
+
+/* --------------------------------------------------------------------------
+   6.9 CONTATO — o site termina na luz
+   -------------------------------------------------------------------------- */
+.contato { background: var(--c-bone); color: var(--c-ink-dark); }
+.contato__title {
+  margin-bottom: var(--s-3);
+  /* Sem empilhar uma palavra por linha: "Fale com o escritório" ocupava
+     quatro linhas de display e empurrava os canais de contato para baixo —
+     justamente o que se queria trazer para cima. */
+  font-size: clamp(30px, min(5vw, 6.4vh), 64px);
+  max-width: 16ch;
+}
+.contato__intro { margin-bottom: var(--s-2); max-width: 52ch; }
+.contato__form { grid-column: 1 / span 7; }
+.contato__aside { grid-column: 9 / -1; }
+.contato__fields { display: grid; gap: var(--s-4); }
+.contato__row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); }
+.contato__submit { margin-top: var(--s-5); }
+.contato__info + .contato__info { margin-top: var(--s-4); }
+
+@media (max-width: 900px) {
+  .contato__form, .contato__aside { grid-column: 1 / -1; }
+  .contato__aside { margin-top: var(--s-6); }
+  .contato__row { grid-template-columns: 1fr; }
+}
+
+/* --------------------------------------------------------------------------
+   PÁGINAS INTERNAS
+   -------------------------------------------------------------------------- */
+.page-head {
+  padding-top: calc(var(--header-h) + var(--s-7));
+  padding-bottom: var(--s-6);
+  background: var(--c-petrol);
+  position: relative;
+  overflow: hidden;
+}
+.page-head__inner { position: relative; z-index: var(--z-content); }
+
+/* Ao contrário do herói, aqui as palavras NÃO empilham uma por linha: os
+   títulos internos são frases de 5 a 9 palavras e, na escala display,
+   viravam uma parede de sete linhas. Correm inline e quebram sozinhas. */
+.page-head__title {
+  margin-block: var(--s-3) var(--s-4);
+  font-size: clamp(26px, min(3.8vw, 6vh), 50px);
+  line-height: 1.04;
+  max-width: 18ch;
+}
+
+/* Título de artigo: caixa normal. Uma manchete de nove palavras em caixa
+   alta com tracking negativo é ilegível — e artigo é para ler, não para
+   impressionar. */
+.page-head__title--article {
+  text-transform: none;
+  letter-spacing: -0.015em;
+  font-size: clamp(23px, 2.8vw, 38px);
+  line-height: 1.12;
+  max-width: 22ch;
+}
+
+.prose { max-width: 68ch; }
+.prose > * + * { margin-top: var(--s-3); }
+.prose h2 {
+  font-size: var(--t-h3);
+  text-transform: uppercase;
+  letter-spacing: var(--tr-h3);
+  font-weight: 500;
+  margin-top: var(--s-5);
+}
+.prose h3 { font-size: 20px; font-weight: 500; margin-top: var(--s-4); }
+.prose ul { padding-left: 1.1em; list-style: disc; }
+.prose li + li { margin-top: var(--s-1); }
+.prose a { color: var(--c-action); }
+.prose strong { font-weight: 500; }
+
+/* Corpo de artigo: serifada em papel restrito (4.2) */
+.article-body {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  line-height: 1.72;
+  max-width: 66ch;
+}
+.article-body > * + * { margin-top: var(--s-3); }
+.article-body h2 {
+  font-family: var(--font-sans);
+  font-size: var(--t-h3);
+  text-transform: uppercase;
+  letter-spacing: var(--tr-h3);
+  font-weight: 500;
+  margin-top: var(--s-5);
+}
+.article-body em { font-style: italic; }
+.article-body ul { padding-left: 1.1em; list-style: disc; }
+
+.pullquote {
+  font-family: var(--font-serif);
+  font-size: clamp(20px, 2.2vw, 30px);
+  line-height: 1.3;
+  color: var(--c-mint);
+  border-left: 2px solid var(--c-mint);
+  padding-left: var(--s-4);
+  margin-block: var(--s-5);
+  max-width: 24ch;
+}
+
+.article-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  color: var(--c-text-muted);
+  padding-bottom: var(--s-4);
+  border-bottom: 1px solid var(--c-rule);
+  margin-bottom: var(--s-5);
+}
+
+/* Índice de áreas (/atuacao) e de publicações */
+.index-list { border-top: 1px solid var(--c-rule); }
+.index-item {
+  display: grid;
+  grid-template-columns: minmax(60px, 0.6fr) minmax(0, 4fr) minmax(0, 6fr) auto;
+  gap: var(--s-4);
+  align-items: baseline;
+  padding: var(--s-4) 0;
+  border-bottom: 1px solid var(--c-rule);
+  text-decoration: none;
+  transition: background-color 0.4s var(--e-suave);
+}
+.index-item:hover { background: color-mix(in srgb, var(--c-mint) 6%, transparent); }
+.index-item__num {
+  font-family: var(--font-serif);
+  color: var(--c-mint);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.index-item__title {
+  font-size: clamp(17px, 1.7vw, 24px);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: var(--tr-h3);
+  transition: transform 0.4s var(--e-suave);
+}
+.index-item:hover .index-item__title { transform: translateX(10px); }
+.index-item__text { color: var(--c-text-muted); }
+
+@media (max-width: 900px) {
+  .index-item { grid-template-columns: 1fr; gap: var(--s-2); }
+  .index-item:hover .index-item__title { transform: none; }
+}
+
+/* Bloco de próxima etapa no fim das páginas internas */
+.next-block {
+  background: var(--c-abyss);
+  padding-block: var(--s-7);
+  text-align: center;
+}
+.next-block .display { margin-bottom: var(--s-4); }
+
+/* 404 */
+.notfound {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  text-align: center;
+  background: var(--c-petrol);
+}
+
+/* --------------------------------------------------------------------------
+   LOCALIZAÇÃO
+   -------------------------------------------------------------------------- */
+.local { background: var(--c-abyss); }
+
+.local__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 4fr) minmax(0, 7fr);
+  gap: var(--s-5) var(--s-6);
+  align-items: start;
+  margin-top: var(--s-6);
+}
+
+.local__row + .local__row { margin-top: var(--s-4); }
+.local__value {
+  margin-top: var(--s-1);
+  font-size: var(--t-lead);
+  line-height: 1.5;
+}
+
+.local__map {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: var(--c-petrol-up);
+  border: 1px solid var(--c-rule);
+  overflow: hidden;
+}
+
+.local__map-ph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  text-align: center;
+  padding: var(--s-4);
+}
+.local__pin { width: 34px; height: 34px; color: var(--c-mint); }
+.local__map-addr {
+  font-size: var(--t-lead);
+  line-height: 1.45;
+  margin-bottom: var(--s-2);
+}
+.local__map-note {
+  font-size: var(--t-small);
+  color: var(--c-text-muted);
+  max-width: 42ch;
+  margin-top: var(--s-2);
+}
+
+/* O mapa do Google chega claro e azul. Invertido e dessaturado vira um mapa
+   escuro; a camada de teal por cima, em mix-blend-mode, puxa tudo para o
+   verde da marca em vez de deixar um cinza neutro no meio do site. */
+.local__map iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  filter: invert(0.92) grayscale(0.86) contrast(0.92) brightness(0.96);
+}
+.local__map.is-loaded::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--c-teal);
+  mix-blend-mode: color;
+  opacity: 0.55;
+}
+.local__map.is-loaded .local__map-ph { display: none; }
+
+@media (max-width: 900px) {
+  .local__grid { grid-template-columns: 1fr; gap: var(--s-5); }
+  .local__map { aspect-ratio: 4 / 3; }
+}
