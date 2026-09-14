@@ -1,15 +1,18 @@
-// Blocos de contato compartilhados entre a home (#contato) e contato.html.
+// Blocos de contato compartilhados entre a home (#contato), contato.html e as
+// páginas de campanha.
 //
 // CANAIS DIRETOS
 // O cliente reclamou que o contato ficava "lá embaixo, no último". Este bloco
 // põe os canais reais na frente — clicáveis, com o valor visível, antes do
 // formulário. Quem quer falar agora não precisa preencher nada.
 
-import { CIDADE, EMAIL, ENDERECO, MAPS, TEL, TEL_HREF, WHATS } from '../data/site.mjs';
+import { CIDADE, EMAIL, ENDERECO, MAPS, TEL, TEL_HREF, whatsappUrl } from '../data/site.mjs';
+import { attr, prefix } from '../lib/html.mjs';
 
-export function canaisDiretos() {
+/** `whatsapp` pré-preenche a mensagem — as campanhas usam para dizer de onde o contato veio. */
+export function canaisDiretos({ whatsapp = '' } = {}) {
   return `      <div class="contato__direct" data-reveal="rise-group">
-        <a class="channel r-rise" href="https://wa.me/${WHATS}" target="_blank" rel="noopener noreferrer">
+        <a class="channel r-rise" href="${whatsappUrl(whatsapp)}" target="_blank" rel="noopener noreferrer">
           <span class="channel__label">WhatsApp</span>
           <span class="channel__value">${TEL}</span>
           <span class="channel__note">O caminho mais rápido</span>
@@ -32,10 +35,17 @@ export function canaisDiretos() {
       </div>`;
 }
 
-// O formulário só existe em páginas na raiz (home e contato.html), por isso o
-// link da política vai sem prefixo. Se um dia ele for para uma subpágina,
-// transforme isto numa função que receba `depth`.
-export const CONTATO_FORM = `        <div class="contato__form">
+// O formulário existe na raiz (home, contato.html) e em campanhas/, daí o
+// `depth` para o link da política de privacidade.
+//
+// `campanha` vai num campo oculto do formulário: quando ele for ligado a um
+// backend, o contato já chega dizendo de qual campanha veio.
+export function contatoForm({ depth = 0, campanha = '' } = {}) {
+  const origem = campanha
+    ? `\n\n              <input type="hidden" name="campanha" value="${attr(campanha)}">`
+    : '';
+
+  return `        <div class="contato__form">
           <p class="lead" data-reveal="rise" style="margin-bottom:var(--s-5)">
             Descreva sua situação. Respondemos em até um dia útil.
           </p>
@@ -82,13 +92,13 @@ export const CONTATO_FORM = `        <div class="contato__form">
               <div class="hp" aria-hidden="true">
                 <label for="website">Não preencha este campo</label>
                 <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
-              </div>
+              </div>${origem}
 
               <label class="consent">
                 <input type="checkbox" name="consent" value="1">
                 <span>Autorizo o contato e o tratamento dos meus dados para essa
                 finalidade, nos termos da
-                <a href="politica-de-privacidade.html">Política de Privacidade</a>.</span>
+                <a href="${prefix(depth)}politica-de-privacidade.html">Política de Privacidade</a>.</span>
               </label>
             </div>
 
@@ -100,3 +110,4 @@ export const CONTATO_FORM = `        <div class="contato__form">
             </div>
           </form>
         </div>`;
+}

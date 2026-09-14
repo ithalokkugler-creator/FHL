@@ -889,3 +889,289 @@
   .local__grid { grid-template-columns: 1fr; gap: var(--s-5); }
   .local__map { aspect-ratio: 4 / 3; }
 }
+
+/* --------------------------------------------------------------------------
+   CARTÃO DE POST DE REDE SOCIAL — dentro do artigo
+   Não é o embed oficial: o do Instagram carrega script e cookies da Meta
+   assim que a página abre. O cartão é HTML do próprio site, com a imagem
+   hospedada aqui, e nada de terceiros carrega até o clique.
+   -------------------------------------------------------------------------- */
+.article-body > .social-card { margin-block: var(--s-5); }
+
+.social-card__link {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  border: 1px solid var(--c-rule);
+  background: var(--c-surface);
+  color: var(--c-text);
+  font-family: var(--font-sans);
+  text-decoration: none;
+  transition: border-color 0.4s var(--e-suave);
+}
+.social-card__link:hover,
+.social-card__link:focus-visible { border-color: var(--c-action); }
+
+.social-card__media {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: var(--c-abyss);
+}
+.social-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s var(--e-suave);
+}
+.social-card__link:hover .social-card__media img { transform: scale(1.03); }
+
+/* Reels e vídeos: o play avisa que é vídeo antes do clique. */
+.social-card__play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 64px;
+  height: 64px;
+  margin: -32px 0 0 -32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--c-ink) 45%, transparent);
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--c-abyss) 55%, transparent);
+  color: var(--c-ink);
+}
+.social-card__play svg { width: 26px; height: 26px; margin-left: 3px; }
+
+.social-card__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-4);
+}
+.social-card__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--c-action);
+}
+.social-card__icon { width: 20px; height: 20px; flex: 0 0 auto; }
+.social-card__caption {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  overflow: hidden;
+  font-size: var(--t-body);
+  line-height: 1.55;
+  color: var(--c-text-muted);
+}
+.social-card__body .link-arrow { margin-top: auto; }
+.social-card__link:hover .link-arrow svg,
+.social-card__link:focus-visible .link-arrow svg { transform: translateX(6px); }
+
+@media (max-width: 600px) {
+  .social-card__link { grid-template-columns: 1fr; }
+  /* Empilhado, a arte aparece inteira; só uma imagem muito alta (story,
+     9:16) é recortada, para não ocupar a tela toda. */
+  .social-card__media img { max-height: 440px; }
+  .social-card__body { padding: var(--s-3); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .social-card__link:hover .social-card__media img { transform: none; }
+}
+
+/* --------------------------------------------------------------------------
+   CAMPANHAS — campanhas/*.html
+   -------------------------------------------------------------------------- */
+.campanha-hero__title { max-width: 20ch; }
+.campanha-hero__cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3) var(--s-4);
+  margin-top: var(--s-5);
+}
+.campanha-hero__note {
+  margin-top: var(--s-4);
+  font-size: var(--t-small);
+  color: var(--c-text-muted);
+}
+
+/* Campanha encerrada. Vinho, o acento quente da marca: avisa sem alarmar. */
+.campanha-aviso {
+  max-width: 62ch;
+  margin-bottom: var(--s-5);
+  padding: var(--s-3) var(--s-4);
+  border-left: 2px solid var(--c-wine-hi);
+  background: color-mix(in srgb, var(--c-wine) 24%, transparent);
+  font-size: var(--t-small);
+}
+
+.campanha__side { grid-column: 1 / span 5; }
+.campanha__main { grid-column: 7 / -1; }
+.campanha__h2 { margin-top: var(--s-3); max-width: 22ch; }
+.campanha__h2 + .campanha-cards,
+.campanha__h2 + .campanha-steps { margin-top: var(--s-5); }
+.campanha__nota {
+  margin-top: var(--s-3);
+  font-size: var(--t-small);
+  color: var(--c-text-muted);
+}
+
+/* Lista com marca de verificação: situações e documentos */
+.checklist li {
+  position: relative;
+  padding: var(--s-2) 0 var(--s-2) 40px;
+  border-bottom: 1px solid var(--c-rule);
+  font-size: var(--t-lead);
+  line-height: 1.45;
+}
+.checklist li:first-child { border-top: 1px solid var(--c-rule); }
+.checklist li::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--s-2) + 0.45em);
+  left: 4px;
+  width: 15px;
+  height: 8px;
+  border-left: 2px solid var(--c-action);
+  border-bottom: 2px solid var(--c-action);
+  transform: rotate(-45deg);
+}
+.checklist--doc li { font-size: var(--t-body); }
+.checklist--doc li::before {
+  top: calc(var(--s-2) + 0.5em);
+  width: 7px;
+  height: 7px;
+  border: 0;
+  background: var(--c-action);
+  transform: none;
+}
+
+.campanha-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--s-5);
+  border-top: 1px solid var(--c-rule);
+}
+.campanha-card {
+  padding-block: var(--s-4);
+  border-bottom: 1px solid var(--c-rule);
+}
+.campanha-card__title {
+  text-transform: uppercase;
+  letter-spacing: var(--tr-h3);
+}
+.campanha-card__text {
+  margin-top: var(--s-2);
+  max-width: 52ch;
+  color: var(--c-text-muted);
+}
+
+.campanha-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-4) var(--grid-gutter);
+}
+.campanha-step {
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--c-rule);
+}
+.campanha-step__num {
+  display: block;
+  font-size: clamp(26px, 3vw, 46px);
+  color: var(--c-action);
+}
+.campanha-step__title {
+  margin-top: var(--s-3);
+  text-transform: uppercase;
+  letter-spacing: var(--tr-h3);
+}
+.campanha-step__text {
+  margin-top: var(--s-2);
+  font-size: var(--t-small);
+  line-height: 1.6;
+  color: var(--c-text-muted);
+}
+
+.campanha-docs { background: var(--c-abyss); }
+.campanha-prazo {
+  margin-top: var(--s-4);
+  max-width: 46ch;
+  padding: var(--s-3) var(--s-4);
+  border-left: 2px solid var(--c-action);
+  background: var(--c-surface);
+}
+
+/* Perguntas frequentes — <details> nativo: abre sem JS e pelo teclado. */
+.faq { border-top: 1px solid var(--c-rule); }
+.faq__item { border-bottom: 1px solid var(--c-rule); }
+.faq__q {
+  position: relative;
+  display: block;
+  padding: var(--s-3) 48px var(--s-3) 0;
+  font-size: clamp(17px, 1.4vw, 20px);
+  font-weight: 500;
+  line-height: 1.35;
+  list-style: none;
+  cursor: pointer;
+}
+.faq__q::-webkit-details-marker { display: none; }
+/* o "+" que vira "−" */
+.faq__q::before,
+.faq__q::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  width: 16px;
+  height: 2px;
+  background: var(--c-action);
+  transition: transform 0.35s var(--e-suave);
+}
+.faq__q::after { transform: rotate(90deg); }
+.faq__item[open] .faq__q::after { transform: rotate(0deg); }
+.faq__a {
+  max-width: 62ch;
+  padding-bottom: var(--s-4);
+  color: var(--c-text-muted);
+}
+
+/* Chamada da campanha na página da área */
+.campanha-callout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  padding: var(--s-5) var(--s-4);
+  border: 1px solid var(--c-rule);
+  border-left: 2px solid var(--c-action);
+  color: var(--c-text);
+  text-decoration: none;
+  transition: background-color 0.4s var(--e-suave);
+}
+.campanha-callout:hover,
+.campanha-callout:focus-visible { background: color-mix(in srgb, var(--c-action) 6%, transparent); }
+.campanha-callout__title { text-transform: uppercase; letter-spacing: var(--tr-h3); }
+.campanha-callout__text { max-width: 60ch; color: var(--c-text-muted); }
+.campanha-callout:hover .link-arrow svg,
+.campanha-callout:focus-visible .link-arrow svg { transform: translateX(6px); }
+
+/* Chegando por âncora, o header fixo cobria o começo da seção de contato. */
+#contato { scroll-margin-top: var(--header-h); }
+
+@media (max-width: 900px) {
+  .campanha__side,
+  .campanha__main { grid-column: 1 / -1; }
+  .campanha__main { margin-top: var(--s-4); }
+  .campanha-cards { grid-template-columns: 1fr; }
+  .campanha-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .campanha-steps { grid-template-columns: 1fr; }
+}

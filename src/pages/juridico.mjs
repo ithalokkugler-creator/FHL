@@ -143,5 +143,6 @@ export function build404() {
     title: 'Página não encontrada — FHL Advocacia',
     desc: 'O endereço que você acessou não existe mais.',
     body,
+    noindex: true,
   });
 }

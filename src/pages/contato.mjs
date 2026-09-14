@@ -1,6 +1,6 @@
 import { CIDADE, EMAIL, ENDERECO, OAB, TEL, TEL_HREF } from '../data/site.mjs';
 import { page } from '../lib/html.mjs';
-import { CONTATO_FORM, canaisDiretos } from '../partials/contato.mjs';
+import { canaisDiretos, contatoForm } from '../partials/contato.mjs';
 
 export function buildContato() {
   const body = `  <section class="section contato is-light" style="padding-top:calc(var(--header-h) + var(--s-7))">
@@ -14,7 +14,7 @@ export function buildContato() {
 ${canaisDiretos()}
 
       <div class="grid">
-${CONTATO_FORM}
+${contatoForm()}
 
         <aside class="contato__aside" data-reveal="rise-group">
           <div class="contato__info r-rise">

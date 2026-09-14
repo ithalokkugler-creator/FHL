@@ -2,14 +2,24 @@
 //
 // `corpo` é uma lista de blocos [tipo, valor]. Tipos aceitos pelo renderizador
 // em src/pages/publicacoes.mjs:
-//   'p'   parágrafo
-//   'h2'  subtítulo
-//   'pq'  pullquote (blockquote destacado)
-//   'ul'  lista — valor é um array de itens (HTML inline permitido)
+//   'p'          parágrafo
+//   'h2'         subtítulo
+//   'pq'         pullquote (blockquote destacado)
+//   'ul'         lista — valor é um array de itens (HTML inline permitido)
+//   'instagram'  cartão com a prévia de um post e o link para ele. Também
+//   'facebook'   existem com o mesmo formato. Valor é um objeto:
+//   'linkedin'     url      link do post
+//                  imagem   arquivo em assets/img/publicacoes/. Salve a
+//                           imagem do post ali: o endereço da imagem dentro
+//                           do Instagram muda e expira, e o cartão quebraria
+//                  legenda  texto curto (aparece com no máximo 5 linhas)
+//                  video    true em Reels e vídeos — mostra o ícone de play
+//                  alt      descrição da imagem (opcional)
 //
 // Para publicar um artigo novo: acrescente um objeto no topo deste array e
 // rode `npm run build`. A página, o índice, os "continue lendo" das outras
-// publicações e o sitemap se atualizam sozinhos.
+// publicações e o sitemap se atualizam sozinhos. Rode também `npm run og`,
+// que gera a imagem da prévia quando o link do artigo é compartilhado.
 
 export const POSTS = [
   {
@@ -46,6 +56,16 @@ export const POSTS = [
         '<strong>Atividade:</strong> o quê? Descrever a atividade concorrente ' +
         'vale mais do que proibir genericamente.',
       ]],
+      // [EXEMPLO] trocar url, imagem e legenda pelas do post real.
+      ['instagram', {
+        url: 'https://www.instagram.com/',
+        imagem: 'assets/img/publicacoes/clausula-nao-concorrencia-instagram.png',
+        legenda:
+          'Prazo, território e atividade: as três perguntas que dizem se uma ' +
+          'cláusula de não concorrência se sustenta. Salve para consultar ' +
+          'antes de assinar.',
+        alt: 'Arte do post com as três perguntas sobre a cláusula de não concorrência',
+      }],
       ['p',
         'Há ainda uma quarta questão que costuma decidir a discussão: existe ' +
         'compensação? Uma restrição remunerada é defendida com muito mais ' +

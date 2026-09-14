@@ -165,6 +165,11 @@ p { hyphens: none; text-align: left; }
 
 @media (max-width: 767px) {
   .grid { --grid-cols: 6; }
+  /* As colunas escritas inline nas páginas (grid-column:3 / span 8, 7 / -1)
+     contam com 12 colunas. Na grade de 6 do celular elas criavam colunas
+     implícitas e espremiam o texto num terço da tela — o corpo dos artigos
+     inclusive. Abaixo de 768px, esses blocos ocupam a largura toda. */
+  .grid > [style*="grid-column"] { grid-column: 1 / -1 !important; }
 }
 
 /* --------------------------------------------------------------------------

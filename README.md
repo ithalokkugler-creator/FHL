@@ -25,7 +25,8 @@ regera o site e recarrega o navegador sozinho.
 | `npm run dev -- 3000` | O mesmo, em outra porta |
 | `npm run build` | Gera o site completo em `dist/` |
 | `npm run preview` | Serve `dist/` como está, sem watch — confere o que vai ao ar |
-| `npm run check` | Valida links, âncoras e meta tags de todas as páginas |
+| `npm run check` | Valida links, âncoras, meta tags e SEO de todas as páginas |
+| `npm run og` | Gera as imagens de compartilhamento que faltam (artigos e campanhas) |
 | `npm run clean` | Apaga `dist/` |
 
 O resultado do build são arquivos `.html` comuns: o site **não depende de Node
@@ -46,19 +47,24 @@ sobe é o conteúdo de `dist/` — no Netlify, comando `npm run build` e diretó
 
 ```
 src/
-  data/site.mjs          Marca, endereço, telefone, e-mail, OAB, navegação
+  data/site.mjs          Marca, endereço, telefone, e-mail, OAB, domínio, redes, navegação
   data/areas.mjs         As 4 áreas de atuação
   data/equipe.mjs        Os 4 advogados
   data/posts.mjs         Os artigos das publicações
+  data/campanhas.mjs     As páginas de campanha
   layouts/shell.mjs      O invólucro de TODAS as páginas
   partials/contato.mjs   Canais diretos + formulário
+  partials/institucional.mjs  Método e números (home e escritório)
   lib/html.mjs           pageHead, nextBlock, arrowLink, descritor de página
+  lib/seo.mjs            Canonical, Open Graph, JSON-LD
+  lib/assets.mjs         Existência e dimensões de imagens
   pages/*.mjs            Uma função por página (ou por família de páginas)
 
 scripts/
   build.mjs              Gera dist/
   dev.mjs                Servidor local, watch e live reload
-  check.mjs              Validação de links, âncoras e meta tags
+  check.mjs              Validação de links, âncoras, meta tags e SEO
+  og.mjs                 Imagens de compartilhamento (Chrome/Edge headless)
 
 dist/                    Saída do build — descartável, fora do git
 
@@ -74,21 +80,23 @@ assets/
   fonts/                 Galano Grotesque + Newsreader (.woff2)
   vendor/                GSAP, ScrollTrigger, Lenis
   img/                   Grão, fallback do herói, OG, favicon
+  img/og/                Imagens de compartilhamento geradas por `npm run og`
+  img/publicacoes/       Imagens dos cartões de post dentro dos artigos
 
 package.json · vercel.json
 ```
 
-As 16 páginas geradas: `index.html`, `escritorio.html`, `atuacao.html` +
+As 17 páginas geradas: `index.html`, `escritorio.html`, `atuacao.html` +
 `atuacao/*.html` (4), `equipe.html`, `publicacoes.html` + `publicacoes/*.html`
-(3), `contato.html`, `politica-de-privacidade.html`, `termos-de-uso.html`,
-`404.html` — mais `sitemap.xml` e `robots.txt`.
+(3), `campanhas/*.html` (1), `contato.html`, `politica-de-privacidade.html`,
+`termos-de-uso.html`, `404.html` — mais `sitemap.xml` e `robots.txt`.
 
 ### O build
 
 `src/layouts/shell.mjs` cumpre o papel do `src/layouts/Base.astro` da
 preparação: um shell único (head, header, cortina de menu, transição, rodapé,
 cookies, WhatsApp, scripts) aplicado a todas as páginas. Editar o rodapé ali
-atualiza as 16 páginas de uma vez, em vez de manter cópias que divergem. A home
+atualiza todas as páginas de uma vez, em vez de manter cópias que divergem. A home
 sai do mesmo shell: mantida à mão, divergia a cada alteração.
 
 `dist/` é apagado e regerado a cada build. Isso resolve de graça o problema das
@@ -99,8 +107,10 @@ simplesmente não reaparece.
 
 | Quero… | Mexo em… |
 |---|---|
-| Trocar telefone, e-mail, endereço, OAB | `src/data/site.mjs` |
-| Publicar um artigo novo | `src/data/posts.mjs` — índice, "continue lendo" e sitemap se atualizam sozinhos |
+| Trocar telefone, e-mail, endereço, OAB, domínio, redes | `src/data/site.mjs` |
+| Publicar um artigo novo | `src/data/posts.mjs` — índice, "continue lendo" e sitemap se atualizam sozinhos. Depois, `npm run og` |
+| Pôr um post do Instagram (ou Facebook, LinkedIn) num artigo | Bloco `['instagram', {...}]` no `corpo` do artigo — formato no topo de `src/data/posts.mjs`; a imagem do post vai em `assets/img/publicacoes/` |
+| Criar uma campanha | Copiar um objeto em `src/data/campanhas.mjs`, depois `npm run og` |
 | Editar uma área de atuação | `src/data/areas.mjs` |
 | Mudar um advogado da equipe | `src/data/equipe.mjs` |
 | Alterar header, rodapé, menu, cookies | `src/layouts/shell.mjs` |
@@ -165,6 +175,11 @@ O site segue o **Provimento nº 205/2021 do Conselho Federal da OAB**:
 - `termos-de-uso.html` declara que o conteúdo é informativo e não cria relação
   advogado-cliente.
 
+> **Exceção deliberada (12/09/2026):** as páginas de campanha e os cartões de
+> post foram feitos **sem o filtro do Provimento**, por decisão da equipe — a
+> adequação vai ser discutida com os próprios advogados. Revisar antes de
+> publicar uma campanha.
+
 ## LGPD
 
 Consentimento não pré-marcado, banner de cookies opt-in com "Recusar" tão
@@ -199,6 +214,58 @@ puxa o resultado para o verde da marca em vez de deixar um cinza neutro.
 
 ---
 
+## SEO
+
+O que `src/lib/seo.mjs` põe em todas as páginas:
+
+- **Canonical e URLs absolutas** em `og:url`, `og:image` e no sitemap. Antes o
+  `og:image` era relativo — WhatsApp e Facebook ignoram imagem relativa, e o
+  link compartilhado saía sem imagem.
+- **Imagem de compartilhamento por artigo e por campanha**, com o título da
+  página, gerada por `npm run og` (Chrome ou Edge headless, sem dependência) e
+  versionada em `assets/img/og/`. Enquanto não existe, vale `og.png`.
+  `npm run check` avisa quando falta gerar ou quando um título mudou.
+- **JSON-LD**: `LegalService` na home (endereço, horário, áreas, redes),
+  `Article` nos artigos, `FAQPage` nas campanhas e `BreadcrumbList` nas páginas
+  internas. Montado com `JSON.stringify`, e o `check` confere se é válido.
+- **noindex** na 404 e em campanha fora do período. O sitemap deixa as duas de
+  fora e traz a data de publicação dos artigos.
+- **Cidade no título das áreas** ("Direito Trabalhista em Paranaguá"), que é
+  como se procura advogado.
+
+**Domínio.** `DOMINIO` em `src/data/site.mjs` ainda é suposição. Para testar a
+prévia de links num endereço provisório, gere com a variável `SITE_URL`:
+`SITE_URL=https://endereco-provisorio npm run build` — no PowerShell,
+`$env:SITE_URL="https://endereco-provisorio"; npm run build`.
+
+**Com o domínio no ar:** cadastrar no Google Search Console (verificação por
+DNS), enviar o `sitemap.xml` e conferir a prévia dos links no opengraph.xyz ou
+no Sharing Debugger do Facebook.
+
+## Campanhas
+
+É a "landing page" que o cliente perguntou se exigiria um site à parte. Cada
+objeto de `src/data/campanhas.mjs` vira `campanhas/<slug>.html`: pergunta
+direta e WhatsApp no topo, situações, direitos, como funciona, documentos e
+prazo, perguntas frequentes e contato. O WhatsApp abre com uma mensagem que
+identifica a campanha, e o formulário leva um campo oculto `campanha` para o
+backend, quando ele existir.
+
+O período (`inicio`/`fim`) decide se a página vai para o Google e se aparece
+na página da área. Encerrada, ela continua no ar com um aviso — link de post
+antigo não quebra —, e o aviso aparece no dia certo mesmo sem novo deploy.
+
+## Posts de rede social nos artigos
+
+Um bloco `['instagram', {...}]` no corpo do artigo vira um cartão com a imagem
+do post, a legenda e o link. **Não é o embed oficial**, de propósito: o embed
+carrega script e cookies da Meta assim que a página abre, antes de qualquer
+consentimento. O cartão é HTML do site, com a imagem hospedada aqui, e nada de
+terceiros carrega até o clique. Aceita também `facebook` e `linkedin`, e
+`video: true` para Reels.
+
+---
+
 ## Medições
 
 | | Resultado | Meta da preparação |
@@ -209,7 +276,7 @@ puxa o resultado para o verde da marca em vez de deixar um cinza neutro.
 | Fontes | 122 KB (5 arquivos `.woff2`) | — |
 | Fallback do herói | 40 KB | ≤ 90 KB |
 | Home | 16,3 telas de scroll | ~13 telas |
-| Páginas | 16, todas HTTP 200, sem link quebrado | — |
+| Páginas | 17, todas HTTP 200, sem link quebrado | — |
 
 Galano Grotesque foi convertida de `.otf` (47 KB por peso) para `.woff2`
 subsetado em latin + latin-ext: **14 KB por peso**.
@@ -252,7 +319,8 @@ números. A seção Linguagem mostra o texto já traduzido.
 5. **Ensaio fotográfico.** Hoje há uma silhueta 2D sobre fundo quase preto.
    Funciona como placeholder; foto de banco de imagens derrubaria o site.
 6. **Política de Privacidade revisada pelo próprio escritório.**
-7. **Backend do formulário.**
+7. **Backend do formulário.** Nas campanhas, o formulário já leva o campo
+   oculto `campanha`.
 
 **Já resolvidos com os dados reais:** endereço (Rua Dr. Leocádio, 282 — Centro,
 Paranaguá/PR), telefone e WhatsApp, as quatro áreas de atuação, os nomes

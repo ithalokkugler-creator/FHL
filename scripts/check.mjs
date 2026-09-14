@@ -8,18 +8,26 @@
 //
 //   1. todo href/src relativo aponta para um arquivo que existe;
 //   2. todo link de âncora (#algo) aponta para um id que existe na página;
-//   3. nenhuma página ficou sem <title> ou sem meta description.
+//   3. nenhuma página ficou sem <title> ou sem meta description;
+//   4. SEO: canonical nas páginas indexáveis e noindex nas demais, og:image
+//      absoluta e apontando para um arquivo que existe, JSON-LD válido.
 //
 // Serve para pegar o erro mais comum de um site de caminhos relativos: um
 // slug renomeado em src/data/ e um link esquecido apontando para o antigo.
 // Sai com código 1 se achar problema, o que o torna usável em CI.
+//
+// Imagem de compartilhamento faltando ou desatualizada é só AVISO: a página
+// usa a imagem padrão enquanto isso, e gerar a imagem depende de um navegador
+// que um servidor de CI não tem (ver scripts/og.mjs).
 
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, join, posix, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { DOMINIO } from '../src/data/site.mjs';
 import { build } from './build.mjs';
+import { estadoDasImagens } from './og.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
@@ -69,6 +77,45 @@ for (const pg of pages) {
   if (!/<meta name="description" content="[^"]+"/.test(html)) {
     problemas.push(`${pg.path}: sem meta description`);
   }
+
+  if (pg.noindex) {
+    if (!html.includes('<meta name="robots" content="noindex')) {
+      problemas.push(`${pg.path}: marcada como noindex, mas sem meta robots`);
+    }
+  } else if (!/<link rel="canonical" href="https?:\/\/[^"]+">/.test(html)) {
+    problemas.push(`${pg.path}: sem canonical`);
+  }
+
+  // WhatsApp e Facebook só aceitam og:image com URL absoluta.
+  const og = html.match(/<meta property="og:image" content="([^"]*)">/);
+  if (!og) {
+    problemas.push(`${pg.path}: sem og:image`);
+  } else if (!og[1].startsWith(`${DOMINIO}/`)) {
+    problemas.push(`${pg.path}: og:image não é absoluta — "${og[1]}"`);
+  } else {
+    const arquivo = og[1].slice(DOMINIO.length + 1).split('?')[0];
+    if (!existsSync(join(DIST, arquivo))) {
+      problemas.push(`${pg.path}: og:image → dist/${arquivo} não existe`);
+    }
+  }
+
+  // JSON-LD com erro de sintaxe é descartado inteiro pelo Google, sem aviso.
+  for (const m of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) {
+    try {
+      JSON.parse(m[1]);
+    } catch (err) {
+      problemas.push(`${pg.path}: JSON-LD inválido — ${err.message}`);
+    }
+  }
+}
+
+const avisos = estadoDasImagens(pages)
+  .filter((i) => i.estado !== 'ok')
+  .map((i) => `${i.rel}: ${i.estado} — rode npm run og`);
+
+if (avisos.length) {
+  console.warn(`\n  ${avisos.length} aviso(s):\n`);
+  for (const a of avisos) console.warn(`  · ${a}`);
 }
 
 if (problemas.length) {
@@ -78,4 +125,4 @@ if (problemas.length) {
   process.exit(1);
 }
 
-console.log(`\n  ${pages.length} páginas verificadas — links, âncoras e meta tags OK\n`);
+console.log(`\n  ${pages.length} páginas verificadas — links, âncoras, meta tags e SEO OK\n`);

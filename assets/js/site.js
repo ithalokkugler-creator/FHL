@@ -476,6 +476,29 @@ window.IED = window.IED || {};
   }
 
   /* =====================================================================
+     CAMPANHAS
+     O aviso de "campanha encerrada" sai do build já visível quando a data
+     tinha passado; senão vem escondido e é revelado aqui no dia seguinte ao
+     fim — a página se corrige sozinha, mesmo sem novo deploy.
+     As perguntas frequentes mudam a altura da página ao abrir: sem refresh,
+     as revelações do contato, logo abaixo, disparariam no ponto errado.
+     ===================================================================== */
+  function initCampanha() {
+    var aviso = document.querySelector('[data-campanha-fim]');
+    if (aviso) {
+      var d = new Date();
+      var hoje = d.getFullYear() + '-' +
+        ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+      if (hoje > aviso.getAttribute('data-campanha-fim')) aviso.hidden = false;
+    }
+
+    if (!window.ScrollTrigger) return;
+    document.querySelectorAll('.faq__item').forEach(function (item) {
+      item.addEventListener('toggle', function () { window.ScrollTrigger.refresh(); });
+    });
+  }
+
+  /* =====================================================================
      ANO NO RODAPÉ
      ===================================================================== */
   function initYear() {
@@ -495,6 +518,7 @@ window.IED = window.IED || {};
     if (loader) loader.remove();
     document.body.classList.remove('is-locked');
     initYear();
+    initCampanha();
     console.warn('[IED] ' + motivo + ' — site servido sem animação.', erro || '');
   }
 
@@ -519,6 +543,7 @@ window.IED = window.IED || {};
       initForm();
       initCookies();
       initMapa();
+      initCampanha();
       initYear();
     } catch (err) {
       degradar('erro ao inicializar componentes', err);

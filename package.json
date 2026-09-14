@@ -12,6 +12,7 @@
     "dev": "node scripts/dev.mjs",
     "preview": "node scripts/dev.mjs --no-watch",
     "check": "node scripts/check.mjs",
+    "og": "node scripts/og.mjs",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   }
 }

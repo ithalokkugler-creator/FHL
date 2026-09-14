@@ -8,6 +8,14 @@
 /** Prefixo relativo para subir `depth` pastas. */
 export const prefix = (depth = 0) => '../'.repeat(depth);
 
+/** Escapa texto para dentro de um atributo HTML. Entidades já escritas nos
+ *  dados (`&amp;`) passam intactas, em vez de virar `&amp;amp;`. */
+export const attr = (s) => String(s)
+  .replace(/&(?!(?:[a-z]+|#\d+|#x[\da-f]+);)/gi, '&amp;')
+  .replace(/"/g, '&quot;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;');
+
 export const ARROW =
   '<svg viewBox="0 0 22 8" fill="none" aria-hidden="true">' +
   '<path class="link-arrow__line" d="M0 4h20" stroke="currentColor"/>' +
@@ -41,17 +49,27 @@ export function nextBlock(title, href, cta, depth = 0) {
 }
 
 /**
- * Descritor de página consumido pelo shell e pelo build.
+ * Descritor de página consumido pelo shell, pelo build e por `npm run og`.
  *
- * path    caminho de saída relativo a dist/ (define também a URL)
- * title   <title> e og:title
- * desc    meta description e og:description
- * body    HTML que entra dentro de <main>
- * depth   profundidade em pastas (ver acima)
- * home    true apenas em index.html — liga o loader, a cena WebGL e o JSON-LD
- *         de LegalService
- * article objeto de POSTS quando a página é um artigo — liga o JSON-LD Article
+ * path     caminho de saída relativo a dist/ (define também a URL)
+ * title    <title> e og:title
+ * desc     meta description e og:description
+ * body     HTML que entra dentro de <main>
+ * depth    profundidade em pastas (ver acima)
+ * home     true apenas em index.html — liga o loader, a cena WebGL e o JSON-LD
+ *          de LegalService
+ * article  objeto de POSTS quando a página é um artigo — liga o JSON-LD Article
+ * campanha objeto de CAMPANHAS quando a página é uma campanha — liga o FAQPage
+ * name     nome curto da página na trilha (breadcrumb) que o Google exibe.
+ *          Padrão: o title sem o " — FHL Advocacia"
+ * og       { label, title } — a página ganha imagem de compartilhamento
+ *          própria, gerada por `npm run og` (ver src/lib/seo.mjs)
+ * noindex  fora do Google e do sitemap (404, campanha fora do período)
+ * whatsapp mensagem pré-preenchida no botão flutuante de WhatsApp
  */
-export function page({ path, title, desc, body, depth = 0, home = false, article = null }) {
-  return { path, title, desc, body, depth, home, article };
+export function page({
+  path, title, desc, body, depth = 0, home = false, article = null,
+  campanha = null, name = null, og = null, noindex = false, whatsapp = '',
+}) {
+  return { path, title, desc, body, depth, home, article, campanha, name, og, noindex, whatsapp };
 }

@@ -18,6 +18,7 @@
 // Escuta só em 127.0.0.1: é um servidor de desenvolvimento, não fica exposto
 // na rede local.
 
+import { execFile } from 'node:child_process';
 import { createServer } from 'node:http';
 import { watch } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
@@ -25,10 +26,9 @@ import { extname, join, normalize, resolve, sep } from 'node:path';
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { build } from './build.mjs';
-
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
+const BUILD = join(ROOT, 'scripts', 'build.mjs');
 
 const args = process.argv.slice(2);
 const NO_WATCH = args.includes('--no-watch');
@@ -163,6 +163,23 @@ const server = createServer(async (req, res) => {
 
 // ---------------------------------------------------------------------------
 
+/**
+ * Roda o build num processo Node novo a cada vez.
+ *
+ * Importar build.mjs e chamá-lo daqui não funcionava: o Node guarda em cache
+ * os módulos ESM já carregados, então salvar um arquivo de src/data/ ou
+ * src/pages/ disparava um "rebuild" com o código antigo — só o CSS e o JS,
+ * copiados de assets/, pareciam mudar. Um processo novo lê tudo do disco.
+ */
+function buildIsolado() {
+  return new Promise((ok, falha) => {
+    execFile(process.execPath, [BUILD, '--quiet'], { cwd: ROOT }, (err, _stdout, stderr) => {
+      if (err) falha(new Error(stderr.trim() || err.message));
+      else ok();
+    });
+  });
+}
+
 let rebuilding = false;
 let pending = false;
 let timer = null;
@@ -175,7 +192,7 @@ async function rebuild() {
   rebuilding = true;
   const t0 = Date.now();
   try {
-    await build({ quiet: true });
+    await buildIsolado();
     console.log(`  rebuild em ${Date.now() - t0}ms`);
     notifyReload();
   } catch (err) {
@@ -197,7 +214,7 @@ function scheduleRebuild() {
   timer = setTimeout(rebuild, 80);
 }
 
-await build({ quiet: true });
+await buildIsolado();
 
 if (!NO_WATCH) {
   for (const dir of ['src', 'assets', 'scripts']) {

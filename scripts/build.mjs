@@ -21,10 +21,13 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { AREAS } from '../src/data/areas.mjs';
+import { CAMPANHAS } from '../src/data/campanhas.mjs';
 import { POSTS } from '../src/data/posts.mjs';
 import { DOMINIO } from '../src/data/site.mjs';
 import { shell } from '../src/layouts/shell.mjs';
+import { absUrl } from '../src/lib/seo.mjs';
 import { buildAtuacaoIndex, buildArea } from '../src/pages/atuacao.mjs';
+import { buildCampanha } from '../src/pages/campanhas.mjs';
 import { buildContato } from '../src/pages/contato.mjs';
 import { buildEquipe } from '../src/pages/equipe.mjs';
 import { buildEscritorio } from '../src/pages/escritorio.mjs';
@@ -49,14 +52,19 @@ export function allPages() {
     build404(),
     ...AREAS.map(buildArea),
     ...POSTS.map(buildPost),
+    ...CAMPANHAS.map(buildCampanha),
   ];
 }
 
 function sitemap(pages) {
-  // 404.html fica fora: é uma página de erro, não um destino indexável.
+  // Fica fora o que é noindex: a 404 e as campanhas fora do período.
+  // Artigos levam a data de publicação, que ajuda o Google a achar o que é novo.
   const entries = pages
-    .filter((p) => p.path !== '404.html')
-    .map((p) => `  <url><loc>${DOMINIO}/${p.path}</loc></url>`)
+    .filter((p) => !p.noindex)
+    .map((p) => {
+      const lastmod = p.article ? `<lastmod>${p.article.datetime}</lastmod>` : '';
+      return `  <url><loc>${absUrl(p.path)}</loc>${lastmod}</url>`;
+    })
     .join('\n');
 
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -87,8 +95,12 @@ export async function build({ quiet = false } = {}) {
   }
 
   // Os assets são copiados sem transformação: o CSS e o JS deste site são
-  // escritos à mão e servidos como estão.
-  await cp(join(ROOT, 'assets'), join(DIST, 'assets'), { recursive: true });
+  // escritos à mão e servidos como estão. O manifesto das imagens de
+  // compartilhamento é controle interno de `npm run og` e não vai ao ar.
+  await cp(join(ROOT, 'assets'), join(DIST, 'assets'), {
+    recursive: true,
+    filter: (src) => !src.endsWith('manifest.json'),
+  });
   log('  assets/');
 
   await writeFile(join(DIST, 'sitemap.xml'), sitemap(pages), 'utf8');
@@ -99,10 +111,10 @@ export async function build({ quiet = false } = {}) {
   return pages;
 }
 
-// Só roda o build quando este arquivo é o ponto de entrada; o dev server
-// importa `build` como função.
+// Só roda o build quando este arquivo é o ponto de entrada; check.mjs e og.mjs
+// importam `build` e `allPages` como funções. O dev server passa `--quiet`.
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
-  build().catch((err) => {
+  build({ quiet: process.argv.includes('--quiet') }).catch((err) => {
     console.error(err);
     process.exit(1);
   });
