@@ -3,10 +3,15 @@
 // ============================================
 //
 // Aplica o shell único de src/layouts/shell.mjs a cada página de src/pages/ e
-// escreve o site completo em dist/, junto com uma cópia de assets/, o
-// sitemap.xml e o robots.txt.
+// escreve o site completo em dist/, junto com uma cópia de assets/, a área dos
+// advogados em dist/sistema/, o sitemap.xml e o robots.txt.
 //
 //   npm run build
+//
+// O conteúdo das publicações e das campanhas vem do Supabase, escrito pelo
+// próprio escritório na área dos advogados (ver src/data/conteudo.mjs). Por
+// isso o build é assíncrono e precisa de rede: sem ela, cai na cópia de
+// src/data/ e avisa.
 //
 // dist/ é descartável: é apagado e regerado a cada build. Isso resolve de
 // graça o problema das páginas órfãs — quando um slug muda, o arquivo antigo
@@ -17,11 +22,12 @@
 // estáticos, servíveis por qualquer host.
 
 import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { AREAS } from '../src/data/areas.mjs';
 import { CAMPANHAS } from '../src/data/campanhas.mjs';
+import { carregarConteudo } from '../src/data/conteudo.mjs';
 import { POSTS } from '../src/data/posts.mjs';
 import { DOMINIO } from '../src/data/site.mjs';
 import { shell } from '../src/layouts/shell.mjs';
@@ -37,6 +43,14 @@ import { buildPublicacoesIndex, buildPost } from '../src/pages/publicacoes.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
+
+// A área dos advogados sai no mesmo deploy, em /sistema. Um endereço só para
+// as duas partes: o site tem link para ela no rodapé, ela tem link de volta
+// para o site, e não existe um segundo projeto na Vercel para manter.
+// Ela não tem build — é servida como está, igual ao que `npm run sistema`
+// fazia antes. Testes e documentação não vão ao ar.
+const SISTEMA = 'sistema';
+const FORA_DO_SISTEMA = ['testes', 'README.md'];
 
 /** Monta a lista completa de páginas do site. */
 export function allPages() {
@@ -74,14 +88,20 @@ ${entries}
 `;
 }
 
+// A área dos advogados já sai com noindex no HTML e no cabeçalho da resposta;
+// aqui é só para nenhum robô gastar tempo com ela.
 const ROBOTS = `User-agent: *
 Allow: /
+Disallow: /${SISTEMA}/
 
 Sitemap: ${DOMINIO}/sitemap.xml
 `;
 
 export async function build({ quiet = false } = {}) {
   const log = quiet ? () => {} : (...a) => console.log(...a);
+
+  // Antes de montar qualquer página: é isto que enche POSTS e CAMPANHAS.
+  const { imagens } = await carregarConteudo({ quiet });
   const pages = allPages();
 
   await rm(DIST, { recursive: true, force: true });
@@ -103,11 +123,27 @@ export async function build({ quiet = false } = {}) {
   });
   log('  assets/');
 
+  // Imagens enviadas pela área dos advogados: vêm do Storage do Supabase e
+  // entram junto com os assets do repositório, como se sempre tivessem estado
+  // lá. Depois da cópia, para não serem apagadas por ela.
+  for (const imagem of imagens) {
+    const out = join(DIST, imagem.rel);
+    await mkdir(dirname(out), { recursive: true });
+    await writeFile(out, imagem.bytes);
+    log(`  ${imagem.rel}`);
+  }
+
+  await cp(join(ROOT, SISTEMA), join(DIST, SISTEMA), {
+    recursive: true,
+    filter: (src) => !FORA_DO_SISTEMA.some((f) => src.endsWith(`${sep}${f}`)),
+  });
+  log('  sistema/');
+
   await writeFile(join(DIST, 'sitemap.xml'), sitemap(pages), 'utf8');
   await writeFile(join(DIST, 'robots.txt'), ROBOTS, 'utf8');
   log('  sitemap.xml\n  robots.txt');
 
-  log(`\n${pages.length} páginas + assets + sitemap.xml + robots.txt → dist/`);
+  log(`\n${pages.length} páginas + assets + sistema + sitemap.xml + robots.txt → dist/`);
   return pages;
 }
 

@@ -24,6 +24,31 @@ export function campanhaStatus(c, dia = hoje()) {
 
 export const campanhasAtivas = () => CAMPANHAS.filter((c) => campanhaStatus(c) === 'ativa');
 
+/**
+ * Chamada para campanhas ativas — na home e na página da área. Sem campanha
+ * no período, não sai nada. `depth` é a profundidade da página que recebe a
+ * chamada (ver src/lib/html.mjs). `flushTop` tira o respiro de cima quando a
+ * chamada continua a seção anterior, como na home, abaixo das publicações.
+ */
+export function campanhasCallout(campanhas, { depth = 0, flushTop = false } = {}) {
+  if (!campanhas.length) return '';
+
+  const links = campanhas.map((c) => `      <a class="campanha-callout" href="${prefix(depth)}campanhas/${c.slug}.html" data-reveal="rise">
+        <span class="label">Campanha</span>
+        <span class="h3 campanha-callout__title">${c.titulo}</span>
+        <span class="campanha-callout__text">${c.subtitulo}</span>
+        <span class="link-arrow">Ver a campanha ${ARROW}</span>
+      </a>`).join('\n');
+
+  return `
+  <section class="section section--fn${flushTop ? ' section--flush-top' : ''}">
+    <div class="wrap">
+${links}
+    </div>
+  </section>
+`;
+}
+
 // Etapas do atendimento, iguais em toda campanha. `passos` na campanha substitui.
 const PASSOS = [
   ['Conte o que aconteceu',

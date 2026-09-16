@@ -1,6 +1,6 @@
 import { AREAS } from '../data/areas.mjs';
 import { ARROW, nextBlock, page, pageHead } from '../lib/html.mjs';
-import { campanhasAtivas } from './campanhas.mjs';
+import { campanhasAtivas, campanhasCallout } from './campanhas.mjs';
 
 /** Cartão do índice de áreas. `href` varia: da raiz ou de dentro de atuacao/. */
 function indexItem(a, href) {
@@ -49,19 +49,9 @@ export function buildArea(area) {
 
   // Campanha em andamento na mesma área: quem chega à página da área pela
   // busca encontra a campanha, e a campanha ganha um link interno.
-  const campanha = campanhasAtivas().find((c) => c.area === area.slug);
-  const campanhaHtml = campanha ? `
-  <section class="section section--fn">
-    <div class="wrap">
-      <a class="campanha-callout" href="../campanhas/${campanha.slug}.html" data-reveal="rise">
-        <span class="label">Campanha</span>
-        <span class="h3 campanha-callout__title">${campanha.titulo}</span>
-        <span class="campanha-callout__text">${campanha.subtitulo}</span>
-        <span class="link-arrow">Ver a campanha ${ARROW}</span>
-      </a>
-    </div>
-  </section>
-` : '';
+  const campanhaHtml = campanhasCallout(
+    campanhasAtivas().filter((c) => c.area === area.slug), { depth: 1 }
+  );
 
   const body = pageHead('Atuação · ' + area.num, area.nome, area.intro, 1) + `
 

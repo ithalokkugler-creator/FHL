@@ -11,6 +11,7 @@ import {
 import { ARROW, arrowLink, page } from '../lib/html.mjs';
 import { canaisDiretos, contatoForm } from '../partials/contato.mjs';
 import { metodo, numeros } from '../partials/institucional.mjs';
+import { campanhasAtivas, campanhasCallout } from './campanhas.mjs';
 import { postItem } from './publicacoes.mjs';
 
 export function buildHome() {
@@ -201,6 +202,8 @@ ${posts}
     </div>
   </section>
 
+  <!-- CAMPANHA EM ANDAMENTO — logo abaixo das publicações. Só aparece
+       enquanto houver campanha no período (src/data/campanhas.mjs). -->${campanhasCallout(campanhasAtivas(), { flushTop: true })}
   <!-- LOCALIZAÇÃO
        O mapa NÃO carrega sozinho: um iframe do Google enviaria o IP e o
        user-agent do visitante para os servidores deles antes de qualquer

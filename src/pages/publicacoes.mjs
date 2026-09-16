@@ -43,7 +43,10 @@ const PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentCol
 
 function cartaoSocial(rede, post) {
   const { nome, icone } = REDES_SOCIAIS[rede];
-  const { width, height } = imageSize(post.imagem);
+  // Imagem enviada pela área dos advogados não existe em assets/: ela é
+  // baixada do Supabase durante o build e já chega com o tamanho medido
+  // (src/data/conteudo.mjs). As que nasceram no repositório são medidas aqui.
+  const { width, height } = post.width ? post : imageSize(post.imagem);
   const play = post.video
     ? `\n            <span class="social-card__play" aria-hidden="true">${PLAY}</span>`
     : '';

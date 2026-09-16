@@ -31,6 +31,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { carregarConteudo } from '../src/data/conteudo.mjs';
 import { CIDADE, RAZAO } from '../src/data/site.mjs';
 import { ROOT } from '../src/lib/assets.mjs';
 import { OG_MANIFEST, lerOgManifest, ogImagePath } from '../src/lib/seo.mjs';
@@ -243,8 +244,11 @@ function salvarManifest(manifest) {
   writeFileSync(file, json, 'utf8');
 }
 
-function main() {
+async function main() {
   const todas = process.argv.includes('--todas');
+  // Artigo e campanha vêm do Supabase (src/data/conteudo.mjs): sem isto, o
+  // cartão sairia com o título antigo, ou nem sairia.
+  await carregarConteudo();
   const itens = estadoDasImagens();
   const manifest = lerOgManifest();
   let geradas = 0;
@@ -297,10 +301,8 @@ function main() {
 
 // Só roda quando é o ponto de entrada; `npm run check` importa estadoDasImagens.
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
-  try {
-    main();
-  } catch (err) {
+  main().catch((err) => {
     console.error(`\n  ${err.message}\n`);
     process.exit(1);
-  }
+  });
 }

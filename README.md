@@ -16,8 +16,10 @@ gerador usa só a biblioteca padrão, então não existe `node_modules`.
 npm run dev
 ```
 
-E abra `http://127.0.0.1:8123`. Salvar qualquer arquivo em `src/` ou `assets/`
-regera o site e recarrega o navegador sozinho.
+E abra `http://127.0.0.1:8123` — e `http://127.0.0.1:8123/sistema` para a área
+dos advogados, que sai no **mesmo servidor e no mesmo deploy**. Salvar qualquer
+arquivo em `src/`, `assets/` ou `sistema/` regera o site e recarrega o navegador
+sozinho.
 
 | Comando | O que faz |
 |---|---|
@@ -28,18 +30,51 @@ regera o site e recarrega o navegador sozinho.
 | `npm run check` | Valida links, âncoras, meta tags e SEO de todas as páginas |
 | `npm run og` | Gera as imagens de compartilhamento que faltam (artigos e campanhas) |
 | `npm run clean` | Apaga `dist/` |
+| `npm run sistema:test` | Testes dos cálculos da área dos advogados — ver [`sistema/README.md`](sistema/README.md) |
 
 O resultado do build são arquivos `.html` comuns: o site **não depende de Node
 para funcionar**, só para ser gerado. Abrir o `index.html` pelo `file://` é que
 não funciona — os caminhos são relativos e as fontes e scripts não carregam.
 
+### O conteúdo vem do banco
+
+Publicações e campanhas **não estão mais só no código**: elas moram no Supabase
+e são escritas pelo próprio escritório, na área dos advogados. O build lê o que
+está publicado, uma vez, e gera o HTML — ver
+[`src/data/conteudo.mjs`](src/data/conteudo.mjs).
+
+O site continua estático: nenhum visitante consulta banco, e é isso que mantém
+o artigo indexável pelo Google. O preço é que texto salvo na área dos advogados
+**só aparece depois de um build novo** — é o que a tela *Site → Publicar* faz,
+chamando o Deploy Hook da Vercel.
+
+`src/data/posts.mjs` e `src/data/campanhas.mjs` continuam no repositório como
+**cópia de segurança**: se o Supabase não responder — no plano gratuito ele pausa
+depois de uma semana sem uso —, o build avisa e gera o site a partir deles, em
+vez de publicar um site sem publicação nenhuma.
+
 ### Publicar
 
-`vercel.json` já está configurado: build `npm run build`, saída `dist/`, mais
-headers de cache e de segurança. Conectando o repositório à Vercel, cada push
-publica. Em qualquer outra hospedagem estática (Netlify, S3, Apache), o que se
-sobe é o conteúdo de `dist/` — no Netlify, comando `npm run build` e diretório
-`dist`. Não há backend, com uma exceção anotada abaixo.
+Um projeto na Vercel para as duas partes: build `npm run build`, saída `dist/`,
+e a área dos advogados copiada para `dist/sistema/`. Conectando o repositório,
+cada push publica o site **e** a área.
+
+| Endereço | O que é |
+|---|---|
+| `/` | Site institucional, público. Link discreto para a área no rodapé |
+| `/sistema` | Área dos advogados, com login. Fora do Google e do `robots.txt` |
+
+`vercel.json` cuida das duas: cache e cabeçalhos de segurança no site e, em
+`/sistema`, uma CSP estrita, `noindex` e `Referrer-Policy: no-referrer`. A área
+dos advogados **não tem build** — os arquivos de `sistema/` são servidos como
+estão, e por isso os caminhos dela são absolutos (`/sistema/css/…`): a Vercel
+serve a página tanto em `/sistema` quanto em `/sistema/`, e caminho relativo
+quebraria numa das duas.
+
+Em qualquer outra hospedagem estática (Netlify, S3, Apache), o que se sobe é o
+conteúdo de `dist/` — no Netlify, comando `npm run build` e diretório `dist`.
+Não há backend, com duas exceções anotadas abaixo: o formulário de contato e a
+função de borda que publica o site.
 
 ---
 
@@ -50,8 +85,9 @@ src/
   data/site.mjs          Marca, endereço, telefone, e-mail, OAB, domínio, redes, navegação
   data/areas.mjs         As 4 áreas de atuação
   data/equipe.mjs        Os 4 advogados
-  data/posts.mjs         Os artigos das publicações
-  data/campanhas.mjs     As páginas de campanha
+  data/posts.mjs         Cópia de segurança dos artigos (a fonte é o Supabase)
+  data/campanhas.mjs     Cópia de segurança das campanhas (a fonte é o Supabase)
+  data/conteudo.mjs      Lê publicações e campanhas do Supabase para o build
   layouts/shell.mjs      O invólucro de TODAS as páginas
   partials/contato.mjs   Canais diretos + formulário
   partials/institucional.mjs  Método e números (home e escritório)
@@ -83,6 +119,10 @@ assets/
   img/og/                Imagens de compartilhamento geradas por `npm run og`
   img/publicacoes/       Imagens dos cartões de post dentro dos artigos
 
+sistema/                 Área dos advogados — copiada para dist/sistema/ pelo build.
+                         Ver sistema/README.md
+supabase/                Banco da área dos advogados: migrações, função de borda e testes
+
 package.json · vercel.json
 ```
 
@@ -108,9 +148,10 @@ simplesmente não reaparece.
 | Quero… | Mexo em… |
 |---|---|
 | Trocar telefone, e-mail, endereço, OAB, domínio, redes | `src/data/site.mjs` |
-| Publicar um artigo novo | `src/data/posts.mjs` — índice, "continue lendo" e sitemap se atualizam sozinhos. Depois, `npm run og` |
-| Pôr um post do Instagram (ou Facebook, LinkedIn) num artigo | Bloco `['instagram', {...}]` no `corpo` do artigo — formato no topo de `src/data/posts.mjs`; a imagem do post vai em `assets/img/publicacoes/` |
-| Criar uma campanha | Copiar um objeto em `src/data/campanhas.mjs`, depois `npm run og` |
+| Publicar um artigo novo | Área dos advogados → **Site → Publicações**. Índice, "continue lendo" e sitemap se atualizam sozinhos. Depois, `npm run og` para a imagem de compartilhamento |
+| Pôr um post do Instagram (ou Facebook, LinkedIn) num artigo | Bloco "Post do Instagram" no editor do artigo — a imagem é enviada ali e o build a copia para `assets/img/publicacoes/` |
+| Criar uma campanha | Área dos advogados → **Site → Campanhas**, depois `npm run og` |
+| Mudar o formato de um artigo ou de uma campanha | `src/pages/publicacoes.mjs` e `src/pages/campanhas.mjs` — o conteúdo é do escritório, a marcação é do site |
 | Editar uma área de atuação | `src/data/areas.mjs` |
 | Mudar um advogado da equipe | `src/data/equipe.mjs` |
 | Alterar header, rodapé, menu, cookies | `src/layouts/shell.mjs` |
@@ -245,24 +286,30 @@ no Sharing Debugger do Facebook.
 ## Campanhas
 
 É a "landing page" que o cliente perguntou se exigiria um site à parte. Cada
-objeto de `src/data/campanhas.mjs` vira `campanhas/<slug>.html`: pergunta
+campanha escrita na área dos advogados vira `campanhas/<slug>.html`: pergunta
 direta e WhatsApp no topo, situações, direitos, como funciona, documentos e
 prazo, perguntas frequentes e contato. O WhatsApp abre com uma mensagem que
 identifica a campanha, e o formulário leva um campo oculto `campanha` para o
 backend, quando ele existir.
 
-O período (`inicio`/`fim`) decide se a página vai para o Google e se aparece
-na página da área. Encerrada, ela continua no ar com um aviso — link de post
-antigo não quebra —, e o aviso aparece no dia certo mesmo sem novo deploy.
+O período (`inicio`/`fim`) decide se a página vai para o Google e se é
+anunciada na home (logo abaixo das publicações) e na página da área.
+Encerrada, ela continua no ar com um aviso — link de post antigo não quebra —,
+e o aviso aparece no dia certo mesmo sem novo deploy.
 
 ## Posts de rede social nos artigos
 
-Um bloco `['instagram', {...}]` no corpo do artigo vira um cartão com a imagem
-do post, a legenda e o link. **Não é o embed oficial**, de propósito: o embed
+Um bloco "Post do Instagram" no corpo do artigo vira um cartão com a imagem do
+post, a legenda e o link. **Não é o embed oficial**, de propósito: o embed
 carrega script e cookies da Meta assim que a página abre, antes de qualquer
 consentimento. O cartão é HTML do site, com a imagem hospedada aqui, e nada de
-terceiros carrega até o clique. Aceita também `facebook` e `linkedin`, e
-`video: true` para Reels.
+terceiros carrega até o clique. Aceita também Facebook e LinkedIn, e uma marca
+de vídeo para Reels.
+
+A imagem é enviada no próprio editor, vai para o Storage do Supabase e o build
+a baixa para `dist/assets/img/publicacoes/`. No ar, quem serve a imagem é o
+site — o endereço dela dentro do Instagram muda e expira, e o cartão
+quebraria.
 
 ---
 
@@ -370,6 +417,12 @@ no perfil de cada advogado, ou vale abrir uma quinta página de atuação.
   publicações ficava colada ao ponteiro pela página inteira: rolar com o mouse
   sobre um artigo tira o elemento de baixo do cursor sem disparar `mouseleave`.
   Ela agora some no `scroll`, no `mouseleave` do documento e no `blur`.
+- **Tweens de entrada e saída do mesmo elemento levam `overwrite: 'auto'`.**
+  Sem isso os dois rodam juntos, e o que termina por último vence. A miniatura
+  entrava em 0,4s e saía em 0,3s: numa passada rápida pela lista, a entrada
+  terminava depois da saída e a miniatura ficava presa ao cursor. Hoje a
+  visibilidade também é conferida a cada `mousemove`, pelo que está de fato
+  sob o ponteiro.
 - **Máscaras de palavra levam folga vertical de 0,24em.** Com `line-height:
   0.90`, um `overflow: hidden` justo decepa os acentos — o circunflexo de
   "CONSEQUÊNCIA", o agudo de "CLÁUSULA". Medido: os diacríticos maiúsculos da

@@ -1161,6 +1161,7 @@
 .campanha-callout__text { max-width: 60ch; color: var(--c-text-muted); }
 .campanha-callout:hover .link-arrow svg,
 .campanha-callout:focus-visible .link-arrow svg { transform: translateX(6px); }
+.campanha-callout + .campanha-callout { margin-top: var(--s-3); }
 
 /* Chegando por âncora, o header fixo cobria o começo da seção de contato. */
 #contato { scroll-margin-top: var(--header-h); }

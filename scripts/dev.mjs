@@ -8,8 +8,8 @@
 //
 // Faz três coisas que o http.server do Python não fazia:
 //
-//   1. Rebuild automático. Salvar qualquer arquivo em src/ ou assets/ regera
-//      o site antes da próxima requisição.
+//   1. Rebuild automático. Salvar qualquer arquivo em src/, assets/ ou
+//      sistema/ regera o site antes da próxima requisição.
 //   2. Live reload. O navegador recarrega sozinho, via SSE — sem extensão,
 //      sem dependência, sem apertar F5.
 //   3. no-store em tudo. O cache do navegador fazia uma alteração de CSS
@@ -217,7 +217,10 @@ function scheduleRebuild() {
 await buildIsolado();
 
 if (!NO_WATCH) {
-  for (const dir of ['src', 'assets', 'scripts']) {
+  // sistema/ entra na lista porque a área dos advogados vai no mesmo deploy:
+  // o build a copia para dist/sistema/, e é de lá que ela é servida — em
+  // http://127.0.0.1:8123/sistema, o mesmo endereço que a Vercel vai usar.
+  for (const dir of ['src', 'assets', 'scripts', 'sistema']) {
     try {
       watch(join(ROOT, dir), { recursive: true }, scheduleRebuild);
     } catch {
@@ -227,6 +230,7 @@ if (!NO_WATCH) {
 }
 
 server.listen(PORT, '127.0.0.1', () => {
-  console.log(`\n  FHL Advocacia — http://127.0.0.1:${PORT}`);
-  console.log(NO_WATCH ? '  modo preview (sem watch)\n' : '  observando src/ e assets/ — Ctrl+C para parar\n');
+  console.log(`\n  FHL Advocacia — site ................ http://127.0.0.1:${PORT}`);
+  console.log(`                  área dos advogados . http://127.0.0.1:${PORT}/sistema`);
+  console.log(NO_WATCH ? '\n  modo preview (sem watch)\n' : '\n  observando src/, assets/ e sistema/ — Ctrl+C para parar\n');
 });

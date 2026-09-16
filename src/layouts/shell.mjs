@@ -193,6 +193,10 @@ ${areasFooter}
         &nbsp;·&nbsp;
         <a class="link" href="${p}termos-de-uso.html">Termos de Uso</a>
         &nbsp;·&nbsp;
+        <!-- Área dos advogados: mesmo deploy, em /sistema. Discreta e fora do
+             Google (noindex no HTML, no cabeçalho e no robots.txt). -->
+        <a class="link" href="${p}sistema" rel="nofollow">Área dos advogados</a>
+        &nbsp;·&nbsp;
         <span>© <span data-year>2026</span></span>
       </p>
     </div>

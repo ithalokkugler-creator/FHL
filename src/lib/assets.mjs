@@ -22,8 +22,15 @@ export const assetExists = (rel) => existsSync(join(ROOT, rel));
 export function imageSize(rel) {
   const file = join(ROOT, rel);
   if (!existsSync(file)) throw new Error(`Imagem não encontrada: ${rel}`);
-  const b = readFileSync(file);
+  return imageSizeFrom(readFileSync(file), rel);
+}
 
+/**
+ * O mesmo, a partir dos bytes. Imagem enviada pela área dos advogados é
+ * baixada do Supabase durante o build e nunca chega a existir em assets/ —
+ * ver src/data/conteudo.mjs. `nome` só aparece na mensagem de erro.
+ */
+export function imageSizeFrom(b, nome) {
   // PNG — o bloco IHDR vem logo depois da assinatura de 8 bytes
   if (b.length > 24 && b.readUInt32BE(0) === 0x89504e47) {
     return { width: b.readUInt32BE(16), height: b.readUInt32BE(20) };
@@ -59,5 +66,5 @@ export function imageSize(rel) {
     }
   }
 
-  throw new Error(`Formato de imagem não reconhecido (use PNG, JPEG ou WebP): ${rel}`);
+  throw new Error(`Formato de imagem não reconhecido (use PNG, JPEG ou WebP): ${nome}`);
 }

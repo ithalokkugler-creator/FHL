@@ -313,7 +313,36 @@ window.IED = window.IED || {};
     var rTo = gsap.quickTo(thumb, 'rotation', { duration: 0.6, ease: EASE.suave });
 
     var lastX = 0;
+    var visivel = false;
+    var atual = null;
 
+    function mostrar(post) {
+      if (post !== atual) {
+        atual = post;
+        art.textContent = post.dataset.thumb || '§';
+      }
+      if (visivel) return;
+      visivel = true;
+      gsap.to(thumb, { opacity: 1, scale: 1, duration: 0.4, ease: EASE.suave, overwrite: 'auto' });
+    }
+
+    function esconder() {
+      atual = null;
+      if (!visivel) return;
+      visivel = false;
+      gsap.to(thumb, { opacity: 0, scale: 0.9, duration: 0.3, ease: EASE.suave, overwrite: 'auto' });
+    }
+
+    /* A miniatura ficava presa ao cursor depois de uma passada rápida pela
+       lista. Dois motivos, os dois tratados aqui:
+       1. Corrida de tweens. A entrada dura 0,4s e a saída 0,3s; sem
+          `overwrite`, as duas rodavam juntas e, numa passada de menos de
+          0,1s, a entrada terminava por último — opacidade 1 com `visivel` já
+          em false, e nada mais a escondia. `overwrite: 'auto'` faz o tween
+          novo cancelar o anterior.
+       2. Estado guardado em evento. Em vez de confiar em mouseenter e
+          mouseleave, cada movimento confere se há de fato uma publicação sob
+          o cursor. */
     window.addEventListener('mousemove', function (e) {
       xTo(e.clientX + 28);
       yTo(e.clientY - 80);
@@ -321,31 +350,15 @@ window.IED = window.IED || {};
       var vx = e.clientX - lastX;
       lastX = e.clientX;
       rTo(Math.max(-6, Math.min(6, vx * 0.35)));
+
+      var post = e.target.closest ? e.target.closest('.post') : null;
+      if (post) mostrar(post);
+      else esconder();
     }, { passive: true });
 
-    var visivel = false;
-
-    function mostrar(post) {
-      art.textContent = post.dataset.thumb || '§';
-      visivel = true;
-      gsap.to(thumb, { opacity: 1, scale: 1, duration: 0.4, ease: EASE.suave });
-    }
-
-    function esconder() {
-      if (!visivel) return;
-      visivel = false;
-      gsap.to(thumb, { opacity: 0, scale: 0.9, duration: 0.3, ease: EASE.suave });
-    }
-
-    posts.forEach(function (post) {
-      post.addEventListener('mouseenter', function () { mostrar(post); });
-      post.addEventListener('mouseleave', esconder);
-    });
-
-    /* A miniatura ficava colada ao cursor pela página inteira: se o usuário
-       rolasse enquanto o ponteiro estava sobre um artigo, o elemento saía de
-       baixo do cursor sem disparar mouseleave, e o quadrado nunca sumia.
-       Qualquer scroll, saída da janela ou perda de foco agora a dispensa. */
+    /* Rolar com o ponteiro parado sobre um artigo tira o elemento de baixo do
+       cursor sem nenhum mousemove. Scroll, saída da janela e perda de foco
+       dispensam a miniatura. */
     window.addEventListener('scroll', esconder, { passive: true });
     document.addEventListener('mouseleave', esconder);
     window.addEventListener('blur', esconder);

@@ -25,7 +25,8 @@
 //   faq         pares [pergunta, resposta] — vão também para o Google (FAQPage)
 //
 // PERÍODO
-//   · dentro do período: página normal, no Google e anunciada na página da área;
+//   · dentro do período: página normal, no Google e anunciada na home e na
+//     página da área;
 //   · antes do início: a página já existe, para revisar e testar o link, mas
 //     fica fora do Google;
 //   · depois do fim: continua no ar — quem chega por um post antigo não cai
