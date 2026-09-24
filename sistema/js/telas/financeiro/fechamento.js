@@ -15,12 +15,13 @@ import {
 import { aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { guardarConsulta } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
-import { cabecalho, capitalizar, seletorMes, vazio } from '../comum.js';
+import { cabecalho, cabecalhoImpressao, capitalizar, indicador, mesDaConsulta, plural, seletorMes, vazio } from '../comum.js';
 import { abrirHistorico } from '../historico.js';
+import { garantirContasDoMes } from './base.js';
 
 export default async function telaFechamento(ctx) {
   // Por padrão, o mês que acabou de passar: é esse que se fecha.
-  let mes = /^\d{4}-\d{2}-01$/.test(ctx.consulta.mes ?? '') ? ctx.consulta.mes : somarMeses(inicioDoMes(hoje()), -1);
+  let mes = mesDaConsulta(ctx.consulta.mes, somarMeses(inicioDoMes(hoje()), -1));
   let dados;
 
   const mostrar = async () => {
@@ -54,11 +55,10 @@ export default async function telaFechamento(ctx) {
             gravados como estão agora.
           </p>
           ${p.parcelas_vencidas || p.contas_sem_baixa ? html`
-            <p class="nota"><strong>Há pendências:</strong>
-              ${p.parcelas_vencidas ? `${p.parcelas_vencidas} parcelas vencidas sem baixa (${moeda(centavos(p.parcelas_vencidas_saldo))})` : ''}
-              ${p.parcelas_vencidas && p.contas_sem_baixa ? ' e ' : ''}
-              ${p.contas_sem_baixa ? `${p.contas_sem_baixa} contas do mês sem pagamento` : ''}.
-              Se forem lançamentos esquecidos, lance antes de fechar.</p>` : ''}`,
+            <p class="nota"><strong>Há pendências:</strong> ${[
+              p.parcelas_vencidas ? `${plural(p.parcelas_vencidas, 'parcela vencida', 'parcelas vencidas')} sem baixa (${moeda(centavos(p.parcelas_vencidas_saldo))})` : '',
+              p.contas_sem_baixa ? `${plural(p.contas_sem_baixa, 'conta do mês', 'contas do mês')} sem pagamento` : '',
+            ].filter(Boolean).join(' e ')}. Se forem lançamentos esquecidos, lance antes de fechar.</p>` : ''}`,
         aoEnviar: async () => {
           await db.rpc('fechar_mes', { p_competencia: mes });
           return true;
@@ -89,6 +89,9 @@ export default async function telaFechamento(ctx) {
 }
 
 async function carregar(mes) {
+  // Mês que ninguém abriu ainda não tem as contas fixas: sem isto, o aluguel
+  // não aparecia nas pendências da prévia.
+  if (mes <= inicioDoMes(hoje())) await garantirContasDoMes(mes);
   const [registro, lista] = await Promise.all([
     db.um('fechamentos', { select: '*', filtros: [['competencia', 'eq', mes]] }),
     db.listar('fechamentos', { select: 'id,competencia,fechado,fechado_em,fechado_por,reaberto_em,reaberto_por,motivo_reabertura', ordem: 'competencia.desc', limite: 24 }),
@@ -109,10 +112,7 @@ function tela(mes, { registro, foto, lista }) {
   const cotasErradas = d.modelo === 'cotas' && Math.abs(Number(d.soma_percentuais) - 100) >= 0.01;
 
   return html`
-    <div class="so-impressao">
-      <p class="rotulo">FHL Advocacia — Fonseca Hespanha Lisboa</p>
-      <p>Impresso em ${dataHora(new Date().toISOString())}</p>
-    </div>
+    ${cabecalhoImpressao()}
 
     ${cabecalho(`Fechamento de ${nomeDoMes(mes)}`, fechado ? `Fechado em ${dataHora(registro.fechado_em)} por ${nomeDe(registro.fechado_por)}` : 'Aberto — valores calculados agora', html`
       ${seletorMes(mes)}
@@ -127,9 +127,9 @@ function tela(mes, { registro, foto, lista }) {
       : html`<p class="nota">Mês aberto. ${registro?.reaberto_em ? `Reaberto em ${dataHora(registro.reaberto_em)} por ${nomeDe(registro.reaberto_por)}: ${registro.motivo_reabertura}. ` : ''}${admin ? '' : 'Só o administrador fecha o mês.'}</p>`}
 
     <div class="indicadores">
-      <div class="indicador indicador--ok"><span class="rotulo">Entradas</span><span class="indicador__valor">${moeda(centavos(t.entradas))}</span><span class="indicador__nota">${t.recebimentos} recebimentos</span></div>
-      <div class="indicador"><span class="rotulo">Saídas</span><span class="indicador__valor">${moeda(centavos(t.saidas))}</span><span class="indicador__nota">contas pagas no mês</span></div>
-      <div class="indicador${Number(t.resultado) < 0 ? ' indicador--perigo' : ''}"><span class="rotulo">Resultado</span><span class="indicador__valor">${moeda(centavos(t.resultado))}</span><span class="indicador__nota">entradas − saídas</span></div>
+      ${indicador('Entradas', moeda(centavos(t.entradas)), plural(Number(t.recebimentos), 'recebimento', 'recebimentos'), { tom: 'ok' })}
+      ${indicador('Saídas', moeda(centavos(t.saidas)), 'contas pagas no mês')}
+      ${indicador('Resultado', moeda(centavos(t.resultado)), 'entradas − saídas', { tom: Number(t.resultado) < 0 ? 'perigo' : '' })}
     </div>
 
     <div class="grade grade--2">
@@ -145,7 +145,10 @@ function tela(mes, { registro, foto, lista }) {
         </table>
       </section>
       <section class="painel">
-        <header class="painel__topo"><h2 class="painel__titulo">Saídas por categoria</h2></header>
+        <header class="painel__topo">
+          <h2 class="painel__titulo">Saídas por categoria</h2>
+          <a class="botao botao--pequeno nao-imprimir" href="#/financeiro/relatorios?tipo=mes&mes=${mes.slice(0, 7)}">Lançamentos</a>
+        </header>
         ${t.saidas_por_categoria.length ? html`
           <table class="tabela">
             <tbody>${t.saidas_por_categoria.map((c) => html`<tr><td>${c.categoria}</td><td class="num">${moeda(centavos(c.valor))}</td></tr>`)}</tbody>

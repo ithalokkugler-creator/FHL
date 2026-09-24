@@ -20,6 +20,11 @@ const SITUACOES = [
 ];
 const LIMITE = 500;
 
+// Parcela renegociada tem "saldo" no banco — o que faltava pagar quando foi
+// renegociada —, mas esse valor já passou para as parcelas novas. Mostrado e
+// somado aqui, contava duas vezes.
+const ABERTAS = ['a_vencer', 'vencida'];
+
 export default async function telaRecebiveis(ctx) {
   const filtro = {
     situacao: SITUACOES.some(([v]) => v === ctx.consulta.situacao) ? ctx.consulta.situacao : 'abertas',
@@ -30,8 +35,7 @@ export default async function telaRecebiveis(ctx) {
 
   desenhar(ctx.raiz, html`
     ${cabecalho('Recebíveis', 'Parcelas de todos os contratos', html`
-      <a class="botao" href="#/financeiro/atraso">Em atraso</a>
-      <a class="botao botao--primario" href="#/financeiro/contratos/novo">Novo contrato</a>`)}
+      <a class="botao" href="#/financeiro/atraso">Em atraso, por cliente</a>`)}
     <form class="filtros" role="search">
       <label class="campo">
         <span>Situação</span>
@@ -126,10 +130,10 @@ function tabela(linhas) {
               </td>
               <td>${rotuloParcela(p)}</td>
               <td class="num">${moeda(centavos(p.valor))}</td>
-              <td class="num">${moeda(centavos(p.saldo))}</td>
+              <td class="num">${ABERTAS.includes(p.situacao) ? moeda(centavos(p.saldo)) : '—'}</td>
               <td>${seloParcela(p.situacao, p.parcial)}</td>
               <td class="acoes">
-                ${['a_vencer', 'vencida'].includes(p.situacao)
+                ${ABERTAS.includes(p.situacao)
                   ? html`<button type="button" class="botao botao--pequeno" data-acao="receber" data-id="${p.id}">Receber</button>`
                   : ''}
               </td>
@@ -139,7 +143,7 @@ function tabela(linhas) {
           <tr>
             <td colspan="4">${linhas.length} ${linhas.length === 1 ? 'parcela' : 'parcelas'}${linhas.length === LIMITE ? ` — mostrando as primeiras ${LIMITE}` : ''}</td>
             <td class="num">${moeda(somaCentavos(linhas, 'valor'))}</td>
-            <td class="num">${moeda(somaCentavos(linhas, 'saldo'))}</td>
+            <td class="num">${moeda(somaCentavos(linhas.filter((p) => ABERTAS.includes(p.situacao)), 'saldo'))}</td>
             <td colspan="2"></td>
           </tr>
         </tfoot>

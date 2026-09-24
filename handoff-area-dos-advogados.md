@@ -3,7 +3,7 @@
 > **Atualização de 16/09/2026.** O item 5 dos "Próximos passos" — ligar a área
 > ao site — **foi feito**: site e área saem no mesmo deploy da Vercel (a área em
 > `/sistema`), publicações e campanhas moram no Supabase e são escritas na área,
-> e o build do site as lê. Migração `20260916114500_conteudo`, função de borda
+> e o build do site as lê. Migração `20260916120520_conteudo`, função de borda
 > `publicar-site`, telas em `sistema/js/telas/site/`. O que está descrito abaixo
 > sobre dois projetos na Vercel e sobre `npm run sistema` na porta 8124 **não
 > vale mais** — a fonte técnica atual é [`sistema/README.md`](sistema/README.md).

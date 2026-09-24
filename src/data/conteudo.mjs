@@ -55,7 +55,7 @@ async function buscar(tabela, colunas, ordem) {
   url.searchParams.set('order', ordem);
 
   // Sem sessão: a chave publicável enxerga só o que está publicado, por RLS
-  // (supabase/migrations/20260916114500_conteudo.sql).
+  // (supabase/migrations/20260916120520_conteudo.sql).
   const resposta = await fetch(url, {
     headers: { apikey: SUPABASE_CHAVE, Accept: 'application/json' },
     signal: AbortSignal.timeout(20_000),

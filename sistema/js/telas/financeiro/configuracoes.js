@@ -6,20 +6,17 @@
 // administrador muda (o banco garante).
 
 import { atualizar } from '../../dominio/atraso.js';
-import { correcaoPara, INDICES } from '../../dominio/indices.js';
+import { correcaoPara } from '../../dominio/indices.js';
 import { mensagemDeCobranca } from '../../dominio/cobranca.js';
 import { avisar, avisarErro } from '../../nucleo/avisos.js';
 import { abrirDialogo } from '../../nucleo/dialogo.js';
 import { estado, pode } from '../../nucleo/estado.js';
-import { hoje, lerNumero, percentual, somarDias } from '../../nucleo/formato.js';
+import { entre, hoje, lerNumero, percentual, somarDias } from '../../nucleo/formato.js';
 import { $, aoClicar, desenhar, html, lerFormulario } from '../../nucleo/html.js';
 import { db } from '../../nucleo/supabase.js';
 import { cabecalho, vazio } from '../comum.js';
 import { abrirHistorico } from '../historico.js';
-import { apoio, esquecerApoio, memoria, opcoes } from './base.js';
-
-const CORRECOES = [['nenhuma', 'Sem correção monetária'], ...Object.entries(INDICES).map(([v, i]) => [v, i.nome])];
-const texto = (n) => String(Number(n)).replace('.', ',');
+import { apoio, camposCriterio, esquecerApoio, lerCriterio, memoria, numeroBR, opcoes } from './base.js';
 
 export default async function telaConfiguracoes(ctx) {
   const mostrar = async () => {
@@ -67,10 +64,7 @@ function tela({ config, categorias, formas, cotas, admin }) {
         <header class="painel__topo"><h2 class="painel__titulo">Atraso</h2></header>
         <div class="painel__corpo campos">
           <p class="campo sub">Critério padrão, usado em todo contrato sem critério próprio. Vale para o cálculo de hoje em diante; recebimentos já lançados guardam o cálculo do dia.</p>
-          <label class="campo campo--6"><span>Multa (%)</span><input name="multa_pct" class="num" inputmode="decimal" value="${texto(config.multa_pct)}" required ${trava}></label>
-          <label class="campo campo--6"><span>Juros ao mês (%)</span><input name="juros_mes_pct" class="num" inputmode="decimal" value="${texto(config.juros_mes_pct)}" required ${trava}></label>
-          <label class="campo campo--6"><span>Correção monetária</span><select name="correcao" ${trava}>${opcoes(CORRECOES, config.correcao)}</select></label>
-          <label class="campo campo--6"><span>Carência (dias)</span><input type="number" name="carencia_dias" min="0" max="90" value="${config.carencia_dias}" required ${trava}></label>
+          ${camposCriterio(config, { classe: 'campo--6', trava: !admin })}
           <div class="campo">
             <span>Exemplo: parcela de R$ 1.000,00 vencida há 45 dias</span>
             <div data-papel="exemplo"><p class="sub">Calculando…</p></div>
@@ -120,7 +114,7 @@ function tela({ config, categorias, formas, cotas, admin }) {
                       <tr>
                         <td>${m.nome_curto}${m.ativo ? '' : html`<span class="sub">inativo</span>`}</td>
                         <td><input type="checkbox" name="participa_${m.id}" ${cota?.participa ? 'checked' : ''} ${trava} aria-label="${m.nome_curto} participa"></td>
-                        <td class="num"><input class="entrada-texto num" name="percentual_${m.id}" inputmode="decimal" value="${cota ? texto(cota.percentual) : '0'}" ${trava} aria-label="Cota de ${m.nome_curto}"></td>
+                        <td class="num"><input class="entrada-texto num" name="percentual_${m.id}" inputmode="decimal" value="${cota ? numeroBR(cota.percentual) : '0'}" ${trava} aria-label="Cota de ${m.nome_curto}"></td>
                       </tr>`;
                   })}
                 </tbody>
@@ -167,9 +161,9 @@ async function atualizarExemplo(raiz, config) {
     const vencimento = somarDias(dia, -45);
     const multa = lerNumero(form.multa_pct.value);
     const juros = lerNumero(form.juros_mes_pct.value);
-    const carencia = Number(form.carencia_dias.value || 0);
-    if (!(multa >= 0) || !(juros >= 0)) {
-      caixa.textContent = 'Preencha multa e juros.';
+    const carencia = lerNumero(form.carencia_dias.value) ?? 0;
+    if (!entre(multa, 0, 100) || !entre(juros, 0, 100) || !entre(carencia, 0, 90)) {
+      caixa.textContent = 'Preencha multa e juros (0 a 100%) e carência (0 a 90 dias).';
       return;
     }
     const correcao = await correcaoPara(form.correcao.value, vencimento, dia);
@@ -213,15 +207,14 @@ function ligar(raiz, { config, cotas, recarregar }) {
   const criterio = $('[data-papel="criterio"]', raiz);
   criterio.addEventListener('submit', (e) => {
     e.preventDefault();
-    const d = lerFormulario(criterio);
-    const multa = lerNumero(d.multa_pct);
-    const juros = lerNumero(d.juros_mes_pct);
-    const carencia = Number(d.carencia_dias);
-    if (!(multa >= 0 && multa <= 100) || !(juros >= 0 && juros <= 100) || !(carencia >= 0 && carencia <= 90)) {
-      avisarErro(new Error('Multa e juros vão de 0 a 100%; carência, de 0 a 90 dias.'));
+    let mudanca;
+    try {
+      mudanca = lerCriterio(lerFormulario(criterio));
+    } catch (erro) {
+      avisarErro(erro);
       return;
     }
-    salvarConfig(criterio, { multa_pct: multa, juros_mes_pct: juros, correcao: d.correcao, carencia_dias: carencia }, 'Critério de atraso salvo.');
+    salvarConfig(criterio, mudanca, 'Critério de atraso salvo.');
   });
 
   const cobranca = $('[data-papel="cobranca"]', raiz);
@@ -264,7 +257,8 @@ function ligar(raiz, { config, cotas, recarregar }) {
       const membros = Object.keys(d).filter((k) => k.startsWith('participa_')).map((k) => k.slice(10));
       for (const membroId of membros) {
         const participa = Boolean(d[`participa_${membroId}`]);
-        const pct = lerNumero(d[`percentual_${membroId}`]) || 0;
+        const pct = lerNumero(d[`percentual_${membroId}`]) ?? 0;
+        if (!entre(pct, 0, 100)) throw new Error('Cada cota vai de 0 a 100%.');
         const cota = cotas.find((c) => c.membro_id === membroId);
         if (cota && (cota.participa !== participa || Number(cota.percentual) !== pct)) {
           await db.alterar('divisao_cotas', [['id', 'eq', cota.id]], { participa, percentual: pct }, 'id');

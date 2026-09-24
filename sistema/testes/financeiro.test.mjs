@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { atualizar, memoriaParaGravar } from '../js/dominio/atraso.js';
 import { mensagemDeCobranca } from '../js/dominio/cobranca.js';
 import { fatorDoPeriodo } from '../js/dominio/indices.js';
-import { gerarParcelas, somaDasParcelas } from '../js/dominio/parcelas.js';
+import { gerarParcelas, nomeDaParcela, posicoes, somaDasParcelas } from '../js/dominio/parcelas.js';
 
 test('atraso: exemplo da preparação (6.5)', () => {
   const r = atualizar({
@@ -114,6 +114,25 @@ test('parcelas: valores inválidos são recusados', () => {
     /entrada/,
   );
   assert.throws(() => gerarParcelas({ total: 10000, quantidade: 0, primeiroVencimento: '2026-10-01' }), /número de parcelas/);
+});
+
+test('parcelas: renegociação não confunde a posição com o número do banco', () => {
+  // Plano de 3; a 2 e a 3 foram renegociadas em duas novas, a 4 e a 5.
+  const lista = [
+    { id: 'e', numero: 0 },
+    { id: 'a', numero: 1 },
+    { id: 'b', numero: 2 },
+    { id: 'c', numero: 3 },
+    { id: 'd', numero: 4, origem_renegociacao_id: 'r1' },
+    { id: 'f', numero: 5, origem_renegociacao_id: 'r1' },
+  ];
+  const pos = posicoes(lista);
+  assert.equal(pos.has('e'), false, 'a entrada fica fora da contagem');
+  assert.deepEqual(pos.get('c'), { posicao: 3, total: 3 });
+  assert.deepEqual(pos.get('d'), { posicao: 1, total: 2 });
+  assert.deepEqual(pos.get('f'), { posicao: 2, total: 2 });
+  assert.equal(nomeDaParcela(0), 'Entrada');
+  assert.equal(nomeDaParcela(5), 'Parcela 5');
 });
 
 test('índices: acumula do mês do vencimento ao mês anterior ao cálculo', () => {

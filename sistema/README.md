@@ -77,9 +77,10 @@ sistema/
   testes/                    node --test
 
 supabase/
-  migrations/                base · financeiro · agenda · ajustes_piloto · conteudo
+  migrations/                base · financeiro · agenda · ajustes_piloto · conteudo · ajustes_financeiro
   functions/publicar-site/   função de borda que chama o Deploy Hook da Vercel
   testes/permissoes.sql      87 testes de permissão e de regra, desfeitos no fim
+  testes/financeiro.sql      62 cenários do Financeiro, do contrato ao fechamento, desfeitos no fim
 ```
 
 ### Segurança
@@ -144,6 +145,18 @@ de escritório de advocacia, e quem escreve assina.
 **Regime de caixa.** Entrada conta no mês em que foi recebida; saída, no mês em
 que foi paga. Parcela vencida e conta a pagar aparecem como pendência, não no
 resultado.
+
+**Cada informação mora num lugar.** O que vence nos próximos dias fica em
+**Hoje**; os números do mês, em **Painel**, como atalhos para o detalhe; o
+resumo, a composição e a divisão entre os sócios, no **Fechamento**; os
+lançamentos um por um e as planilhas, em **Relatórios** (o anual continua com o
+resumo do ano, que não existe em outro lugar).
+
+**O que se corrige e o que não.** Descrição, processo, responsável, observações
+e critério de atraso se corrigem em *Editar*, na tela do contrato; nome,
+documento e telefone do cliente, em *editar cliente*. Valor e parcelas não —
+para isso há Renegociar, Vencimento e Cancelar parcela, que deixam rastro do
+que mudou e por quê.
 
 ### Atraso — a validar pelo Vinícius (6.5)
 
@@ -282,12 +295,20 @@ quem não é sócio.
 | 20260915194302 | `financeiro` | Contratos, parcelas, recebimentos, renegociações, cobranças, contas, recorrentes, fechamento, views e funções |
 | 20260915195203 | `agenda` | Compromissos, configuração, `agenda_periodo` |
 | 20260915201001 | `ajustes_piloto` | Índices das chaves estrangeiras; correção pelo IPCA como padrão |
-| 20260916114500 | `conteudo` | Publicações, campanhas, `acesso_site`, pedidos de publicação, balde das imagens — e o conteúdo que já estava no site como semente |
+| 20260916120520 | `conteudo` | Publicações, campanhas, `acesso_site`, pedidos de publicação, balde das imagens — e o conteúdo que já estava no site como semente |
+| 20260923111816 | `ajustes_financeiro` | Conta avulsa muda de mês junto com o vencimento; o fechamento gera as contas fixas do mês antes de tirar a foto |
 
-Numa base nova: rodar as cinco em ordem no SQL Editor, ou `supabase db push`
-com a CLI. Depois, `supabase/testes/permissoes.sql` — 87 testes que simulam
-anônimo, login sem membro, e-mail não confirmado, administrador, sócia,
-secretária e associado. Nada fica gravado.
+O nome de cada arquivo é a versão que o Supabase registrou ao aplicar — é por
+ela que `supabase db push` sabe o que já rodou. Arquivo com outra data seria
+aplicado de novo.
+
+Numa base nova: rodar as seis em ordem no SQL Editor, ou `supabase db push`
+com a CLI. Depois, os dois arquivos de teste — nada fica gravado em nenhum:
+
+| Arquivo | O que confere |
+|---|---|
+| `supabase/testes/permissoes.sql` | 87 testes de **quem pode**: anônimo, login sem membro, e-mail não confirmado, administrador, sócia, secretária e associado |
+| `supabase/testes/financeiro.sql` | 62 cenários de **se está certo**: somas, saldos, situações, renegociação, êxito, contas fixas, mês fechado e a divisão entre os sócios no centavo |
 
 **Tabela nova segue o mesmo roteiro:** `privado.aplicar_padrao()` (carimbo,
 auditoria, sem exclusão), RLS, GRANT coluna a coluna e a tabela no
@@ -383,6 +404,23 @@ receber no módulo Contatos quem preencher o formulário do site.
   resolveria errado numa das duas. Vale para `index.html` e para HTML gerado em
   JavaScript; `import()` entre módulos continua relativo, porque resolve pela
   URL do módulo, não pela da página.
+- **Contas fixas nascem quando alguém olha o mês.** `gerar_contas_do_mes` é
+  idempotente; toda tela que lista conta passa por `garantirContasDoMes`
+  (`telas/financeiro/base.js`), uma vez por mês por sessão. Tela nova que
+  mostra conta deve chamar também — antes, a tela Hoje não chamava e o aluguel
+  do dia 5 não aparecia na lista da semana.
+- **404 do Banco Central não é queda.** A API do SGS responde 404 "Value(s) not
+  found" quando não há índice publicado no intervalo — o normal para parcela
+  vencida neste mês. Tratado como falha, o recibo gravava "Banco Central fora do
+  ar". Parcela sem mês a corrigir nem consulta a API (`temMesParaCorrigir`), e a
+  consulta desiste em 8 segundos.
+- **Um número em destaque é `indicador()`** (`telas/comum.js`), com `href` quando
+  o detalhe mora em outra tela. O Painel aponta para Contas, Recebíveis, Em
+  atraso e Fechamento em vez de repetir o que está lá.
+- **Parcela: o número é do banco, a posição é da tela.** Renegociar não renumera
+  — as novas continuam a contagem (11, 12…), e é esse número que aparece no
+  recibo e na cobrança. A tela do contrato mostra também "1 de 2 da
+  renegociação" (`posicoes` em `dominio/parcelas.js`).
 - **Bloco de artigo tem três guardiões**, e os três precisam concordar: o editor
   (`telas/site/publicacao.js`), o gatilho do banco (`privado.validar_corpo`) e o
   renderizador do site (`src/pages/publicacoes.mjs`). Tipo novo se acrescenta

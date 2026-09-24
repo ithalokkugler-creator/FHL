@@ -11,7 +11,7 @@ import { nomeDe } from '../../nucleo/estado.js';
 import { data, dataHora, hoje, moeda, telefone } from '../../nucleo/formato.js';
 import { aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { db } from '../../nucleo/supabase.js';
-import { cabecalho, CANAIS, vazio } from '../comum.js';
+import { cabecalho, CANAIS, indicador, plural, vazio } from '../comum.js';
 import {
   apoio, atualizarParcelas, criterioEmTexto, memoria, prepararCobranca, receberParcela,
   renegociarContrato, rotuloParcela,
@@ -55,21 +55,16 @@ export default async function telaEmAtraso(ctx) {
 }
 
 async function carregar() {
-  const [vencidas, cobrancas, { config }] = await Promise.all([
-    db.listar('v_parcelas', {
-      select: '*',
-      filtros: [['situacao', 'eq', 'vencida']],
-      ordem: 'vencimento.asc',
-    }),
-    db.listar('cobrancas', {
-      select: 'cliente_id,canal,criado_em,criado_por',
-      ordem: 'criado_em.desc',
-      limite: 1000,
-    }),
+  const [vencidas, { config }] = await Promise.all([
+    db.todos('v_parcelas', { select: '*', filtros: [['situacao', 'eq', 'vencida']] }),
     apoio(),
   ]);
+  vencidas.sort((a, b) => a.vencimento.localeCompare(b.vencimento));
 
-  const itens = await atualizarParcelas(vencidas);
+  const [itens, cobrancas] = await Promise.all([
+    atualizarParcelas(vencidas),
+    cobrancasDe([...new Set(vencidas.map((p) => p.cliente_id))]),
+  ]);
   const ultimaCobranca = new Map();
   for (const c of cobrancas) if (!ultimaCobranca.has(c.cliente_id)) ultimaCobranca.set(c.cliente_id, c);
 
@@ -95,6 +90,20 @@ async function carregar() {
   return { grupos, config, indisponivel: itens.some((i) => i.calculo.indice?.indisponivel) };
 }
 
+/** As cobranças só dos clientes em atraso. Buscar as mil últimas do escritório
+ *  inteiro, como antes, deixava de fora quem foi cobrado há mais tempo — e ele
+ *  aparecia como "nunca cobrado". De cem em cem ids, para o endereço não
+ *  passar do tamanho que o servidor aceita. */
+async function cobrancasDe(clientes) {
+  const lotes = [];
+  for (let i = 0; i < clientes.length; i += 100) lotes.push(clientes.slice(i, i + 100));
+  const resultados = await Promise.all(lotes.map((ids) => db.todos('cobrancas', {
+    select: 'id,cliente_id,canal,criado_em,criado_por',
+    filtros: [['cliente_id', 'in', ids]],
+  })));
+  return resultados.flat().sort((a, b) => b.criado_em.localeCompare(a.criado_em));
+}
+
 function tela({ grupos, config, indisponivel }) {
   const total = grupos.reduce((s, g) => s + g.total, 0);
   const saldo = grupos.reduce((s, g) => s + g.saldo, 0);
@@ -105,21 +114,11 @@ function tela({ grupos, config, indisponivel }) {
     ${cabecalho('Em atraso', 'Valores atualizados até hoje, por cliente', html`<a class="botao" href="#/financeiro/recebiveis?situacao=vencida">Ver como lista</a>`)}
 
     <div class="indicadores">
-      <div class="indicador${total ? ' indicador--perigo' : ''}">
-        <span class="rotulo">Total atualizado</span>
-        <span class="indicador__valor">${moeda(total)}</span>
-        <span class="indicador__nota">saldo de ${moeda(saldo)} + ${moeda(total - saldo)} de encargos</span>
-      </div>
-      <div class="indicador">
-        <span class="rotulo">Clientes</span>
-        <span class="indicador__valor">${grupos.length}</span>
-        <span class="indicador__nota">${parcelas} ${parcelas === 1 ? 'parcela vencida' : 'parcelas vencidas'}</span>
-      </div>
-      <div class="indicador${nuncaCobrados ? ' indicador--perigo' : ''}">
-        <span class="rotulo">Sem cobrança registrada</span>
-        <span class="indicador__valor">${nuncaCobrados}</span>
-        <span class="indicador__nota">${nuncaCobrados === 1 ? 'cliente nunca cobrado pelo sistema' : 'clientes nunca cobrados pelo sistema'}</span>
-      </div>
+      ${indicador('Total atualizado', moeda(total), `saldo de ${moeda(saldo)} + ${moeda(total - saldo)} de encargos`, { tom: total ? 'perigo' : '' })}
+      ${indicador('Clientes', String(grupos.length), plural(parcelas, 'parcela vencida', 'parcelas vencidas'))}
+      ${indicador('Sem cobrança registrada', String(nuncaCobrados),
+        nuncaCobrados === 1 ? 'cliente nunca cobrado pelo sistema' : 'clientes nunca cobrados pelo sistema',
+        { tom: nuncaCobrados ? 'perigo' : '' })}
     </div>
 
     ${indisponivel ? html`<p class="nota">O Banco Central não respondeu agora: os valores abaixo estão sem correção monetária. Recarregue daqui a pouco.</p>` : ''}

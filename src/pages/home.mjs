@@ -38,7 +38,10 @@ export function buildHome() {
           <p class="equipe__block-text">${m.atuacao}</p>
         </a>`).join('\n');
 
-  const posts = POSTS
+  // Só as três mais recentes (POSTS já vem do mais novo para o mais antigo).
+  // Com o escritório publicando pela área dos advogados, a lista inteira aqui
+  // viraria uma cópia de publicacoes.html — para o resto há o link abaixo.
+  const posts = POSTS.slice(0, 3)
     .map((po) => postItem(po, `publicacoes/${po.slug}.html`, '        '))
     .join('\n');
 

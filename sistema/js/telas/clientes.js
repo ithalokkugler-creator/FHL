@@ -5,7 +5,7 @@
 // cliente por aqui — e cadastram na hora, sem sair do que estavam fazendo.
 
 import { abrirDialogo } from '../nucleo/dialogo.js';
-import { documento, documentoValido, limparDocumento, soDigitos } from '../nucleo/formato.js';
+import { documento, documentoValido, limparDocumento, soDigitos, telefone } from '../nucleo/formato.js';
 import { html } from '../nucleo/html.js';
 import { db } from '../nucleo/supabase.js';
 
@@ -64,46 +64,66 @@ export function ligarCampoCliente(form, clientes, { aoMudar } = {}) {
   resolver();
 }
 
-export function cadastrarCliente({ nome = '' } = {}) {
+export const cadastrarCliente = ({ nome = '' } = {}) => formularioCliente({ nome });
+
+/**
+ * Corrigir o cadastro de quem já existe. Sem isto, um telefone digitado errado
+ * ficava errado para sempre — e é ele que abre o WhatsApp da cobrança.
+ * O histórico guarda o valor anterior.
+ */
+export async function editarCliente(id) {
+  const cliente = await db.um('clientes', { select: 'id,nome,documento,telefone,email,observacoes', filtros: [['id', 'eq', id]] });
+  if (!cliente) throw new Error('Cliente não encontrado.');
+  return formularioCliente(cliente);
+}
+
+function formularioCliente(c) {
+  const novo = !c.id;
   return abrirDialogo({
-    titulo: 'Novo cliente',
-    rotuloOk: 'Cadastrar',
+    titulo: novo ? 'Novo cliente' : `Editar cliente — ${c.nome}`,
+    rotuloOk: novo ? 'Cadastrar' : 'Salvar',
     corpo: html`
       <div class="campos">
         <label class="campo">
           <span>Nome completo</span>
-          <input name="nome" value="${nome}" required maxlength="200" autofocus>
+          <input name="nome" value="${c.nome ?? ''}" required maxlength="200" autofocus>
         </label>
         <label class="campo campo--6">
           <span>CPF ou CNPJ</span>
-          <input name="documento" maxlength="18" autocomplete="off">
+          <input name="documento" value="${c.documento ? documento(c.documento) : ''}" maxlength="18" autocomplete="off">
         </label>
         <label class="campo campo--6">
           <span>Telefone / WhatsApp</span>
-          <input name="telefone" type="tel" maxlength="20" placeholder="(41) 99999-9999">
+          <input name="telefone" type="tel" value="${c.telefone ? telefone(c.telefone) : ''}" maxlength="20" placeholder="(41) 99999-9999">
         </label>
         <label class="campo">
           <span>E-mail</span>
-          <input name="email" type="email" maxlength="200">
+          <input name="email" type="email" value="${c.email ?? ''}" maxlength="200">
         </label>
         <label class="campo">
           <span>Observações</span>
-          <textarea name="observacoes" rows="2"></textarea>
+          <textarea name="observacoes" rows="2">${c.observacoes ?? ''}</textarea>
         </label>
       </div>
-      <p class="sub secao">Cadastro mínimo, até o módulo Clientes existir.</p>`,
+      <p class="sub secao">${novo
+        ? 'Cadastro mínimo, até o módulo Clientes existir.'
+        : 'Vale para todos os contratos deste cliente. O dado anterior fica no histórico.'}</p>`,
     aoEnviar: async (d) => {
       const doc = limparDocumento(d.documento);
       if (doc && !documentoValido(doc)) throw new Error('CPF ou CNPJ inválido — confira os dígitos.');
       const fone = soDigitos(d.telefone);
       if (fone && (fone.length < 10 || fone.length > 13)) throw new Error('Telefone precisa do DDD, como (41) 99999-9999.');
-      return db.inserir('clientes', {
+      const registro = {
         nome: d.nome,
         documento: doc || null,
         telefone: fone || null,
         email: d.email || null,
         observacoes: d.observacoes || null,
-      }, 'id,nome,documento,telefone,email');
+      };
+      const colunas = 'id,nome,documento,telefone,email';
+      return novo
+        ? db.inserir('clientes', registro, colunas)
+        : db.alterar('clientes', [['id', 'eq', c.id]], registro, colunas);
     },
   });
 }

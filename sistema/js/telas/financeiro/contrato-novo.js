@@ -5,20 +5,16 @@
 // cada uma. O banco confere a soma de novo (criar_contrato): a tela ajuda,
 // quem garante é ele.
 
-import { INDICES } from '../../dominio/indices.js';
-import { gerarParcelas, somaDasParcelas } from '../../dominio/parcelas.js';
+import { gerarParcelas, nomeDaParcela, somaDasParcelas } from '../../dominio/parcelas.js';
 import { avisar } from '../../nucleo/avisos.js';
 import { estado, membrosAtivos } from '../../nucleo/estado.js';
-import { decimal, hoje, lerMoeda, lerNumero, moeda, paraReais, somarMeses } from '../../nucleo/formato.js';
+import { decimal, entre, hoje, lerMoeda, lerNumero, moeda, paraReais, somarMeses } from '../../nucleo/formato.js';
 import { $, $$, desenhar, html, lerFormulario } from '../../nucleo/html.js';
 import { navegar } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
 import { campoCliente, carregarClientes, ligarCampoCliente } from '../clientes.js';
 import { cabecalho } from '../comum.js';
-import { apoio, criterioEmTexto, opcoes } from './base.js';
-
-const CORRECOES = [['nenhuma', 'Sem correção'], ...Object.entries(INDICES).map(([v, i]) => [v, i.nome])];
-const pct = (n) => String(Number(n)).replace('.', ',');
+import { apoio, camposCriterio, criterioEmTexto, lerCriterio, opcoes } from './base.js';
 
 export default async function telaNovoContrato(ctx) {
   const [clientes, { config, formas }] = await Promise.all([carregarClientes(), apoio()]);
@@ -110,12 +106,7 @@ export default async function telaNovoContrato(ctx) {
           <legend>Atraso</legend>
           <label class="opcao"><input type="radio" name="criterio" value="padrao" checked> Critério do escritório: ${criterioEmTexto(config)}</label>
           <label class="opcao"><input type="radio" name="criterio" value="proprio"> Critério próprio deste contrato</label>
-          <div class="campos" data-papel="criterio" hidden>
-            <label class="campo campo--3"><span>Multa (%)</span><input name="multa_pct" class="num" inputmode="decimal" value="${pct(config.multa_pct)}"></label>
-            <label class="campo campo--3"><span>Juros ao mês (%)</span><input name="juros_mes_pct" class="num" inputmode="decimal" value="${pct(config.juros_mes_pct)}"></label>
-            <label class="campo campo--3"><span>Correção</span><select name="correcao">${opcoes(CORRECOES, config.correcao)}</select></label>
-            <label class="campo campo--3"><span>Carência (dias)</span><input type="number" name="carencia_dias" min="0" max="90" value="${config.carencia_dias}"></label>
-          </div>
+          <div class="campos" data-papel="criterio" hidden>${camposCriterio(config)}</div>
         </fieldset>
 
         <label class="campo">
@@ -176,7 +167,7 @@ export default async function telaNovoContrato(ctx) {
     desenhar(corpoParcelas, parcelas.length
       ? parcelas.map((p, i) => html`
           <tr>
-            <td>${p.numero === 0 ? 'Entrada' : `${p.numero}/${quantas}`}</td>
+            <td>${p.numero === 0 ? nomeDaParcela(0) : `${p.numero}/${quantas}`}</td>
             <td><input type="date" data-i="${i}" data-campo="vencimento" value="${p.vencimento}" aria-label="Vencimento"></td>
             <td><input class="num" inputmode="decimal" data-i="${i}" data-campo="valor" value="${decimal(p.valor)}" aria-label="Valor"></td>
           </tr>`)
@@ -237,19 +228,11 @@ export default async function telaNovoContrato(ctx) {
       observacoes: d.observacoes || null,
     };
 
-    if (d.criterio === 'proprio') {
-      const multa = lerNumero(d.multa_pct);
-      const juros = lerNumero(d.juros_mes_pct);
-      const carencia = Number(d.carencia_dias || 0);
-      if (!(multa >= 0 && multa <= 100)) throw new Error('A multa precisa estar entre 0% e 100%.');
-      if (!(juros >= 0 && juros <= 100)) throw new Error('Os juros precisam estar entre 0% e 100% ao mês.');
-      if (!(carencia >= 0 && carencia <= 90)) throw new Error('A carência vai de 0 a 90 dias.');
-      Object.assign(contrato, { multa_pct: multa, juros_mes_pct: juros, correcao: d.correcao, carencia_dias: carencia });
-    }
+    if (d.criterio === 'proprio') Object.assign(contrato, lerCriterio(d));
 
     if (d.tipo === 'exito') {
       const percentual = lerNumero(d.exito_pct);
-      if (!(percentual > 0 && percentual <= 100)) throw new Error('Informe o percentual de êxito, entre 0 e 100.');
+      if (!entre(percentual, 0.01, 100)) throw new Error('Informe o percentual de êxito, entre 0 e 100.');
       return { ...contrato, exito_pct: percentual, parcelas: [] };
     }
 

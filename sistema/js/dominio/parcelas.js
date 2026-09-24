@@ -48,6 +48,35 @@ export function gerarParcelas({ total, entrada = 0, dataEntrada, quantidade, pri
 
 export const somaDasParcelas = (lista) => lista.reduce((soma, p) => soma + p.valor, 0);
 
-/** "Entrada" ou "3/10". */
-export const rotuloParcela = (numero, quantidade) =>
-  numero === 0 ? 'Entrada' : quantidade ? `${numero}/${quantidade}` : `${numero}`;
+/** "Entrada" ou "Parcela 3" — o número do banco, o mesmo em toda tela, no
+ *  recibo e na mensagem de cobrança. */
+export const nomeDaParcela = (numero) => (numero === 0 ? 'Entrada' : `Parcela ${numero}`);
+
+/**
+ * Onde cada parcela está no seu plano: "2 de 10" no plano original, "1 de 3"
+ * na renegociação que a criou.
+ *
+ * Renegociar não renumera nada — as parcelas novas continuam a contagem do
+ * contrato (a 11, a 12…), e é esse número que aparece nos recebimentos e na
+ * cobrança. Mostrar "11/2" ao lado dele, como a tela fazia, confundia; a
+ * posição dentro do grupo é que diz a quem lê quantas faltam.
+ *
+ * @param {{ id: string, numero: number, origem_renegociacao_id?: string|null }[]} parcelas
+ * @returns {Map<string, { posicao: number, total: number }>}  a entrada fica de fora
+ */
+export function posicoes(parcelas) {
+  const grupos = new Map();
+  for (const p of parcelas) {
+    if (p.numero === 0) continue;
+    const chave = p.origem_renegociacao_id ?? 'original';
+    if (!grupos.has(chave)) grupos.set(chave, []);
+    grupos.get(chave).push(p);
+  }
+
+  const mapa = new Map();
+  for (const grupo of grupos.values()) {
+    grupo.sort((a, b) => a.numero - b.numero);
+    grupo.forEach((p, i) => mapa.set(p.id, { posicao: i + 1, total: grupo.length }));
+  }
+  return mapa;
+}

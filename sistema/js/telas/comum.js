@@ -1,7 +1,8 @@
-// Pedaços de tela que se repetem: cabeçalho, seletor de mês, selos de situação.
+// Pedaços de tela que se repetem: cabeçalho, indicador, seletor de mês, selos
+// de situação. Um só desenho para cada um: mudar aqui muda em todas as telas.
 
 import { html } from '../nucleo/html.js';
-import { nomeDoMes } from '../nucleo/formato.js';
+import { dataHora, nomeDoMes } from '../nucleo/formato.js';
 
 export function cabecalho(titulo, subtitulo, acoes) {
   return html`
@@ -15,6 +16,33 @@ export function cabecalho(titulo, subtitulo, acoes) {
 }
 
 export const vazio = (texto) => html`<p class="vazio">${texto}</p>`;
+
+/**
+ * Um número em destaque, com rótulo e nota: "Entrou · R$ 1.200,00 · 3
+ * recebimentos". Com `href`, vira link para a tela onde o número mora — o
+ * painel aponta para o detalhe em vez de repeti-lo.
+ */
+export function indicador(rotulo, valor, nota = '', { tom = '', href = '' } = {}) {
+  const conteudo = html`
+    <span class="rotulo">${rotulo}</span>
+    <span class="indicador__valor">${valor}</span>
+    ${nota ? html`<span class="indicador__nota">${nota}</span>` : ''}`;
+  const classe = `indicador${tom ? ` indicador--${tom}` : ''}`;
+  return href ? html`<a class="${classe}" href="${href}">${conteudo}</a>` : html`<div class="${classe}">${conteudo}</div>`;
+}
+
+/** "1 parcela", "3 parcelas". */
+export const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+
+/** Cabeçalho que só aparece no papel (fechamento e relatórios). */
+export const cabecalhoImpressao = () => html`
+  <div class="so-impressao">
+    <p class="rotulo">FHL Advocacia — Fonseca Hespanha Lisboa</p>
+    <p>Impresso em ${dataHora(new Date().toISOString())}</p>
+  </div>`;
+
+/** Mês vindo do endereço (?mes=AAAA-MM-01), ou o padrão se vier torto. */
+export const mesDaConsulta = (valor, padrao) => (/^\d{4}-\d{2}-01$/.test(valor ?? '') ? valor : padrao);
 
 /** [[valor, rótulo]] → <option>, com o atual já selecionado. */
 export const opcoes = (lista, atual, { vazio: rotuloVazio } = {}) => html`

@@ -428,6 +428,20 @@ img { max-width: 100%; display: block; }
 
 .campo__ajuda { font-size: 12px; color: var(--c-texto-m); }
 
+/* Ação secundária no meio de um texto: "Rodrigo · (41) 99999-9999 · editar
+   cliente". Parece link, mas é botão — abre diálogo, não troca de página. */
+.botao-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--c-acao);
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.botao-link::before { content: '· '; color: var(--c-texto-m); text-decoration: none; display: inline-block; white-space: pre; }
+
 .opcao {
   display: flex;
   align-items: flex-start;
@@ -519,6 +533,14 @@ img { max-width: 100%; display: block; }
   background: var(--c-linha);
 }
 .indicadores--embutido { margin: 0; border: 0; border-bottom: 1px solid var(--c-linha); }
+/* Seis números: duas linhas de três. Na grade automática, o sexto caía
+   sozinho numa linha e deixava o fundo cinza aparecendo ao lado. */
+@media (min-width: 720px) {
+  .indicadores--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+/* Rede de segurança para qualquer quantidade: o último estica até o fim da
+   linha, em vez de deixar célula vazia. */
+.indicadores > :last-child { grid-column-end: -1; }
 .indicador { display: grid; align-content: start; gap: 2px; padding: var(--s-3) var(--s-4); background: var(--c-superficie); }
 .indicador__valor {
   font-size: 21px;
@@ -530,6 +552,7 @@ img { max-width: 100%; display: block; }
 .indicador__nota { font-size: 12px; color: var(--c-texto-m); }
 .indicador--perigo .indicador__valor { color: var(--c-perigo); }
 .indicador--ok .indicador__valor { color: var(--c-ok); }
+.indicador--alerta .indicador__valor { color: var(--c-alerta); }
 a.indicador { color: inherit; text-decoration: none; }
 a.indicador:hover { background: var(--c-realce); }
 

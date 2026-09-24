@@ -3,20 +3,27 @@
 //
 // Nada aqui apaga. Parcela e contrato se cancelam com motivo; recebimento se
 // estorna com motivo; vencimento alterado deixa a data antiga no histórico.
+// Descrição, responsável e critério se corrigem em "Editar"; valor e parcelas,
+// não — para isso há Renegociar, Vencimento e Cancelar parcela, que deixam
+// rastro do que mudou e por quê.
 
-import { gerarParcelas } from '../../dominio/parcelas.js';
+import { gerarParcelas, nomeDaParcela, posicoes } from '../../dominio/parcelas.js';
 import { avisar, avisarErro } from '../../nucleo/avisos.js';
 import { abrirDialogo, pedirMotivo } from '../../nucleo/dialogo.js';
-import { nomeDe } from '../../nucleo/estado.js';
+import { membrosAtivos, nomeDe } from '../../nucleo/estado.js';
 import {
   centavos, data, dataHora, decimal, hoje, lerMoeda, moeda, paraReais, percentual, telefone,
 } from '../../nucleo/formato.js';
-import { aoClicar, desenhar, html } from '../../nucleo/html.js';
+import { $, aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { db } from '../../nucleo/supabase.js';
-import { cabecalho, CANAIS, seloContrato, seloParcela, TIPOS_HONORARIO, vazio } from '../comum.js';
+import { editarCliente } from '../clientes.js';
+import {
+  cabecalho, CANAIS, indicador, plural, seloContrato, seloParcela, TIPOS_HONORARIO, vazio,
+} from '../comum.js';
 import { abrirHistorico } from '../historico.js';
 import {
-  atualizarParcelas, criterioEmTexto, memoria, memoriaGravada, receberParcela, renegociarContrato, rotuloParcela,
+  apoio, atualizarParcelas, camposCriterio, criterioDoContrato, criterioEmTexto, lerCriterio, memoria,
+  memoriaGravada, opcoes, receberParcela, renegociarContrato, rotuloParcela,
 } from './base.js';
 
 export default async function telaContrato(ctx) {
@@ -40,6 +47,11 @@ export default async function telaContrato(ctx) {
     receber: (el) => depois(receberParcela(parcela(el))),
     renegociar: () => depois(renegociarContrato(id)),
     apurar: () => depois(apurarExito(dados.contrato)),
+    editar: () => depois(editarContrato(dados.contrato, dados.apoio)),
+    'editar-cliente': () => depois(editarCliente(dados.contrato.cliente_id).then((c) => {
+      if (c) avisar('Cliente salvo.');
+      return c;
+    })),
 
     calculo: async (el) => {
       const [{ parcela: p, calculo }] = await atualizarParcelas([parcela(el)]);
@@ -114,35 +126,46 @@ export default async function telaContrato(ctx) {
 
     historico: () => abrirHistorico({
       titulo: dados.contrato.descricao,
-      registros: [id, ...dados.parcelas.map((p) => p.id), ...dados.recebimentos.map((r) => r.id), ...dados.renegociacoes.map((r) => r.id)],
+      registros: [
+        id, dados.contrato.cliente_id,
+        ...dados.parcelas.map((p) => p.id), ...dados.recebimentos.map((r) => r.id), ...dados.renegociacoes.map((r) => r.id),
+      ],
     }),
   });
 }
 
 async function carregar(id) {
-  const [contrato, parcelas, recebimentos, renegociacoes] = await Promise.all([
+  const [contrato, parcelas, recebimentos, renegociacoes, suporte] = await Promise.all([
     db.um('v_contratos', { select: '*', filtros: [['id', 'eq', id]] }),
-    db.listar('v_parcelas', { select: '*', filtros: [['contrato_id', 'eq', id]], ordem: 'numero.asc' }),
+    db.todos('v_parcelas', { select: '*', filtros: [['contrato_id', 'eq', id]] }),
     db.listar('v_recebimentos', { select: '*', filtros: [['contrato_id', 'eq', id]], ordem: 'data.desc,criado_em.desc' }),
     db.listar('renegociacoes', { select: '*', filtros: [['contrato_id', 'eq', id]], ordem: 'criado_em.desc' }),
+    apoio(),
   ]);
+  parcelas.sort((a, b) => a.numero - b.numero);
   const cobrancas = contrato
     ? await db.listar('cobrancas', { select: '*', filtros: [['cliente_id', 'eq', contrato.cliente_id]], ordem: 'criado_em.desc', limite: 50 })
     : [];
-  return { contrato, parcelas, recebimentos, renegociacoes, cobrancas };
+  return { contrato, parcelas, recebimentos, renegociacoes, cobrancas, apoio: suporte };
 }
 
-function tela({ contrato: c, parcelas, recebimentos, renegociacoes, cobrancas }) {
+function tela({ contrato: c, parcelas, recebimentos, renegociacoes, cobrancas, apoio: { config } }) {
   const ativo = !c.cancelado_em;
   const abertas = parcelas.filter((p) => ['a_vencer', 'vencida'].includes(p.situacao));
   const proprio = c.multa_pct != null;
-  const quantas = parcelas.filter((p) => p.numero > 0 && !['renegociada', 'cancelada'].includes(p.situacao)).length;
+  const posicao = posicoes(parcelas);
+  const dataRenegociacao = new Map(renegociacoes.map((r) => [r.id, r.criado_em]));
+
+  const subtitulo = html`
+    ${c.cliente_nome}${c.cliente_telefone ? ` · ${telefone(c.cliente_telefone)}` : ''}${c.processo ? ` · processo ${c.processo}` : ''}
+    <button type="button" class="botao-link" data-acao="editar-cliente">editar cliente</button>`;
 
   return html`
     <a class="pagina__voltar" href="#/financeiro/contratos">← Contratos</a>
-    ${cabecalho(c.descricao, html`${c.cliente_nome}${c.cliente_telefone ? ` · ${telefone(c.cliente_telefone)}` : ''}${c.processo ? ` · processo ${c.processo}` : ''}`, html`
+    ${cabecalho(c.descricao, subtitulo, html`
       ${seloContrato(c.situacao)}
       <button type="button" class="botao" data-acao="historico">Histórico</button>
+      ${ativo ? html`<button type="button" class="botao" data-acao="editar">Editar</button>` : ''}
       ${ativo && c.situacao === 'a_apurar' ? html`<button type="button" class="botao botao--primario" data-acao="apurar">Apurar êxito</button>` : ''}
       ${ativo && abertas.length ? html`<button type="button" class="botao" data-acao="renegociar">Renegociar</button>` : ''}
       ${ativo ? html`<button type="button" class="botao botao--discreto" data-acao="cancelar-contrato">Cancelar contrato</button>` : ''}`)}
@@ -153,31 +176,18 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, cobrancas })
       </p>` : ''}
 
     <div class="indicadores">
-      <div class="indicador">
-        <span class="rotulo">Honorários</span>
-        <span class="indicador__valor">${c.valor_total != null ? moeda(centavos(c.valor_total)) : percentual(c.exito_pct)}</span>
-        <span class="indicador__nota">${TIPOS_HONORARIO[c.tipo_honorario]}${c.exito_pct ? ` de ${percentual(c.exito_pct)}` : ''}${c.responsavel_id ? ` · ${nomeDe(c.responsavel_id)}` : ''}</span>
-      </div>
-      <div class="indicador indicador--ok">
-        <span class="rotulo">Recebido</span>
-        <span class="indicador__valor">${moeda(centavos(c.recebido))}</span>
-        <span class="indicador__nota">inclui multa, juros e correção recebidos</span>
-      </div>
-      <div class="indicador">
-        <span class="rotulo">Saldo em aberto</span>
-        <span class="indicador__valor">${moeda(centavos(c.saldo))}</span>
-        <span class="indicador__nota">${!c.proximo_vencimento
-          ? 'nada a vencer'
-          : c.proximo_vencimento < hoje() ? `vencido desde ${data(c.proximo_vencimento)}` : `próximo vencimento ${data(c.proximo_vencimento)}`}</span>
-      </div>
-      <div class="indicador${c.vencidas ? ' indicador--perigo' : ''}">
-        <span class="rotulo">Vencido</span>
-        <span class="indicador__valor">${moeda(centavos(c.saldo_vencido))}</span>
-        <span class="indicador__nota">${c.vencidas} ${c.vencidas === 1 ? 'parcela' : 'parcelas'}, sem encargos</span>
-      </div>
+      ${indicador('Honorários',
+        c.valor_total != null ? moeda(centavos(c.valor_total)) : percentual(c.exito_pct),
+        `${TIPOS_HONORARIO[c.tipo_honorario]}${c.exito_pct ? ` de ${percentual(c.exito_pct)}` : ''}${c.responsavel_id ? ` · ${nomeDe(c.responsavel_id)}` : ''}`)}
+      ${indicador('Recebido', moeda(centavos(c.recebido)), 'inclui multa, juros e correção recebidos', { tom: 'ok' })}
+      ${indicador('Saldo em aberto', moeda(centavos(c.saldo)), !c.proximo_vencimento
+        ? 'nada a vencer'
+        : c.proximo_vencimento < hoje() ? `vencido desde ${data(c.proximo_vencimento)}` : `próximo vencimento ${data(c.proximo_vencimento)}`)}
+      ${indicador('Vencido', moeda(centavos(c.saldo_vencido)), `${plural(c.vencidas, 'parcela', 'parcelas')}, sem encargos`,
+        { tom: c.vencidas ? 'perigo' : '' })}
     </div>
 
-    <p class="sub">Atraso: ${proprio ? 'critério próprio — ' : 'critério do escritório — '}${parcelas[0] ? criterioEmTexto(parcelas[0]) : ''}.${c.observacoes ? ` Observações: ${c.observacoes}` : ''}</p>
+    <p class="sub">Atraso: ${proprio ? 'critério próprio' : 'critério do escritório'} — ${criterioEmTexto(criterioDoContrato(c, config))}.${c.observacoes ? ` Observações: ${c.observacoes}` : ''}</p>
 
     <section class="painel secao">
       <header class="painel__topo"><h2 class="painel__titulo">Parcelas</h2></header>
@@ -193,9 +203,13 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, cobrancas })
             <tbody>
               ${parcelas.map((p) => {
                 const aberta = ['a_vencer', 'vencida'].includes(p.situacao);
+                const pos = posicao.get(p.id);
+                const onde = pos && (p.origem_renegociacao_id
+                  ? `${pos.posicao} de ${pos.total} da renegociação de ${dataHora(dataRenegociacao.get(p.origem_renegociacao_id)).slice(0, 10)}`
+                  : `${pos.posicao} de ${pos.total}`);
                 return html`
                   <tr class="${['renegociada', 'cancelada'].includes(p.situacao) ? 'apagada' : ''}">
-                    <td>${p.numero === 0 ? 'Entrada' : `${p.numero}/${quantas}`}${p.origem_renegociacao_id ? html`<span class="sub">da renegociação</span>` : ''}</td>
+                    <td>${rotuloParcela(p)}${onde ? html`<span class="sub">${onde}</span>` : ''}</td>
                     <td class="num">${data(p.vencimento)}${p.situacao === 'vencida' ? html`<span class="sub perigo">${p.dias_atraso} dias</span>` : ''}</td>
                     <td class="num">${moeda(centavos(p.valor))}</td>
                     <td class="num">${moeda(centavos(p.pago_principal) + centavos(p.pago_encargos))}</td>
@@ -230,7 +244,7 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, cobrancas })
               ${recebimentos.map((r) => html`
                 <tr class="${r.estornado_em ? 'apagada' : ''}">
                   <td class="num">${data(r.data)}</td>
-                  <td>${r.parcela_numero === 0 ? 'Entrada' : `Parcela ${r.parcela_numero}`}${r.observacao ? html`<span class="sub">${r.observacao}</span>` : ''}</td>
+                  <td>${nomeDaParcela(r.parcela_numero)}${r.observacao ? html`<span class="sub">${r.observacao}</span>` : ''}</td>
                   <td class="num">${moeda(centavos(r.valor))}</td>
                   <td class="num">${moeda(centavos(r.valor_principal))}</td>
                   <td class="num">${moeda(centavos(r.valor_encargos))}</td>
@@ -272,6 +286,72 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, cobrancas })
             </li>`)}
         </ul>` : vazio('Nenhuma cobrança registrada. Registre em Em atraso › Preparar mensagem.')}
     </section>`;
+}
+
+function editarContrato(c, { config, formas }) {
+  const proprio = c.multa_pct != null;
+  const advogados = membrosAtivos().filter((m) => m.papel !== 'secretaria' || m.id === c.responsavel_id);
+
+  return abrirDialogo({
+    titulo: 'Editar contrato',
+    largo: true,
+    corpo: html`
+      <div class="campos">
+        <label class="campo campo--8">
+          <span>Descrição</span>
+          <input name="descricao" value="${c.descricao}" required maxlength="200" autofocus>
+        </label>
+        <label class="campo campo--4">
+          <span>Nº do processo</span>
+          <input name="processo" value="${c.processo ?? ''}" maxlength="40">
+        </label>
+        <label class="campo campo--6">
+          <span>Forma de pagamento prevista</span>
+          <select name="forma_prevista_id">${opcoes(formas.filter((f) => f.ativo || f.id === c.forma_prevista_id).map((f) => [f.id, f.nome]), c.forma_prevista_id, { vazio: 'Não definida' })}</select>
+        </label>
+        <label class="campo campo--6">
+          <span>Sócio responsável</span>
+          <select name="responsavel_id">${opcoes(advogados.map((m) => [m.id, m.nome_curto]), c.responsavel_id, { vazio: 'Não definido' })}</select>
+        </label>
+        <fieldset class="fieldset campos">
+          <legend>Atraso</legend>
+          <label class="opcao"><input type="radio" name="criterio" value="padrao" ${proprio ? '' : 'checked'}> Critério do escritório: ${criterioEmTexto(config)}</label>
+          <label class="opcao"><input type="radio" name="criterio" value="proprio" ${proprio ? 'checked' : ''}> Critério próprio deste contrato</label>
+          <div class="campos" data-papel="criterio" ${proprio ? '' : 'hidden'}>${camposCriterio(criterioDoContrato(c, config))}</div>
+        </fieldset>
+        <label class="campo">
+          <span>Observações</span>
+          <textarea name="observacoes" rows="2">${c.observacoes ?? ''}</textarea>
+        </label>
+      </div>
+      <p class="sub secao">
+        Valor e parcelas não mudam por aqui: para isso há Renegociar, Vencimento e Cancelar
+        parcela. O critério novo vale para o cálculo de hoje em diante — recebimentos já
+        lançados guardam o cálculo do dia.
+      </p>`,
+
+    aoAbrir: (dialogo, form) => {
+      form.addEventListener('change', (e) => {
+        if (e.target.name === 'criterio') $('[data-papel="criterio"]', form).hidden = form.criterio.value !== 'proprio';
+      });
+    },
+
+    aoEnviar: async (d) => {
+      const criterio = d.criterio === 'proprio'
+        ? lerCriterio(d)
+        : { multa_pct: null, juros_mes_pct: null, correcao: null, carencia_dias: null };
+      await db.alterar('contratos', [['id', 'eq', c.id]], {
+        descricao: d.descricao,
+        processo: d.processo || null,
+        forma_prevista_id: d.forma_prevista_id || null,
+        responsavel_id: d.responsavel_id || null,
+        observacoes: d.observacoes || null,
+        ...criterio,
+      }, 'id');
+      avisar('Contrato salvo.');
+      return true;
+    },
+  });
 }
 
 function apurarExito(contrato) {

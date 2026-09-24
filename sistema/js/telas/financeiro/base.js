@@ -7,13 +7,13 @@
 
 import { atualizar, memoriaParaGravar } from '../../dominio/atraso.js';
 import { mensagemDeCobranca } from '../../dominio/cobranca.js';
-import { fatorDoPeriodo, INDICES, variacoes } from '../../dominio/indices.js';
-import { gerarParcelas, somaDasParcelas } from '../../dominio/parcelas.js';
+import { fatorDoPeriodo, INDICES, temMesParaCorrigir, variacoes } from '../../dominio/indices.js';
+import { gerarParcelas, nomeDaParcela, somaDasParcelas } from '../../dominio/parcelas.js';
 import { avisar } from '../../nucleo/avisos.js';
 import { abrirDialogo } from '../../nucleo/dialogo.js';
 import { estado } from '../../nucleo/estado.js';
 import {
-  centavos, data, decimal, hoje, lerMoeda, linkWhatsApp, moeda, paraReais, percentual, somarMeses,
+  centavos, data, decimal, entre, hoje, lerMoeda, lerNumero, linkWhatsApp, moeda, paraReais, percentual, somarMeses,
 } from '../../nucleo/formato.js';
 import { $, $$, desenhar, html } from '../../nucleo/html.js';
 import { db } from '../../nucleo/supabase.js';
@@ -46,9 +46,66 @@ export const esquecerApoio = () => {
 
 export const somaCentavos = (linhas, campo) => linhas.reduce((s, l) => s + centavos(l[campo]), 0);
 
-export const rotuloParcela = (p) => (p.numero === 0 ? 'Entrada' : `Parcela ${p.numero}`);
+export const rotuloParcela = (p) => nomeDaParcela(p.numero);
+
+// Contas fixas nascem quando alguém olha o mês: gerar_contas_do_mes cria as
+// que faltam. Antes só o Painel e as Contas chamavam — a tela Hoje e o
+// Fechamento de um mês que ninguém abriu ficavam sem o aluguel. Agora toda
+// tela que lista conta chama por aqui, uma vez por mês por sessão: a função é
+// idempotente, mas cada chamada é uma ida ao banco.
+const mesesGerados = new Set();
+
+export async function garantirContasDoMes(mes, { forcar = false } = {}) {
+  if (!forcar && mesesGerados.has(mes)) return;
+  try {
+    await db.rpc('gerar_contas_do_mes', { p_competencia: mes });
+    mesesGerados.add(mes);
+  } catch {
+    // Sem rede agora: a próxima tela tenta de novo. A lista sai com o que já existe.
+  }
+}
 
 export { opcoes };
+
+// ---------------------------------------------------------------------------
+// Critério de atraso — no contrato novo, na edição do contrato e nas
+// configurações. Um desenho e uma conferência só para os três lugares.
+// ---------------------------------------------------------------------------
+
+const CORRECOES = [['nenhuma', 'Sem correção monetária'], ...Object.entries(INDICES).map(([v, i]) => [v, i.nome])];
+
+/** 10 → "10"; 1.5 → "1,5". Para preencher campo de percentual. */
+export const numeroBR = (n) => String(Number(n)).replace('.', ',');
+
+export function camposCriterio(v, { classe = 'campo--3', trava = false } = {}) {
+  const t = trava ? 'disabled' : '';
+  return html`
+    <label class="campo ${classe}"><span>Multa (%)</span><input name="multa_pct" class="num" inputmode="decimal" value="${numeroBR(v.multa_pct)}" ${t}></label>
+    <label class="campo ${classe}"><span>Juros ao mês (%)</span><input name="juros_mes_pct" class="num" inputmode="decimal" value="${numeroBR(v.juros_mes_pct)}" ${t}></label>
+    <label class="campo ${classe}"><span>Correção</span><select name="correcao" ${t}>${opcoes(CORRECOES, v.correcao)}</select></label>
+    <label class="campo ${classe}"><span>Carência (dias)</span><input type="number" name="carencia_dias" min="0" max="90" value="${v.carencia_dias}" ${t}></label>`;
+}
+
+/** Lê e confere os campos de camposCriterio. Campo em branco é erro, não
+ *  "padrão": o banco recusaria, e com uma mensagem pior. */
+export function lerCriterio(d) {
+  const multa = lerNumero(d.multa_pct);
+  const juros = lerNumero(d.juros_mes_pct);
+  const carencia = lerNumero(d.carencia_dias);
+  if (!entre(multa, 0, 100)) throw new Error('A multa precisa estar entre 0% e 100%.');
+  if (!entre(juros, 0, 100)) throw new Error('Os juros precisam estar entre 0% e 100% ao mês.');
+  if (!entre(carencia, 0, 90) || !Number.isInteger(carencia)) throw new Error('A carência vai de 0 a 90 dias.');
+  if (!CORRECOES.some(([v]) => v === d.correcao)) throw new Error('Escolha a correção monetária.');
+  return { multa_pct: multa, juros_mes_pct: juros, correcao: d.correcao, carencia_dias: carencia };
+}
+
+/** O critério que vale para um contrato: o próprio, ou o do escritório. */
+export const criterioDoContrato = (c, config) => ({
+  multa_pct: c.multa_pct ?? config.multa_pct,
+  juros_mes_pct: c.juros_mes_pct ?? config.juros_mes_pct,
+  correcao: c.correcao ?? config.correcao,
+  carencia_dias: c.carencia_dias ?? config.carencia_dias,
+});
 
 /** "multa de 10% · juros de 1% ao mês · correção pelo IPCA · sem carência" */
 export function criterioEmTexto(c) {
@@ -65,9 +122,12 @@ export function criterioEmTexto(c) {
 /** Atualiza várias linhas de v_parcelas numa data, buscando cada índice uma
  *  vez só. Devolve [{ parcela, calculo }]. */
 export async function atualizarParcelas(parcelas, dataCalculo = hoje()) {
+  // Só vale a pena perguntar ao Banco Central por parcela que tem mês a
+  // corrigir; a vencida neste mês não tem índice publicado ainda.
   const desde = {};
   for (const p of parcelas) {
-    if (INDICES[p.correcao] && (!desde[p.correcao] || p.vencimento < desde[p.correcao])) {
+    if (INDICES[p.correcao] && temMesParaCorrigir(p.vencimento, dataCalculo)
+        && (!desde[p.correcao] || p.vencimento < desde[p.correcao])) {
       desde[p.correcao] = p.vencimento;
     }
   }
@@ -80,11 +140,12 @@ export async function atualizarParcelas(parcelas, dataCalculo = hoje()) {
   return parcelas.map((p) => {
     let correcao = null;
     if (INDICES[p.correcao]) {
-      const mapa = mapas[p.correcao];
+      const precisa = temMesParaCorrigir(p.vencimento, dataCalculo);
+      const mapa = precisa ? mapas[p.correcao] : new Map();
       correcao = {
         nome: INDICES[p.correcao].nome,
         ...fatorDoPeriodo(mapa ?? new Map(), p.vencimento, dataCalculo),
-        indisponivel: !mapa,
+        indisponivel: precisa && !mapa,
       };
     }
     const calculo = atualizar({
@@ -172,6 +233,9 @@ export async function receberParcela(p) {
       const efeito = () => {
         const caixa = $('[data-papel="efeito"]', dialogo);
         const valor = lerMoeda(form.valor.value);
+        const passou = valor - calculo.total;
+        caixa.classList.toggle('nota--perigo', passou > 0);
+        caixa.classList.toggle('nota--info', !(passou > 0));
         if (!(valor > 0)) {
           caixa.textContent = 'Informe o valor recebido.';
           return;
@@ -180,6 +244,8 @@ export async function receberParcela(p) {
         const encargos = valor - principal;
         if (valor < calculo.saldo) {
           caixa.textContent = `Pagamento parcial: abate ${moeda(principal)} e ficam ${moeda(calculo.saldo - principal)} em aberto na parcela.`;
+        } else if (passou > 0) {
+          caixa.textContent = `O valor passa ${moeda(passou)} do total atualizado (${moeda(calculo.total)}). Confira — o que passar do saldo entra como encargo.`;
         } else if (encargos > 0) {
           caixa.textContent = `Quita a parcela: ${moeda(principal)} de saldo e ${moeda(encargos)} de multa, juros e correção.`;
         } else {

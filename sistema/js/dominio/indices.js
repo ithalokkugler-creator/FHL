@@ -34,14 +34,26 @@ export function variacoes(indice, desde, ate) {
 
 const dataSgs = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 
+// O Banco Central às vezes leva segundos para responder. Passado isto, o
+// cálculo sai sem correção e com o aviso — a tela não fica presa esperando.
+const ESPERA_MAXIMA = 8000;
+
 async function buscarSerie(serie, desde, ate) {
   const url = `https://api.bcb.gov.br/dados/serie/bcdata.sgs.${serie}/dados`
     + `?formato=json&dataInicial=${dataSgs(`${desde.slice(0, 7)}-01`)}&dataFinal=${dataSgs(ate)}`;
-  const resposta = await fetch(url);
+  const resposta = await fetch(url, { signal: AbortSignal.timeout(ESPERA_MAXIMA) });
+  // 404 é a resposta do SGS para "nenhum índice publicado nesse intervalo" —
+  // o normal para uma parcela vencida neste mês. Não é o serviço fora do ar:
+  // tratado como falha, o recibo gravava "Banco Central fora do ar".
+  if (resposta.status === 404) return new Map();
   if (!resposta.ok) throw new Error(`O Banco Central não respondeu (${resposta.status}).`);
   const linhas = await resposta.json();
   return new Map(linhas.map((l) => [`${l.data.slice(6, 10)}-${l.data.slice(3, 5)}`, Number(l.valor)]));
 }
+
+/** Há algum mês a corrigir entre o vencimento e o cálculo? Se não, nem se
+ *  pergunta ao Banco Central. */
+export const temMesParaCorrigir = (vencimento, dataCalculo) => vencimento.slice(0, 7) < dataCalculo.slice(0, 7);
 
 const proximoMes = (am) => {
   const [a, m] = am.split('-').map(Number);
@@ -70,6 +82,9 @@ export function fatorDoPeriodo(variacoesMensais, vencimento, dataCalculo) {
  *  "nenhuma". Falha de rede não trava a tela: volta sem fator e com o aviso. */
 export async function correcaoPara(indice, vencimento, dataCalculo) {
   if (!INDICES[indice]) return null;
+  if (!temMesParaCorrigir(vencimento, dataCalculo)) {
+    return { nome: INDICES[indice].nome, ...fatorDoPeriodo(new Map(), vencimento, dataCalculo) };
+  }
   try {
     const mapa = await variacoes(indice, vencimento, dataCalculo);
     return { nome: INDICES[indice].nome, ...fatorDoPeriodo(mapa, vencimento, dataCalculo) };

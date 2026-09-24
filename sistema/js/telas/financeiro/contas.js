@@ -10,20 +10,20 @@ import { avisar, avisarErro } from '../../nucleo/avisos.js';
 import { abrirDialogo, pedirMotivo } from '../../nucleo/dialogo.js';
 import { membrosAtivos, nomeDe } from '../../nucleo/estado.js';
 import {
-  centavos, data, dataHora, decimal, hoje, inicioDoMes, lerMoeda, moeda, paraReais, somarMeses,
+  centavos, data, dataHora, decimal, hoje, inicioDoMes, lerMoeda, moeda, nomeDoMes, paraReais, somarMeses,
 } from '../../nucleo/formato.js';
 import { aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { guardarConsulta } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
-import { cabecalho, seletorMes, seloConta, vazio } from '../comum.js';
+import { cabecalho, indicador, mesDaConsulta, plural, seletorMes, seloConta, vazio } from '../comum.js';
 import { abrirHistorico } from '../historico.js';
-import { apoio, opcoes, somaCentavos } from './base.js';
+import { apoio, garantirContasDoMes, opcoes, somaCentavos } from './base.js';
 
 const ABAS = [['mes', 'Do mês'], ['recorrentes', 'Recorrentes'], ['reembolsos', 'Reembolsos a sócios']];
 
 export default async function telaContas(ctx) {
   const aba = ABAS.some(([v]) => v === ctx.consulta.aba) ? ctx.consulta.aba : 'mes';
-  let mes = /^\d{4}-\d{2}-01$/.test(ctx.consulta.mes ?? '') ? ctx.consulta.mes : inicioDoMes(hoje());
+  let mes = mesDaConsulta(ctx.consulta.mes, inicioDoMes(hoje()));
   const { categorias, formas } = await apoio();
   let dados = {};
 
@@ -63,6 +63,8 @@ export default async function telaContas(ctx) {
     'alternar-recorrente': (el) => {
       const r = recorrente(el);
       depois(db.alterar('contas_recorrentes', [['id', 'eq', r.id]], { ativo: !r.ativo }, 'id')
+        // Reativada, a conta deste mês já pode nascer.
+        .then(() => (r.ativo ? null : garantirContasDoMes(inicioDoMes(hoje()), { forcar: true })))
         .then(() => avisar(r.ativo ? 'Recorrente desativada: não gera mais contas.' : 'Recorrente reativada.')).then(() => true));
     },
     reembolsado: (el) => depois(marcarReembolso(conta(el))),
@@ -89,7 +91,7 @@ function topo(aba, mes) {
 
 const CARREGAR = {
   async mes(mes) {
-    await db.rpc('gerar_contas_do_mes', { p_competencia: mes }).catch(() => 0);
+    await garantirContasDoMes(mes);
     const [contas, atrasadas] = await Promise.all([
       db.listar('v_contas', { select: '*', filtros: [['competencia', 'eq', mes]], ordem: 'vencimento.asc,descricao.asc' }),
       mes === inicioDoMes(hoje())
@@ -107,14 +109,23 @@ const CARREGAR = {
     return { recorrentes: await db.listar('contas_recorrentes', { select: '*', ordem: 'ativo.desc,dia_vencimento.asc,descricao.asc' }) };
   },
 
+  // Pendentes, todos — um reembolso antigo esquecido é justamente o que esta
+  // tela existe para mostrar. Feitos, só os últimos.
   async reembolsos() {
-    const pagas = await db.listar('v_contas', {
-      select: '*',
-      filtros: [['pago_por_id', 'not.is', null], ['situacao', 'eq', 'paga']],
-      ordem: 'data_pagamento.desc',
-      limite: 300,
-    });
-    return { pendentes: pagas.filter((c) => !c.reembolsado_em), feitos: pagas.filter((c) => c.reembolsado_em).slice(0, 30) };
+    const [pendentes, feitos] = await Promise.all([
+      db.todos('v_contas', {
+        select: '*',
+        filtros: [['pago_por_id', 'not.is', null], ['situacao', 'eq', 'paga'], ['reembolsado_em', 'is', null]],
+      }),
+      db.listar('v_contas', {
+        select: '*',
+        filtros: [['pago_por_id', 'not.is', null], ['situacao', 'eq', 'paga'], ['reembolsado_em', 'not.is', null]],
+        ordem: 'reembolsado_em.desc',
+        limite: 30,
+      }),
+    ]);
+    pendentes.sort((a, b) => b.data_pagamento.localeCompare(a.data_pagamento));
+    return { pendentes, feitos };
   },
 };
 
@@ -139,9 +150,10 @@ const DESENHAR = {
 
     return html`
       <div class="indicadores">
-        <div class="indicador"><span class="rotulo">Previsto</span><span class="indicador__valor">${moeda(somaCentavos(validas, 'valor'))}</span><span class="indicador__nota">${validas.length} ${validas.length === 1 ? 'conta' : 'contas'}${semValor ? ` · ${semValor} sem valor ainda` : ''}</span></div>
-        <div class="indicador indicador--ok"><span class="rotulo">Pago</span><span class="indicador__valor">${moeda(somaCentavos(pagas, 'valor'))}</span><span class="indicador__nota">${pagas.length} ${pagas.length === 1 ? 'conta' : 'contas'}</span></div>
-        <div class="indicador${abertas.some((c) => c.situacao === 'vencida') ? ' indicador--perigo' : ''}"><span class="rotulo">A pagar</span><span class="indicador__valor">${moeda(somaCentavos(abertas, 'valor'))}</span><span class="indicador__nota">${abertas.length} ${abertas.length === 1 ? 'conta' : 'contas'}</span></div>
+        ${indicador('Previsto', moeda(somaCentavos(validas, 'valor')), `${plural(validas.length, 'conta', 'contas')}${semValor ? ` · ${semValor} sem valor ainda` : ''}`)}
+        ${indicador('Pago', moeda(somaCentavos(pagas, 'valor')), plural(pagas.length, 'conta', 'contas'), { tom: 'ok' })}
+        ${indicador('A pagar', moeda(somaCentavos(abertas, 'valor')), plural(abertas.length, 'conta', 'contas'),
+          { tom: abertas.some((c) => c.situacao === 'vencida') ? 'perigo' : '' })}
       </div>
 
       ${atrasadas.length ? html`
@@ -208,8 +220,7 @@ const DESENHAR = {
     return html`
       ${porSocio.size ? html`
         <div class="indicadores">
-          ${[...porSocio].map(([id, total]) => html`
-            <div class="indicador"><span class="rotulo">${nomeDe(id)}</span><span class="indicador__valor">${moeda(total)}</span><span class="indicador__nota">a reembolsar</span></div>`)}
+          ${[...porSocio].map(([id, total]) => indicador(nomeDe(id), moeda(total), 'a reembolsar'))}
         </div>` : ''}
       <section class="painel">
         <header class="painel__topo"><h2 class="painel__titulo">A reembolsar</h2></header>
@@ -356,9 +367,17 @@ function editarConta(c, { categorias, formas, mes }) {
       };
       if (!registro.pago_por_id) registro.reembolsado_em = null;
 
-      if (nova) await db.inserir('contas', registro, 'id');
-      else await db.alterar('contas', [['id', 'eq', c.id]], registro, 'id');
-      avisar(nova ? 'Conta lançada.' : 'Conta salva.');
+      const salva = nova
+        ? await db.inserir('contas', registro, 'id,competencia')
+        : await db.alterar('contas', [['id', 'eq', c.id]], registro, 'id,competencia');
+      // Conta avulsa acompanha o mês do vencimento. Se foi para outro mês,
+      // diz para onde — senão ela só some da lista que está aberta. A conta
+      // já está gravada aqui: nada neste aviso pode falhar e deixar o diálogo
+      // aberto, convidando a lançar de novo.
+      const outroMes = salva?.competencia && salva.competencia !== (nova ? mes : c.competencia);
+      avisar(outroMes
+        ? `Conta ${nova ? 'lançada' : 'salva'} em ${nomeDoMes(salva.competencia)}.`
+        : (nova ? 'Conta lançada.' : 'Conta salva.'));
       return true;
     },
   });
@@ -464,7 +483,7 @@ function editarRecorrente(r, { categorias, formas }) {
       };
       if (nova) {
         await db.inserir('contas_recorrentes', { ...registro, inicio }, 'id');
-        await db.rpc('gerar_contas_do_mes', { p_competencia: inicioDoMes(hoje()) }).catch(() => 0);
+        await garantirContasDoMes(inicioDoMes(hoje()), { forcar: true });
         avisar('Recorrente criada.');
       } else {
         await db.alterar('contas_recorrentes', [['id', 'eq', r.id]], registro, 'id');

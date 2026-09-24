@@ -53,6 +53,10 @@ export function lerNumero(texto) {
   return /^-?\d+(\.\d+)?$/.test(t) ? Number(t) : NaN;
 }
 
+/** Número preenchido e dentro da faixa. `null >= 0` é true em JavaScript — um
+ *  campo em branco passava por "entre 0 e 100" e chegava vazio ao banco. */
+export const entre = (n, min, max) => typeof n === 'number' && !Number.isNaN(n) && n >= min && n <= max;
+
 // ---------------------------------------------------------------------------
 // Datas de calendário — 'AAAA-MM-DD'
 // ---------------------------------------------------------------------------

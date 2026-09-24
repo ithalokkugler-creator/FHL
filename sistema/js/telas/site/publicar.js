@@ -20,7 +20,7 @@ import { nomeDe } from '../../nucleo/estado.js';
 import { dataHora } from '../../nucleo/formato.js';
 import { aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { db } from '../../nucleo/supabase.js';
-import { cabecalho, vazio } from '../comum.js';
+import { cabecalho, indicador, vazio } from '../comum.js';
 
 export default async function telaPublicar(ctx) {
   const mostrar = async () => {
@@ -56,14 +56,6 @@ export default async function telaPublicar(ctx) {
   });
 }
 
-/** O mesmo indicador do Painel do Financeiro, sem o link. */
-const indicador = (rotulo, valor, nota, tom = '') => html`
-  <div class="indicador${tom ? ` indicador--${tom}` : ''}">
-    <span class="rotulo">${rotulo}</span>
-    <span class="indicador__valor">${valor}</span>
-    <span class="indicador__nota">${nota}</span>
-  </div>`;
-
 function tela(situacao, deploys) {
   const pendentes = situacao.publicacoes + situacao.campanhas;
 
@@ -77,8 +69,8 @@ function tela(situacao, deploys) {
         situacao.publicado_em ? dataHora(situacao.publicado_em) : '—',
         situacao.publicado_em ? 'última publicação pedida por aqui' : 'o site nunca foi publicado por esta tela',
       )}
-      ${indicador('Publicações alteradas', String(situacao.publicacoes), 'desde então', situacao.publicacoes ? 'alerta' : '')}
-      ${indicador('Campanhas alteradas', String(situacao.campanhas), 'desde então', situacao.campanhas ? 'alerta' : '')}
+      ${indicador('Publicações alteradas', String(situacao.publicacoes), 'desde então', { tom: situacao.publicacoes ? 'alerta' : '' })}
+      ${indicador('Campanhas alteradas', String(situacao.campanhas), 'desde então', { tom: situacao.campanhas ? 'alerta' : '' })}
     </div>
 
     <p class="pagina__nota">${pendentes

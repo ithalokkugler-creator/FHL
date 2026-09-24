@@ -12,7 +12,10 @@ import {
 } from '../nucleo/formato.js';
 import { aoClicar, desenhar, html } from '../nucleo/html.js';
 import { db } from '../nucleo/supabase.js';
-import { cabecalho, capitalizar, notaGoogle, rotuloTipo, seloCompromisso, seloConta, vazio } from './comum.js';
+import {
+  cabecalho, capitalizar, indicador, notaGoogle, plural, rotuloTipo, seloCompromisso, seloConta, vazio,
+} from './comum.js';
+import { garantirContasDoMes, rotuloParcela } from './financeiro/base.js';
 
 export default async function telaInicio(ctx) {
   const dia = hoje();
@@ -61,18 +64,23 @@ async function carregar(dia) {
 
   if (pode.financeiro()) {
     const daquiAUmaSemana = somarDias(dia, 7);
+    // O aluguel do dia 5 só existe depois que alguém "olha" o mês. Na virada,
+    // a semana que vem já é do mês seguinte.
+    await garantirContasDoMes(inicioDoMes(dia));
+    if (inicioDoMes(daquiAUmaSemana) !== inicioDoMes(dia)) await garantirContasDoMes(inicioDoMes(daquiAUmaSemana));
+
     tarefas.vencendo = db.listar('v_parcelas', {
       select: 'id,contrato_id,cliente_nome,numero,vencimento,saldo',
       filtros: [['situacao', 'eq', 'a_vencer'], ['vencimento', 'lte', daquiAUmaSemana]],
       ordem: 'vencimento.asc',
       limite: 8,
     });
-    tarefas.vencidas = db.listar('v_parcelas', {
-      select: 'saldo,cliente_id',
+    tarefas.vencidas = db.todos('v_parcelas', {
+      select: 'id,saldo,cliente_id',
       filtros: [['situacao', 'eq', 'vencida']],
     });
     tarefas.contas = db.listar('v_contas', {
-      select: 'id,descricao,valor,vencimento,situacao',
+      select: 'id,descricao,valor,vencimento,competencia,situacao',
       filtros: [['situacao', 'in', ['a_pagar', 'vencida', 'sem_valor']], ['vencimento', 'lte', daquiAUmaSemana]],
       ordem: 'vencimento.asc',
       limite: 8,
@@ -85,10 +93,17 @@ async function carregar(dia) {
       select: 'fechado',
       filtros: [['competencia', 'eq', mesPassado]],
     });
-    tarefas.movimentoMesPassado = db.um('recebimentos', {
-      select: 'id',
-      filtros: [['data', 'gte', mesPassado], ['data', 'lte', fimDoMes(mesPassado)]],
-    });
+    // Lembrar de fechar só faz sentido se o mês teve movimento — entrada ou saída.
+    tarefas.movimentoMesPassado = Promise.all([
+      db.um('recebimentos', {
+        select: 'id',
+        filtros: [['data', 'gte', mesPassado], ['data', 'lte', fimDoMes(mesPassado)], ['estornado_em', 'is', null]],
+      }),
+      db.um('contas', {
+        select: 'id',
+        filtros: [['data_pagamento', 'gte', mesPassado], ['data_pagamento', 'lte', fimDoMes(mesPassado)], ['cancelado_em', 'is', null]],
+      }),
+    ]).then(([entrada, saida]) => Boolean(entrada || saida));
   }
 
   const chaves = Object.keys(tarefas);
@@ -168,11 +183,9 @@ function painelFinanceiro(dados, dia) {
       </header>
 
       <div class="indicadores indicadores--embutido">
-        <a class="indicador${saldoVencido ? ' indicador--perigo' : ''}" href="#/financeiro/atraso">
-          <span class="rotulo">Em atraso</span>
-          <span class="indicador__valor">${moeda(saldoVencido)}</span>
-          <span class="indicador__nota">${dados.vencidas.length} ${dados.vencidas.length === 1 ? 'parcela' : 'parcelas'} · ${clientesVencidos} ${clientesVencidos === 1 ? 'cliente' : 'clientes'} · sem encargos</span>
-        </a>
+        ${indicador('Em atraso', moeda(saldoVencido),
+          `${plural(dados.vencidas.length, 'parcela', 'parcelas')} · ${plural(clientesVencidos, 'cliente', 'clientes')} · sem encargos`,
+          { tom: saldoVencido ? 'perigo' : '', href: '#/financeiro/atraso' })}
       </div>
 
       ${lembrarFechamento
@@ -183,7 +196,7 @@ function painelFinanceiro(dados, dia) {
       ${dados.vencendo.length
         ? html`<ul class="lista">${dados.vencendo.map((p) => html`
             <li><a class="lista__item" href="#/financeiro/contratos/${p.contrato_id}">
-              <span>${p.cliente_nome}<span class="sub">${p.numero === 0 ? 'Entrada' : `Parcela ${p.numero}`} · vence ${dataCurta(p.vencimento)}</span></span>
+              <span>${p.cliente_nome}<span class="sub">${rotuloParcela(p)} · vence ${dataCurta(p.vencimento)}</span></span>
               <span class="num">${moeda(centavos(p.saldo))}</span>
             </a></li>`)}</ul>`
         : vazio('Nenhuma parcela vence nesta semana.')}
@@ -191,7 +204,7 @@ function painelFinanceiro(dados, dia) {
       <h3 class="aviso-lista__titulo rotulo"><span>Contas do escritório</span></h3>
       ${dados.contas.length
         ? html`<ul class="lista">${dados.contas.map((c) => html`
-            <li><a class="lista__item" href="#/financeiro/contas">
+            <li><a class="lista__item" href="#/financeiro/contas?mes=${c.competencia}">
               <span>${c.descricao}<span class="sub">vence ${dataCurta(c.vencimento)}</span></span>
               <span>${c.valor != null ? html`<span class="num">${moeda(centavos(c.valor))}</span> ` : ''}${seloConta(c.situacao)}</span>
             </a></li>`)}</ul>`

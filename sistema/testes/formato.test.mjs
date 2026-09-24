@@ -5,8 +5,8 @@ import { test } from 'node:test';
 import { montarConsulta, termoDeBusca } from '../js/nucleo/consulta.js';
 import { gerarCsv } from '../js/nucleo/csv.js';
 import {
-  dataExtensa, diasEntre, documento, documentoValido, hoje, inicioDaSemana, instante, lerMoeda, linkWhatsApp,
-  moeda, noFuso, somarMeses, telefone,
+  dataExtensa, diasEntre, documento, documentoValido, entre, hoje, inicioDaSemana, instante, lerMoeda, lerNumero,
+  linkWhatsApp, moeda, noFuso, somarMeses, telefone,
 } from '../js/nucleo/formato.js';
 
 const semEspacoDuro = (t) => t.replace(/ /g, ' ');
@@ -20,6 +20,15 @@ test('lerMoeda entende o que se digita no Brasil', () => {
   assert.equal(lerMoeda('0,1'), 10);
   assert.equal(lerMoeda(''), null);
   assert.ok(Number.isNaN(lerMoeda('12a')));
+});
+
+test('campo em branco não passa por "entre 0 e 100"', () => {
+  // null >= 0 é true em JavaScript: a multa em branco passava na conferência.
+  assert.equal(entre(lerNumero(''), 0, 100), false);
+  assert.equal(entre(lerNumero('abc'), 0, 100), false);
+  assert.equal(entre(lerNumero('10,5'), 0, 100), true);
+  assert.equal(entre(lerNumero('0'), 0, 100), true);
+  assert.equal(entre(lerNumero('101'), 0, 100), false);
 });
 
 test('moeda formata em reais', () => {
