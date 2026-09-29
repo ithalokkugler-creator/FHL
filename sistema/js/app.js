@@ -87,8 +87,8 @@ const liberado = (item) => !item.permitido || item.permitido();
 
 const marca = () => html`
   <a class="marca" href="#/inicio">
-    <img src="/sistema/img/logo.png" alt="" width="26" height="26">
-    <span class="marca__nome">FHL<small>Advocacia</small></span>
+    <img class="marca__monograma" src="/sistema/img/monograma.svg" alt="FHL" width="43" height="26">
+    <span class="marca__nome">Advocacia</span>
   </a>`;
 
 // ---------------------------------------------------------------------------

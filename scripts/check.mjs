@@ -7,7 +7,8 @@
 // Roda o build e confere, em dist/:
 //
 //   1. todo href/src relativo aponta para um arquivo que existe;
-//   2. todo link de âncora (#algo) aponta para um id que existe na página;
+//   2. toda âncora aponta para um id que existe — na própria página (#algo)
+//      ou na página de destino (equipe.html#vinicius-lisboa);
 //   3. nenhuma página ficou sem <title> ou sem meta description;
 //   4. SEO: canonical nas páginas indexáveis e noindex nas demais, og:image
 //      absoluta e apontando para um arquivo que existe, JSON-LD válido.
@@ -38,13 +39,24 @@ const problemas = [];
 
 const pages = await build({ quiet: true });
 
+// ids de cada página gerada, para conferir âncoras entre páginas
+// (equipe.html#vinicius-lisboa) além das da própria página.
+const idsPorPagina = new Map();
+async function idsDe(rel) {
+  if (!idsPorPagina.has(rel)) {
+    const html = await readFile(join(DIST, rel), 'utf8');
+    idsPorPagina.set(rel, new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1])));
+  }
+  return idsPorPagina.get(rel);
+}
+
 for (const pg of pages) {
   const file = join(DIST, pg.path);
   const html = await readFile(file, 'utf8');
   const pastaDaPagina = posix.dirname(pg.path.split('\\').join('/'));
 
   // ids disponíveis para âncoras nesta página
-  const ids = new Set([...html.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]));
+  const ids = await idsDe(pg.path);
 
   for (const m of html.matchAll(/(?:href|src)="([^"]*)"/g)) {
     const alvo = m[1];
@@ -68,6 +80,12 @@ for (const pg of pages) {
     }
     if (!existsSync(join(DIST, destino))) {
       problemas.push(`${pg.path}: "${alvo}" → dist/${destino} não existe`);
+      continue;
+    }
+
+    const hash = alvo.split('#')[1];
+    if (hash && destino.endsWith('.html') && !(await idsDe(destino)).has(decodeURIComponent(hash))) {
+      problemas.push(`${pg.path}: "${alvo}" → a âncora #${hash} não existe em ${destino}`);
     }
   }
 

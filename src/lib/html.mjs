@@ -5,6 +5,8 @@
 // `prefix(depth)` para que o site funcione servido de qualquer subdiretório,
 // sem depender de URLs absolutas.
 
+import { HORARIO_CURTO, TEL, TEL_HREF, whatsappUrl } from '../data/site.mjs';
+
 /** Prefixo relativo para subir `depth` pastas. */
 export const prefix = (depth = 0) => '../'.repeat(depth);
 
@@ -29,7 +31,7 @@ export function arrowLink(href, text, cls = 'link-arrow') {
 export function pageHead(label, title, lead = null, depth = 0) {
   const leadHtml = lead ? `<p class="lead" data-reveal="rise">${lead}</p>` : '';
   return `  <section class="page-head">
-    <img class="watermark watermark--right" src="${prefix(depth)}assets/img/logo-watermark.png" alt="" aria-hidden="true">
+    <img class="watermark watermark--right" src="${prefix(depth)}assets/img/monograma.svg" alt="" aria-hidden="true">
     <div class="wrap page-head__inner">
       <p class="label" data-reveal="rise">${label}</p>
       <h1 class="h1 page-head__title r-mask" data-reveal="mask">${title}</h1>
@@ -38,12 +40,23 @@ export function pageHead(label, title, lead = null, depth = 0) {
   </section>`;
 }
 
-/** Faixa de chamada que fecha as páginas internas. */
+/**
+ * Faixa de chamada que fecha as páginas internas.
+ *
+ * Era um título e um link pequeno — a última coisa da página, justamente onde
+ * quem leu até ali decide falar com o escritório. Agora tem o botão, o
+ * WhatsApp ao lado e o horário, como o contato da home.
+ */
 export function nextBlock(title, href, cta, depth = 0) {
   return `  <section class="next-block">
-    <div class="wrap">
-      <h2 class="display" style="font-size:var(--t-h1)">${title}</h2>
-      ${arrowLink(prefix(depth) + href, cta)}
+    <img class="watermark watermark--left" src="${prefix(depth)}assets/img/monograma.svg" alt="" aria-hidden="true">
+    <div class="wrap next-block__inner">
+      <h2 class="display next-block__title r-mask" data-reveal="mask">${title}</h2>
+      <div class="next-block__actions" data-reveal="rise">
+        <a class="btn" href="${prefix(depth)}${href}" data-magnetic><span class="btn__label">${cta}</span></a>
+        <a class="link-arrow" href="${whatsappUrl()}" target="_blank" rel="noopener noreferrer">Conversar pelo WhatsApp ${ARROW}</a>
+      </div>
+      <p class="next-block__note" data-reveal="rise">${HORARIO_CURTO} · <a class="link" href="tel:${TEL_HREF}">${TEL}</a></p>
     </div>
   </section>`;
 }
@@ -66,10 +79,14 @@ export function nextBlock(title, href, cta, depth = 0) {
  *          própria, gerada por `npm run og` (ver src/lib/seo.mjs)
  * noindex  fora do Google e do sitemap (404, campanha fora do período)
  * whatsapp mensagem pré-preenchida no botão flutuante de WhatsApp
+ * raiz     caminhos a partir da raiz ("/assets/…") em vez de relativos. Só a
+ *          404: ela é servida em qualquer endereço inexistente, inclusive
+ *          /atuacao/xyz.html, onde "assets/…" viraria /atuacao/assets/… e a
+ *          página abriria sem CSS, sem fontes e sem scripts.
  */
 export function page({
   path, title, desc, body, depth = 0, home = false, article = null,
-  campanha = null, name = null, og = null, noindex = false, whatsapp = '',
+  campanha = null, name = null, og = null, noindex = false, whatsapp = '', raiz = false,
 }) {
-  return { path, title, desc, body, depth, home, article, campanha, name, og, noindex, whatsapp };
+  return { path, title, desc, body, depth, home, article, campanha, name, og, noindex, whatsapp, raiz };
 }

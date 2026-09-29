@@ -29,6 +29,7 @@ sozinho.
 | `npm run preview` | Serve `dist/` como está, sem watch — confere o que vai ao ar |
 | `npm run check` | Valida links, âncoras, meta tags e SEO de todas as páginas |
 | `npm run og` | Gera as imagens de compartilhamento que faltam (artigos e campanhas) |
+| `npm run marca` | Regera monograma, favicon, `logo.png`, `og.png` e as cópias da área dos advogados a partir de `assets/img/logo.svg` |
 | `npm run clean` | Apaga `dist/` |
 | `npm run sistema:test` | Testes dos cálculos da área dos advogados — ver [`sistema/README.md`](sistema/README.md) |
 
@@ -82,16 +83,20 @@ função de borda que publica o site.
 
 ```
 src/
-  data/site.mjs          Marca, endereço, telefone, e-mail, OAB, domínio, redes, navegação
+  data/site.mjs          Marca, endereço, telefone, e-mail, horário, OAB, CNPJ, domínio,
+                         redes, navegação, anos de atuação, envio do formulário
   data/areas.mjs         As 4 áreas de atuação
-  data/equipe.mjs        Os 4 advogados
+  data/equipe.mjs        Os 4 advogados (âncora, retrato, áreas em que atendem)
   data/posts.mjs         Cópia de segurança dos artigos (a fonte é o Supabase)
   data/campanhas.mjs     Cópia de segurança das campanhas (a fonte é o Supabase)
   data/conteudo.mjs      Lê publicações e campanhas do Supabase para o build
   layouts/shell.mjs      O invólucro de TODAS as páginas
-  partials/contato.mjs   Canais diretos + formulário
+  partials/contato.mjs   Canais diretos, formulário e a coluna ao lado dele
+  partials/equipe.mjs    Retrato tipográfico, cartões da equipe e assinatura compacta
   partials/institucional.mjs  Método e números (home e escritório)
   lib/html.mjs           pageHead, nextBlock, arrowLink, descritor de página
+  lib/icones.mjs         Ícones de traço em SVG inline (canais, compartilhar)
+  lib/marca.mjs          Logomarca: lê assets/img/logo.svg e monta os SVG embutidos
   lib/seo.mjs            Canonical, Open Graph, JSON-LD
   lib/assets.mjs         Existência e dimensões de imagens
   pages/*.mjs            Uma função por página (ou por família de páginas)
@@ -101,6 +106,7 @@ scripts/
   dev.mjs                Servidor local, watch e live reload
   check.mjs              Validação de links, âncoras, meta tags e SEO
   og.mjs                 Imagens de compartilhamento (Chrome/Edge headless)
+  marca.mjs              Arquivos derivados da logomarca (`npm run marca`)
 
 dist/                    Saída do build — descartável, fora do git
 
@@ -115,7 +121,8 @@ assets/
   js/site.js             Loader, header, menu, formulário, cookies
   fonts/                 Galano Grotesque + Newsreader (.woff2)
   vendor/                GSAP, ScrollTrigger, Lenis
-  img/                   Grão, fallback do herói, OG, favicon
+  img/logo.svg           Logomarca — FONTE ÚNICA da marca (ver Identidade)
+  img/                   Monograma, favicon, logo.png, grão, fallback do herói, OG
   img/og/                Imagens de compartilhamento geradas por `npm run og`
   img/publicacoes/       Imagens dos cartões de post dentro dos artigos
 
@@ -147,7 +154,10 @@ simplesmente não reaparece.
 
 | Quero… | Mexo em… |
 |---|---|
-| Trocar telefone, e-mail, endereço, OAB, domínio, redes | `src/data/site.mjs` |
+| Trocar telefone, e-mail, endereço, horário, OAB, CNPJ, domínio, redes | `src/data/site.mjs` |
+| Ligar o formulário a um backend | `FORM_ENDPOINT` em `src/data/site.mjs` — vazio, a mensagem abre no WhatsApp |
+| Pôr a foto de um advogado | `foto` em `src/data/equipe.mjs` — entra no lugar do retrato tipográfico |
+| Dizer em que áreas um advogado atende | `areas` em `src/data/equipe.mjs` — alimenta "Quem atende" da página da área |
 | Publicar um artigo novo | Área dos advogados → **Site → Publicações**. Índice, "continue lendo" e sitemap se atualizam sozinhos. Depois, `npm run og` para a imagem de compartilhamento |
 | Pôr um post do Instagram (ou Facebook, LinkedIn) num artigo | Bloco "Post do Instagram" no editor do artigo — a imagem é enviada ali e o build a copia para `assets/img/publicacoes/` |
 | Criar uma campanha | Área dos advogados → **Site → Campanhas**, depois `npm run og` |
@@ -166,7 +176,7 @@ simplesmente não reaparece.
 |---|---|---|
 | **Astro 5** | Gerador próprio em Node, sem dependências | A arquitetura da preparação está toda aqui — shell único, dados separados das páginas, uma função por página — só sem o framework e sem `node_modules`. Para um site de 16 páginas estáticas, Astro traria bundler, islands e atualizações de dependência que nada aqui usa. Se algum dia precisar de MDX, otimização de imagem ou componentes interativos, cada `page()` vira um `.astro` e o shell vira `src/layouts/Base.astro`. |
 | **Three.js**, imports seletivos, ≤ 60 KB gzip | **WebGL puro**, 5,3 KB gzip | O teto de 60 KB só é atingível com tree-shaking, que exige bundler. E a cena é *um plano com shader próprio* — sem scene graph, sem loader, sem sistema de materiais. Os shaders são exatamente os especificados: mesmo resultado visual, 1 draw call, zero dependência. |
-| Formulário via Astro Actions + Resend | Validação completa no cliente, envio **não conectado** | Precisa de backend. O contrato já está pronto: o `payload` montado é logado no console em `site.js`. Ligar a um endpoint é trocar um `setTimeout` por um `fetch`. |
+| Formulário via Astro Actions + Resend | Validação completa no cliente; sem backend, a mensagem **abre pronta no WhatsApp** do escritório | Precisa de backend. Antes o formulário exibia "Mensagem enviada" sem mandar nada — no ar, todo contato escrito ali se perderia. Com `FORM_ENDPOINT` preenchido em `src/data/site.mjs`, vira um POST com os campos em JSON (o `fetch` já está em `site.js`). |
 
 Fora isso, a preparação foi seguida: paleta, escala tipográfica, grid, os quatro
 gestos de revelação nomeados, a cortina de dois painéis, os pins de Atuação (300vh) e Linguagem (150vh), a tradução ao vivo do
@@ -176,8 +186,33 @@ juridiquês, e a conformidade com o Provimento 205/2021.
 
 ## Identidade
 
-A marca veio depois da preparação, no `Logo.jpg`: três pétalas sobre preto. As
-cores do site foram **amostradas do arquivo**, não escolhidas:
+**Logomarca:** monograma serifado FHL + filete + "Fonseca / Hespanha / Lisboa"
+(`LogosNovas/`, adotada em 29/09/2026). Vetorizada do PNG em
+**`assets/img/logo.svg`**, a fonte única: cada parte tem id (`#f`, `#hl`,
+`#filete`, `#fonseca`, `#hespanha`, `#lisboa`) e `src/lib/marca.mjs` lê os
+caminhos dali. Onde ela aparece:
+
+| Onde | Como |
+|---|---|
+| Header | Só o monograma, SVG embutido em `currentColor` — escurece sozinho sobre as seções claras — + filete + "Advocacia" |
+| Rodapé | Assinatura completa (`logo.svg` como `<img>`) |
+| Loader da home | Assinatura completa embutida e animada (ver abaixo) |
+| Marca d'água | `monograma.svg` ampliado e recortado pela borda, 4,5% de opacidade |
+| Retratos da equipe | O filete, na cor do advogado |
+| Favicon, `logo.png` (JSON-LD), `og.png`, cartões de `npm run og`, área dos advogados | Gerados por `npm run marca` / `npm run og` |
+
+Trocar a marca = substituir `logo.svg` mantendo os ids e rodar `npm run marca`
+e `npm run og -- --todas`.
+
+**Loader (1ª visita da sessão, só na home, ~2,7s):** o F e o HL são desenhados a
+traço menta e preenchidos, o filete cresce do centro, e os três nomes saem de
+trás dele (um `clipPath` esconde o que ainda está à esquerda do filete). Depois
+os painéis se separam. Timeline em `initLoader()` de `assets/js/site.js`. Como
+passa dos 3s da rede de segurança do `<head>` em rede lenta, o `site.js` marca
+`ied-boot` ao começar e a rede deixa de agir — o loader tem teto próprio (3,2s).
+
+**Cores.** A logomarca é monocromática — tinta clara sobre o petróleo, petróleo
+sobre o claro. As cores são do site:
 
 | Cor | Papel |
 |---|---|
@@ -185,9 +220,7 @@ cores do site foram **amostradas do arquivo**, não escolhidas:
 | `#A2CBB8` menta | Acento sobre fundo **escuro** (9,7:1) · cortina de menu · rim light do herói |
 | `#6E5551` vinho | Acento quente, preenchimentos |
 
-O latão da fase anterior saiu: **não existe dourado na identidade**. A logomarca
-foi extraída do JPG com fundo transparente e quantizada nas três cores exatas
-(`assets/img/logo.png`, 23 KB) — a versão ampliada é a marca d'água das seções.
+Não existe dourado na identidade.
 
 **Dados reais** (extraídos do sistema interno da FHL):
 Rua Dr. Leocádio, 282 — Centro, Paranaguá/PR · (41) 2152-2607 ·
@@ -241,6 +274,9 @@ O contato existia só no fim da home. Agora aparece em cinco lugares:
 4. **Quatro canais diretos** — WhatsApp, telefone, e-mail e endereço (com link
    para o mapa) — antes do formulário, na home e na página de contato.
 5. **Seção Localização** na home, com endereço, horário, telefone e mapa.
+6. **Faixa final das páginas internas** com botão, WhatsApp e horário — era
+   só um título e um link pequeno.
+7. **Rodapé** com endereço, telefone, WhatsApp, e-mail e horário.
 
 ### O mapa não carrega sozinho
 
@@ -335,7 +371,11 @@ subsetado em latin + latin-ext: **14 KB por peso**.
 O site degrada em três níveis, todos testados:
 
 1. **Sem JS** — nada fica escondido. Os estados iniciais de revelação vivem
-   atrás da classe `.js`, aplicada por script inline.
+   atrás da classe `.js`, aplicada por script inline. O loader da home também:
+   sem a classe ele cobria a página para sempre. Os números institucionais já
+   saem escritos no HTML (eram "0" até a contagem), a seção Linguagem mostra a
+   cláusula traduzida, e o formulário usa `method="post"` — um envio nativo
+   por GET poria nome, e-mail e mensagem na URL.
 2. **JS ativo mas GSAP não carrega** (CDN bloqueado, bloqueador de scripts) —
    `site.js` detecta e devolve a página ao estado sem-JS. Há ainda uma rede de
    segurança de 3s no `<head>` para o caso de o próprio `site.js` não chegar.
@@ -355,19 +395,27 @@ números. A seção Linguagem mostra o texto já traduzido.
 1. **Licença Webfont da Galano Grotesque.** Os `.otf` da pasta são licença
    *desktop*. Uso em `@font-face` exige licença web do René Bieder. Exposição
    jurídica real, num site de advocacia.
-2. **Logomarca em vetor.** A do site foi extraída do `Logo.jpg` e quantizada —
-   funciona bem, mas um `.svg` ou `.ai` original renderiza melhor em tamanhos
-   grandes e pesaria menos que os 23 KB atuais.
-3. **Inscrição da sociedade na OAB e CNPJ.** Estão como `[CONFIRMAR]` em
-   `src/data/site.mjs`. Os quatro advogados são OAB/PR; a inscrição da
-   *sociedade* não constava no sistema.
+2. **Logomarca em vetor original.** `assets/img/logo.svg` foi vetorizado do PNG
+   de `LogosNovas/` (1000 px) — fiel no tamanho em que o site usa, mas com
+   leve ondulação nas bordas em ampliação extrema. Se o designer tiver o
+   `.ai`/`.svg` original, substituir mantendo os ids (ver Identidade).
+3. **Inscrição da sociedade na OAB e CNPJ.** `OAB` e `CNPJ` estão **vazios**
+   em `src/data/site.mjs` — o site mostrava "OAB/PR nº 00.000" no rodapé, no
+   menu e no contato, e "00.000.000/0001-00" na Política de Privacidade.
+   Vazios, o rodapé lista a inscrição de cada advogado e a política omite o
+   CNPJ; preenchidos, aparecem sozinhos em todos esses lugares.
 4. **E-mail e domínio oficiais.** `contato@fhladvocacia.com.br` e
    `fhladvocacia.com.br` são suposições — não havia e-mail da FHL no arquivo.
-5. **Ensaio fotográfico.** Hoje há uma silhueta 2D sobre fundo quase preto.
-   Funciona como placeholder; foto de banco de imagens derrubaria o site.
+5. **Ensaio fotográfico.** Até ele existir, cada advogado tem um retrato
+   tipográfico — iniciais em serifada e o filete da logomarca
+   (`src/partials/equipe.mjs`). A foto entra pelo campo `foto` de
+   `src/data/equipe.mjs`. Foto de banco de imagens derrubaria o site.
 6. **Política de Privacidade revisada pelo próprio escritório.**
-7. **Backend do formulário.** Nas campanhas, o formulário já leva o campo
-   oculto `campanha`.
+7. **Backend do formulário.** Enquanto `FORM_ENDPOINT` estiver vazio, a
+   mensagem validada abre pronta no WhatsApp do escritório — nada se perde,
+   mas o registro fica no celular de quem atende. O destino natural é o
+   módulo Contatos da área dos advogados. Nas campanhas, a mensagem já diz de
+   qual campanha veio.
 
 **Já resolvidos com os dados reais:** endereço (Rua Dr. Leocádio, 282 — Centro,
 Paranaguá/PR), telefone e WhatsApp, as quatro áreas de atuação, os nomes
@@ -375,8 +423,11 @@ completos e inscrições dos quatro advogados, o texto institucional e o slogan.
 
 **Não bloqueiam:**
 
-8. Anos de atuação (está `10` como marcador), artigos de lançamento, redes
-   sociais e prazo de retenção dos dados do formulário.
+8. Anos de atuação — `ANOS_DE_ATUACAO` em `src/data/site.mjs`. Era `10`, sem
+   fonte; está `6`, a única referência que existe ("hoje eu já estou há seis
+   anos", Vinícius, reunião de 11/09), mas pode ser o tempo dele e não o do
+   escritório. Também: artigos de lançamento, redes sociais e prazo de
+   retenção dos dados do formulário.
 
 ### Ressalva: áreas do site vs. áreas da equipe
 
@@ -435,3 +486,21 @@ no perfil de cada advogado, ou vale abrir uma quinta página de atuação.
 - **O tamanho dos itens do menu depende da ALTURA da tela**, não só da largura:
   são seis itens empilhados mais o bloco de endereço, contato e inscrição. Com
   medida só em `vw`, numa tela larga e baixa o bloco de contato saía da tela.
+- **Com o menu aberto, o header sobe acima da cortina.** Ficava embaixo dela
+  (z 100 contra 200): o botão de fechar sumia, e no celular — sem Esc — a
+  única saída era escolher uma página. O botão agora diz "Fechar".
+- **Não fixe `text-align` no `<p>` global.** `p { text-align: left }`
+  descentralizava todo parágrafo de bloco centralizado: a 404, o rótulo do
+  herói no celular, a nota do mapa.
+- **A 404 usa caminhos a partir da raiz** (`raiz: true` no descritor). Ela é
+  servida em qualquer endereço que não existe, inclusive `/atuacao/xyz.html`,
+  onde os caminhos relativos do resto do site abririam a página sem CSS.
+- **Os cartões da equipe usam `subgrid`.** É o que alinha nome, inscrição,
+  filete e textos entre os quatro cartões quando um nome quebra em duas
+  linhas. Ao mudar a quantidade de filhos do cartão, ajuste `grid-row: span`.
+- **Na seção Linguagem, a caixa de cada termo anima a largura** do texto
+  antigo ao novo. Fixa em max(antigo, novo), o texto traduzido — o estado em
+  que a seção passa a maior parte do tempo — ficava cheio de buracos. São
+  cinco caixas num parágrafo de duas linhas: o custo do reflow é desprezível.
+- **`npm run check` confere âncoras entre páginas** (`equipe.html#slug`), não
+  só as da própria página.

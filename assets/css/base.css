@@ -124,8 +124,12 @@ address { font-style: normal; }
 .text-muted { color: var(--c-text-muted); }
 .text-accent { color: var(--c-action); }
 
-/* Português: nunca justificar, nunca hifenizar. */
-p { hyphens: none; text-align: left; }
+/* Português: nunca justificar, nunca hifenizar.
+   Sem `text-align: left` aqui: fixado no <p>, ele vencia o alinhamento
+   herdado e descentralizava todo parágrafo de bloco centralizado — o texto e
+   o rótulo da 404, o rótulo do herói no celular, a nota do mapa. Nada no site
+   justifica texto, então herdar é seguro. */
+p { hyphens: none; }
 
 /* --------------------------------------------------------------------------
    LAYOUT

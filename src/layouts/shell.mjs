@@ -6,17 +6,29 @@
 // divergentes.
 
 import { AREAS } from '../data/areas.mjs';
+import { EQUIPE } from '../data/equipe.mjs';
 import {
-  CIDADE, EMAIL, ENDERECO, NAV, OAB, RAZAO, SLOGAN, TEL, TEL_HREF, whatsappUrl,
+  CIDADE, EMAIL, ENDERECO, HORARIO_CURTO, MAPS, NAV, OAB, RAZAO, SLOGAN, TEL, TEL_HREF,
+  whatsappUrl,
 } from '../data/site.mjs';
 import { attr, prefix } from '../lib/html.mjs';
+import { ICONE } from '../lib/icones.mjs';
+import { assinaturaLoader, monogramaSvg } from '../lib/marca.mjs';
 import { jsonLd, seoHead } from '../lib/seo.mjs';
 
 export function shell(page) {
-  const p = prefix(page.depth);
+  const p = page.raiz ? '/' : prefix(page.depth);
+
+  // Seção atual no menu: a própria página, ou o índice da pasta em que ela
+  // está (atuacao/civel.html → Atuação). Leitor de tela ouve "página atual".
+  const secao = page.path.includes('/') ? `${page.path.split('/')[0]}.html` : page.path;
+  const atual = (href) => {
+    if (href === page.path) return ' aria-current="page"';
+    return href === secao ? ' aria-current="true"' : '';
+  };
 
   const menuItems = NAV.map(([href, label]) =>
-    `        <li class="menu__item"><a class="menu__link" href="${p}${href}">${label}</a>` +
+    `        <li class="menu__item"><a class="menu__link" href="${p}${href}"${atual(href)}>${label}</a>` +
     `<span class="menu__link-underline"></span></li>`
   ).join('\n');
 
@@ -27,6 +39,19 @@ export function shell(page) {
   const navFooter = NAV.slice(1).map(([href, label]) =>
     `          <li><a class="link" href="${p}${href}">${label}</a></li>`
   ).join('\n');
+
+  // Provimento 205/2021: identificação de quem responde pelo site. A inscrição
+  // da sociedade ainda não existe nos dados (src/data/site.mjs); a de cada
+  // advogado, sim — e aparece sempre.
+  const inscricoes = EQUIPE.map((m) =>
+    `<span class="footer__inscricao">${m.nome} · ${m.oab}</span>`
+  ).join('');
+
+  const inscricaoMenu = OAB ? `
+      <div>
+        <div class="menu__meta-label">Inscrição</div>
+        ${OAB}
+      </div>` : '';
 
   let scripts = `<script src="${p}assets/vendor/gsap.min.js"></script>
 <script src="${p}assets/vendor/ScrollTrigger.min.js"></script>
@@ -49,9 +74,7 @@ export function shell(page) {
   <div class="loader__panel loader__panel--top"></div>
   <div class="loader__panel loader__panel--bottom"></div>
   <div class="loader__inner">
-    <img class="loader__logo" src="${p}assets/img/logo.png" alt="" width="64" height="111">
-    <div class="loader__mark">FHL</div>
-    <div class="loader__bar"><i></i></div>
+    ${assinaturaLoader()}
   </div>
 </div>`;
   }
@@ -82,11 +105,13 @@ ${preload}
    REDE DE SEGURANÇA: se o GSAP não carregar (CDN bloqueado, rede caindo, bloqueador
    de scripts), a classe \`js\` permaneceria e os títulos ficariam visibility:hidden
    PARA SEMPRE. Passados 3s sem o site ter inicializado, devolvemos a página ao
-   estado sem-JS: sem animação, mas com todo o conteúdo legível. */
+   estado sem-JS: sem animação, mas com todo o conteúdo legível.
+   \`ied-boot\` avisa que o site.js já está de pé e tocando o loader da home: dali em
+   diante as falhas são dele (o loader tem teto próprio e cai em degradar()). */
 document.documentElement.classList.add('js');
 setTimeout(function () {
   var h = document.documentElement;
-  if (!h.classList.contains('ied-ready')) h.classList.remove('js');
+  if (!h.classList.contains('ied-ready') && !h.classList.contains('ied-boot')) h.classList.remove('js');
 }, 3000);
 </script>${jsonLd(page)}
 </head>
@@ -98,15 +123,15 @@ ${loader}
 <header class="header">
   <div class="wrap header__inner">
     <a class="brand" href="${p}index.html" aria-label="FHL Advocacia — início">
-      <img class="brand__mark" src="${p}assets/img/logo.png" alt="" width="26" height="45">
-      <span class="brand__name">FHL<span class="brand__word">Advocacia</span></span>
+      ${monogramaSvg({ classe: 'brand__mark' })}
+      <span class="brand__word">Advocacia</span>
     </a>
     <div class="header__actions">
       <!-- Contato sempre à mão: era o principal pedido do cliente. -->
       <a class="header__cta" href="${p}contato.html">Fale conosco</a>
       <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="menu">
         <span class="menu-toggle__glyph" aria-hidden="true"><i></i><i></i></span>
-        <span>Menu</span>
+        <span class="menu-toggle__label">Menu</span>
       </button>
     </div>
   </div>
@@ -130,14 +155,15 @@ ${menuItems}
         <address>${ENDERECO}<br>${CIDADE}</address>
       </div>
       <div>
-        <div class="menu__meta-label">Contato</div>
-        <a href="tel:${TEL_HREF}">${TEL}</a><br>
-        <a href="mailto:${EMAIL}">${EMAIL}</a>
+        <div class="menu__meta-label">Atendimento</div>
+        ${HORARIO_CURTO}<br>
+        <a href="tel:${TEL_HREF}">${TEL}</a>
       </div>
       <div>
-        <div class="menu__meta-label">Inscrição</div>
-        ${OAB}
-      </div>
+        <div class="menu__meta-label">Contato</div>
+        <a href="${whatsappUrl(page.whatsapp)}" target="_blank" rel="noopener noreferrer">WhatsApp</a><br>
+        <a href="mailto:${EMAIL}">${EMAIL}</a>
+      </div>${inscricaoMenu}
     </div>
   </div>
 </div>
@@ -155,9 +181,8 @@ ${page.body}
   <div class="wrap">
     <div class="footer__top">
       <div class="footer__col">
-        <a class="brand" href="${p}index.html">
-          <img class="brand__mark" src="${p}assets/img/logo.png" alt="" width="26" height="45">
-          <span class="brand__name">FHL<span class="brand__word">Advocacia</span></span>
+        <a class="brand brand--assinatura" href="${p}index.html">
+          <img class="brand__assinatura" src="${p}assets/img/logo.svg" alt="FHL Advocacia — Fonseca Hespanha Lisboa" width="915" height="275" loading="lazy">
         </a>
         <p class="footer__slogan">${SLOGAN}</p>
       </div>
@@ -179,32 +204,35 @@ ${areasFooter}
       <div class="footer__col">
         <p class="footer__label">Contato</p>
         <address>
-          ${ENDERECO}<br>
-          ${CIDADE}<br>
-          <a class="link" href="tel:${TEL_HREF}">${TEL}</a>
+          <ul class="footer__list footer__contato">
+            <li><a class="link" href="${MAPS}" target="_blank" rel="noopener noreferrer">${ENDERECO}<br>${CIDADE}</a></li>
+            <li><a class="link" href="tel:${TEL_HREF}">${TEL}</a></li>
+            <li><a class="link" href="${whatsappUrl(page.whatsapp)}" target="_blank" rel="noopener noreferrer">WhatsApp</a></li>
+            <li><a class="link" href="mailto:${EMAIL}">${EMAIL}</a></li>
+            <li class="footer__horario">${HORARIO_CURTO}</li>
+          </ul>
         </address>
       </div>
     </div>
 
     <div class="footer__bottom">
-      <p class="footer__oab">${RAZAO} · ${OAB}</p>
-      <p>
+      <div class="footer__legal">
+        <p class="footer__oab">© <span data-year>2026</span> ${RAZAO}${OAB ? ` · ${OAB}` : ''}</p>
+        <p class="footer__inscricoes">${inscricoes}</p>
+      </div>
+      <p class="footer__links">
         <a class="link" href="${p}politica-de-privacidade.html">Política de Privacidade</a>
-        &nbsp;·&nbsp;
         <a class="link" href="${p}termos-de-uso.html">Termos de Uso</a>
-        &nbsp;·&nbsp;
         <!-- Área dos advogados: mesmo deploy, em /sistema. Discreta e fora do
              Google (noindex no HTML, no cabeçalho e no robots.txt). -->
         <a class="link" href="${p}sistema" rel="nofollow">Área dos advogados</a>
-        &nbsp;·&nbsp;
-        <span>© <span data-year>2026</span></span>
       </p>
     </div>
   </div>
 </footer>
 
 <div class="cookie" role="dialog" aria-label="Preferências de cookies">
-  <p class="small">
+  <p class="cookie__text">
     Usamos cookies apenas para entender como o site é usado. Nada é ativado
     antes da sua escolha. Detalhes na
     <a class="link" href="${p}politica-de-privacidade.html">Política de Privacidade</a>.
@@ -219,10 +247,7 @@ ${areasFooter}
      abrir sozinho — captação agressiva é vedada pelo Provimento 205/2021. -->
 <a class="whats" href="${whatsappUrl(page.whatsapp)}" target="_blank" rel="noopener noreferrer"
    aria-label="Conversar com a FHL Advocacia pelo WhatsApp">
-  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-    <path d="M17.47 14.38c-.3-.15-1.76-.87-2.03-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.48-.89-.79-1.49-1.77-1.66-2.07-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.08-.15-.67-1.61-.92-2.21-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.79.37-.27.3-1.04 1.02-1.04 2.48s1.06 2.88 1.21 3.08c.15.2 2.1 3.2 5.08 4.49.71.31 1.26.49 1.69.62.71.23 1.36.2 1.87.12.57-.09 1.76-.72 2-1.41.25-.69.25-1.29.17-1.41-.07-.12-.27-.2-.57-.35z"/>
-    <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.87 9.87 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.83 9.83 0 0 0 12.04 2zm0 18.15h-.01a8.2 8.2 0 0 1-4.18-1.15l-.3-.18-3.11.82.83-3.04-.2-.31a8.16 8.16 0 0 1-1.25-4.38c0-4.54 3.7-8.23 8.24-8.23a8.18 8.18 0 0 1 5.82 2.42 8.18 8.18 0 0 1 2.41 5.82c0 4.54-3.69 8.23-8.23 8.23z"/>
-  </svg>
+  ${ICONE.whatsapp}
   <span class="whats__label">WhatsApp</span>
 </a>
 

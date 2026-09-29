@@ -6,10 +6,11 @@ import { AREAS } from '../data/areas.mjs';
 import { EQUIPE } from '../data/equipe.mjs';
 import { POSTS } from '../data/posts.mjs';
 import {
-  CIDADE, ENDERECO, MAPS, MAPS_EMBED, OAB, RAZAO, TEL, TEL_HREF, WHATS,
+  CIDADE, ENDERECO, HORARIO, MAPS, MAPS_EMBED, RAZAO, TEL, TEL_HREF, whatsappUrl,
 } from '../data/site.mjs';
 import { ARROW, arrowLink, page } from '../lib/html.mjs';
-import { canaisDiretos, contatoForm } from '../partials/contato.mjs';
+import { canaisDiretos, contatoAside, contatoForm } from '../partials/contato.mjs';
+import { cartaoResumo } from '../partials/equipe.mjs';
 import { metodo, numeros } from '../partials/institucional.mjs';
 import { campanhasAtivas, campanhasCallout } from './campanhas.mjs';
 import { postItem } from './publicacoes.mjs';
@@ -21,22 +22,21 @@ export function buildHome() {
                 <span class="atuacao__name">${a.nome}</span>
               </a></li>`).join('\n');
 
+  // O painel mostrava só o resumo de uma linha e sobrava meia tela vazia ao
+  // lado da lista. Os quatro primeiros itens de "O que fazemos" dão ao
+  // visitante a medida do que cada área cobre antes do clique.
   const paineis = AREAS.map((a, i) =>
     `            <article class="atuacao__panel${i === 0 ? ' is-active' : ''}">
+              <p class="atuacao__panel-num numeral" aria-hidden="true">${a.num}</p>
               <h3 class="h2 atuacao__panel-title">${a.nome}</h3>
               <p class="lead atuacao__panel-text">${a.resumo}</p>
-              ${arrowLink('atuacao/' + a.slug + '.html', 'Ver área')}
+              <ul class="atuacao__panel-list">
+${a.itens.slice(0, 4).map((it) => `                <li>${it}</li>`).join('\n')}
+              </ul>
+              ${arrowLink('atuacao/' + a.slug + '.html', 'Ver a área')}
             </article>`).join('\n');
 
-  const equipe = EQUIPE.map((m) => `        <a class="equipe__card r-wipe" href="equipe.html">
-          <div class="equipe__media">
-            <img class="equipe__avatar" src="assets/img/avatar.svg" alt="" width="400" height="500">
-          </div>
-          <h3 class="h3 equipe__name">${m.nome}</h3>
-          <p class="equipe__oab">${m.oab}</p>
-          <hr class="equipe__rule">
-          <p class="equipe__block-text">${m.atuacao}</p>
-        </a>`).join('\n');
+  const equipe = EQUIPE.map(cartaoResumo).join('\n');
 
   // Só as três mais recentes (POSTS já vem do mais novo para o mais antigo).
   // Com o escritório publicando pela área dos advogados, a lista inteira aqui
@@ -64,15 +64,16 @@ export function buildHome() {
     <div class="hero__foot wrap">
       <div class="hero__social">
         <a class="link" href="tel:${TEL_HREF}">${TEL}</a>
-        <a class="link" href="https://wa.me/${WHATS}" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+        <a class="link" href="${whatsappUrl()}" target="_blank" rel="noopener noreferrer">WhatsApp</a>
       </div>
-      <div class="hero__scroll"><span>Role</span><i aria-hidden="true"></i></div>
+      <!-- Centralizado: à direita, ficava escondido atrás do botão flutuante de WhatsApp. -->
+      <div class="hero__scroll" aria-hidden="true"><span>Role</span><i></i></div>
     </div>
   </section>
 
   <!-- MANIFESTO -->
   <section class="section manifesto">
-    <img class="watermark watermark--left" src="assets/img/logo-watermark.png" alt="" aria-hidden="true">
+    <img class="watermark watermark--left" src="assets/img/monograma.svg" alt="" aria-hidden="true">
 
     <div class="wrap manifesto__inner">
       <p class="label" data-reveal="rise">O Escritório</p>
@@ -127,10 +128,10 @@ ${numeros()}
   <section class="linguagem">
     <div class="linguagem__sticky">
       <div class="wrap linguagem__inner">
-        <img class="watermark watermark--right" src="assets/img/logo-watermark.png" alt="" aria-hidden="true">
+        <img class="watermark watermark--right" src="assets/img/monograma.svg" alt="" aria-hidden="true">
 
         <div class="grid">
-          <div style="grid-column:1 / span 5">
+          <div class="linguagem__head">
             <p class="label" data-reveal="rise">Linguagem</p>
             <h2 class="display linguagem__title r-mask" data-reveal="mask">
               Documento que o cliente não entende é risco, não é proteção
@@ -140,7 +141,12 @@ ${numeros()}
           <div class="linguagem__doc">
             <span class="linguagem__doc-label">Cláusula 4.1 — Entrega</span>
 
-            <p><span class="term" data-term><span
+            <!-- Leitor de tela: as duas versões inteiras. A visual intercala
+                 termo antigo e novo e seria lida como uma frase embaralhada. -->
+            <p class="visually-hidden">Em juridiquês: o outorgante obriga-se a entregar o bem
+              no prazo avençado, sob pena de multa cominatória. Em português claro: quem
+              vende tem que entregar o bem no prazo combinado, ou paga multa por atraso.</p>
+            <p aria-hidden="true"><span class="term" data-term><span
                   class="term__old">O outorgante<i class="term__strike" aria-hidden="true"></i></span><span
                   class="term__new">Quem vende</span><i class="term__underline" aria-hidden="true"></i></span> <span class="term" data-term><span
                   class="term__old">obriga-se a<i class="term__strike" aria-hidden="true"></i></span><span
@@ -152,15 +158,15 @@ ${numeros()}
                   class="term__old">multa cominatória<i class="term__strike" aria-hidden="true"></i></span><span
                   class="term__new">multa por atraso</span><i class="term__underline" aria-hidden="true"></i></span>.</p>
           </div>
+
+          <!-- A conclusão entra DEPOIS da tradução, dentro da mesma cena fixada
+               (home.js). Ficava solta abaixo do pin, a meia tela de distância. -->
+          <p class="lead linguagem__coda r-rise">
+            Escrever difícil é fácil. O trabalho está em produzir um documento que
+            resista a um tribunal e ainda assim possa ser lido por quem vai assiná-lo.
+          </p>
         </div>
       </div>
-    </div>
-
-    <div class="wrap linguagem__coda">
-      <p class="lead" data-reveal="rise">
-        Escrever difícil é fácil. O trabalho está em produzir um documento que
-        resista a um tribunal e ainda assim possa ser lido por quem vai assiná-lo.
-      </p>
     </div>
   </section>
 
@@ -175,8 +181,8 @@ ${numeros()}
         </p>
       </div>
 
-      <!-- Silhueta 2D até o ensaio fotográfico existir. O Art. 5 do Provimento
-           205/2021 autoriza expressamente fotos dos advogados. -->
+      <!-- Retrato tipográfico até o ensaio fotográfico existir (src/partials/equipe.mjs).
+           O Art. 5 do Provimento 205/2021 autoriza expressamente fotos dos advogados. -->
       <div class="equipe__grid" data-reveal="wipe-group">
 ${equipe}
       </div>
@@ -225,7 +231,7 @@ ${posts}
           </div>
           <div class="local__row r-rise">
             <p class="label label--mute">Atendimento</p>
-            <p class="local__value">Segunda a sexta, das 9h às 18h</p>
+            <p class="local__value">${HORARIO}</p>
           </div>
           <div class="local__row r-rise">
             <p class="label label--mute">Telefone</p>
@@ -271,20 +277,7 @@ ${canaisDiretos()}
       <div class="grid">
 ${contatoForm()}
 
-        <aside class="contato__aside" data-reveal="rise-group">
-          <div class="contato__info r-rise">
-            <p class="label label--mute">Escritório</p>
-            <address>${ENDERECO}<br>${CIDADE}</address>
-          </div>
-          <div class="contato__info r-rise">
-            <p class="label label--mute">Atendimento</p>
-            <p>Segunda a sexta, das 9h às 18h</p>
-          </div>
-          <div class="contato__info r-rise">
-            <p class="label label--mute">Inscrição</p>
-            <p>${OAB}</p>
-          </div>
-        </aside>
+${contatoAside()}
       </div>
     </div>
   </section>

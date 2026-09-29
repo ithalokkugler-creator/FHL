@@ -14,10 +14,7 @@ export default function telaEntrada(app, { erro, aviso } = {}) {
   desenhar(app, html`
     <div class="entrada">
       <section class="entrada__marca">
-        <span class="marca">
-          <img src="/sistema/img/logo.png" alt="" width="40" height="40">
-          <span class="marca__nome">FHL<small>Advocacia</small></span>
-        </span>
+        <img class="entrada__assinatura" src="/sistema/img/logo.svg" alt="FHL Advocacia — Fonseca Hespanha Lisboa" width="915" height="275">
         <div>
           <p class="rotulo">Área dos advogados</p>
           <p class="entrada__frase">Agenda da equipe e financeiro do escritório.</p>

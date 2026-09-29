@@ -7,9 +7,9 @@
 
 import { AREAS } from '../data/areas.mjs';
 import { CAMPANHAS } from '../data/campanhas.mjs';
-import { CIDADE, TEL, TEL_HREF, whatsappUrl } from '../data/site.mjs';
+import { CIDADE, HORARIO, TEL, TEL_HREF, whatsappUrl } from '../data/site.mjs';
 import { ARROW, page, prefix } from '../lib/html.mjs';
-import { canaisDiretos, contatoForm } from '../partials/contato.mjs';
+import { canaisDiretos, contatoAside, contatoForm } from '../partials/contato.mjs';
 
 /** Data de hoje em Paranaguá, AAAA-MM-DD. O build da Vercel roda em UTC. */
 export const hoje = () =>
@@ -34,10 +34,14 @@ export function campanhasCallout(campanhas, { depth = 0, flushTop = false } = {}
   if (!campanhas.length) return '';
 
   const links = campanhas.map((c) => `      <a class="campanha-callout" href="${prefix(depth)}campanhas/${c.slug}.html" data-reveal="rise">
-        <span class="label">Campanha</span>
-        <span class="h3 campanha-callout__title">${c.titulo}</span>
-        <span class="campanha-callout__text">${c.subtitulo}</span>
-        <span class="link-arrow">Ver a campanha ${ARROW}</span>
+        <span class="campanha-callout__body">
+          <span class="label">Campanha em andamento</span>
+          <span class="h3 campanha-callout__title">${c.titulo}</span>
+          <span class="campanha-callout__text">${c.subtitulo}</span>
+        </span>
+        <span class="campanha-callout__cta">
+          <span class="link-arrow">Ver a campanha ${ARROW}</span>
+        </span>
       </a>`).join('\n');
 
   return `
@@ -80,7 +84,7 @@ export function buildCampanha(c) {
       </p>` : '';
 
   const hero = `  <section class="page-head campanha-hero">
-    <img class="watermark watermark--right" src="${P}assets/img/logo-watermark.png" alt="" aria-hidden="true">
+    <img class="watermark watermark--right" src="${P}assets/img/monograma.svg" alt="" aria-hidden="true">
     <div class="wrap page-head__inner">${aviso}
       <p class="label" data-reveal="rise">${c.rotulo}</p>
       <h1 class="h1 page-head__title campanha-hero__title r-mask" data-reveal="mask">${c.titulo}</h1>
@@ -92,7 +96,7 @@ export function buildCampanha(c) {
         <a class="link-arrow" href="#contato">Prefiro escrever ${ARROW}</a>
       </div>
       <p class="campanha-hero__note" data-reveal="rise">
-        ${CIDADE} e região · Segunda a sexta, das 9h às 18h ·
+        ${CIDADE} e região · ${HORARIO} ·
         <a class="link" href="tel:${TEL_HREF}">${TEL}</a>
       </p>
     </div>
@@ -196,16 +200,11 @@ ${canaisDiretos({ whatsapp: c.whatsapp })}
       <div class="grid">
 ${contatoForm({ depth: 1, campanha: c.slug })}
 
-        <aside class="contato__aside" data-reveal="rise-group">${area ? `
+${contatoAside({ extra: area ? `
           <div class="contato__info r-rise">
             <p class="label label--mute">Área</p>
             <p><a class="link" href="${P}atuacao/${area.slug}.html">${area.nome}</a></p>
-          </div>` : ''}
-          <div class="contato__info r-rise">
-            <p class="label label--mute">Atendimento</p>
-            <p>Segunda a sexta, das 9h às 18h</p>
-          </div>
-        </aside>
+          </div>` : '' })}
       </div>
     </div>
   </section>`;

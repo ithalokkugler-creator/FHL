@@ -6,41 +6,44 @@
 
 /* --------------------------------------------------------------------------
    MARCA
-   As três pétalas da logomarca da FHL, extraídas do Logo.jpg com fundo
-   transparente e quantizadas nas três cores exatas da identidade.
+   O monograma FHL da logomarca (assets/img/logo.svg), embutido como SVG e
+   pintado com currentColor — sobre as seções claras o header só troca a cor.
+   Ao lado, "Advocacia" depois de um filete, como os nomes na assinatura
+   completa. No rodapé vai a assinatura inteira.
    -------------------------------------------------------------------------- */
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   color: var(--c-text);
   text-decoration: none;
   line-height: 1;
 }
 .brand__mark {
+  height: 32px;
   width: auto;
-  height: 34px;
+  aspect-ratio: 430 / 259;
   flex: 0 0 auto;
-}
-.brand__name {
-  display: inline-flex;
-  align-items: baseline;
-  font-weight: 700;
-  font-size: 19px;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  fill: currentColor;
 }
 .brand__word {
+  padding-left: 14px;
+  border-left: 1px solid color-mix(in srgb, currentColor 30%, transparent);
   font-weight: 500;
-  font-size: 0.62em;
+  font-size: 11.5px;
+  line-height: 20px;
   letter-spacing: var(--tr-label);
-  margin-left: 0.55em;
+  text-transform: uppercase;
   color: var(--c-text-muted);
+}
+.brand__assinatura {
+  display: block;
+  height: 58px;
+  width: auto;
 }
 
 @media (max-width: 560px) {
   .brand__mark { height: 26px; }
-  .brand__name { font-size: 16px; }
   .brand__word { display: none; }
 }
 
@@ -356,34 +359,26 @@ a { color: inherit; }
 
 /* --------------------------------------------------------------------------
    MARCA D'ÁGUA
-   A logomarca ampliada e recortada pela borda, tom sobre tom. Substitui o
-   ampersand da fase anterior: com a marca real em mãos, o watermark passa a
-   ser a própria identidade.
+   O monograma ampliado e recortado pela borda, tom sobre tom
+   (assets/img/monograma.svg). Da esquerda aparece o F; da direita, o L.
    -------------------------------------------------------------------------- */
 .watermark {
   position: absolute;
   z-index: 0;
-  height: 128vh;
+  height: 78vh;
   width: auto;
-  opacity: 0.05;
+  opacity: 0.045;
   pointer-events: none;
   user-select: none;
   will-change: transform;
 }
-.watermark--left { left: -6vw; top: 50%; transform: translateY(-50%); }
-.watermark--right { right: -6vw; top: 50%; transform: translateY(-50%); }
+.watermark--left { left: -14vw; top: 50%; transform: translateY(-50%); }
+.watermark--right { right: -14vw; top: 50%; transform: translateY(-50%); }
 
 @media (max-width: 767px) {
-  .watermark { height: 82vh; opacity: 0.035; }
-  .watermark--left { left: -22vw; }
-  .watermark--right { right: -22vw; }
-}
-
-/* Logomarca no loader */
-.loader__logo {
-  height: clamp(52px, 9vw, 84px);
-  width: auto;
-  margin: 0 auto var(--s-3);
+  .watermark { height: 42vh; opacity: 0.035; }
+  .watermark--left { left: -38vw; }
+  .watermark--right { right: -38vw; }
 }
 
 /* --------------------------------------------------------------------------
@@ -425,13 +420,14 @@ a { color: inherit; }
   transform: translateY(-26px) scale(0.62);
   color: var(--c-action);
 }
+/* Vazio, o espaço da mensagem de erro não conta: reservado em todos os
+   campos, somava ~30px a cada linha e o formulário virava uma escada. */
 .field__error {
   display: block;
   font-size: var(--t-small);
   color: var(--c-mint-hi);
-  margin-top: var(--s-1);
-  min-height: 1.2em;
 }
+.field__error:not(:empty) { margin-top: var(--s-1); }
 .is-light .field__error { color: #A4322B; }
 
 textarea.field__input { resize: vertical; min-height: 120px; }
@@ -466,24 +462,36 @@ textarea.field__input { resize: vertical; min-height: 120px; }
   font-size: var(--t-small);
   min-height: 1.4em;
   margin-top: var(--s-2);
+  max-width: 52ch;
 }
+.form-status.is-ok { color: var(--c-action); }
+.form-status.is-erro { color: var(--c-mint-hi); }
+.is-light .form-status.is-erro { color: #A4322B; }
 
 /* --------------------------------------------------------------------------
    RODAPÉ
    -------------------------------------------------------------------------- */
+/* O fundo de baixo cresce além do padrão: o botão flutuante de WhatsApp,
+   fixo no canto, cobria "Área dos advogados" e o © no fim de toda página. */
 .footer {
   background: var(--c-abyss);
   color: var(--c-ink);
-  padding-block: var(--s-6) var(--s-4);
+  padding-block: var(--s-6) calc(var(--s-4) + 64px);
 }
 .footer__top {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-5);
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: var(--s-5) var(--s-4);
   padding-bottom: var(--s-5);
 }
-.footer__col { min-width: 180px; }
+/* Faixa de chamada e rodapé têm o mesmo fundo: sem o filete, os dois liam
+   como um bloco só. A faixa é o último filho do <main>, e o rodapé vem logo
+   depois dele. */
+main:has(> .next-block:last-child) + .footer { padding-top: 0; }
+main:has(> .next-block:last-child) + .footer .footer__top {
+  border-top: 1px solid var(--c-petrol-ln);
+  padding-top: var(--s-6);
+}
 .footer__label {
   font-size: var(--t-label);
   letter-spacing: var(--tr-label);
@@ -493,19 +501,61 @@ textarea.field__input { resize: vertical; min-height: 120px; }
 }
 .footer__list li + li { margin-top: var(--s-1); }
 .footer__list a { text-decoration: none; }
+.footer__contato li + li { margin-top: 10px; }
+.footer__horario {
+  font-size: var(--t-small);
+  color: var(--c-ink-mute);
+}
 .footer__bottom {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s-3);
+  gap: var(--s-3) var(--s-5);
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   padding-top: var(--s-4);
   border-top: 1px solid var(--c-petrol-ln);
   font-size: var(--t-small);
   color: var(--c-ink-mute);
 }
-/* Inscrição na OAB: obrigatória no rodapé (3.3) */
+.footer__legal {
+  flex: 1 1 520px;
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+/* Identificação de quem responde pelo site (Provimento 205/2021). */
 .footer__oab { color: var(--c-ink-mute); }
+.footer__inscricoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--s-3);
+  font-size: var(--t-label);
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, var(--c-ink-mute) 78%, transparent);
+}
+.footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--s-1) var(--s-3);
+}
+@media (max-width: 1000px) {
+  .footer__links { justify-content: flex-start; }
+}
+
+@media (max-width: 1000px) {
+  .footer__top { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .footer { padding-bottom: calc(var(--s-4) + 56px); }
+  .footer__top { gap: var(--s-4) var(--s-3); }
+  /* Marca e contato ocupam a largura; as duas listas de links ficam lado a
+     lado — empilhadas, o rodapé passava de uma tela e meia no celular. */
+  .footer__col:first-child,
+  .footer__col:last-child { grid-column: 1 / -1; }
+  .footer__list a { font-size: 15px; }
+}
 
 /* --------------------------------------------------------------------------
    TRANSIÇÃO DE PÁGINA (7.4)
@@ -531,17 +581,21 @@ textarea.field__input { resize: vertical; min-height: 120px; }
 .transition__panel--bottom { bottom: 0; transform: translate3d(0, 100%, 0); }
 
 /* --------------------------------------------------------------------------
-   LOADER (6.0) — máximo 1,8s, só na primeira visita da sessão
+   LOADER (6.0) — a assinatura se monta; ~2,7s, só na 1ª visita da sessão
+   Só existe com JS: sem a classe `.js` ele cobria a home para sempre — com o
+   JS desligado, ou quando a rede de segurança de 3s do <head> desiste de um
+   site.js que não chegou (ela tira a classe, e agora o loader vai junto).
    -------------------------------------------------------------------------- */
 .loader {
   position: fixed;
   inset: 0;
   z-index: 600;
   background: var(--c-abyss);
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
 }
+.js .loader { display: flex; }
 .loader__panel {
   position: absolute;
   left: 0;
@@ -552,65 +606,73 @@ textarea.field__input { resize: vertical; min-height: 120px; }
 }
 .loader__panel--top { top: 0; }
 .loader__panel--bottom { bottom: 0; }
-.loader__inner { position: relative; z-index: 2; text-align: center; }
-.loader__mark {
-  font-size: clamp(34px, 6vw, 58px);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1;
-  color: var(--c-ink);
-}
-.loader__mark .brand__amp { color: var(--c-mint); }
-.loader__bar {
-  width: min(240px, 46vw);
-  height: 1px;
-  background: color-mix(in srgb, var(--c-ink) 20%, transparent);
-  margin: var(--s-3) auto 0;
-  overflow: hidden;
-}
-.loader__bar i {
+.loader__inner { position: relative; z-index: 2; }
+/* A assinatura completa. Fica invisível até o site.js recolher as partes
+   (traço, filete, nomes): sem isso ela piscaria pronta antes de se montar. */
+.loader__marca {
   display: block;
-  height: 100%;
-  width: 100%;
-  background: var(--c-mint);
-  transform: scaleX(0);
-  transform-origin: left;
+  width: min(520px, 78vw);
+  height: auto;
+  overflow: visible;
+  visibility: hidden;
+  fill: var(--c-ink);
+}
+.loader__letra {
+  stroke: var(--c-mint);
+  stroke-width: 2.4;
+  stroke-linejoin: round;
 }
 
 /* --------------------------------------------------------------------------
    BANNER DE COOKIES (14.3)
    "Recusar" tão visível quanto "Aceitar". Nada de analytics antes do aceite.
    -------------------------------------------------------------------------- */
+/* Uma faixa baixa, texto e botões lado a lado. O cartão de 480px e quatro
+   linhas cobria o botão "Fale com o escritório" do herói na primeira visita —
+   justamente a primeira coisa que o visitante deveria ver. */
 .cookie {
   position: fixed;
   left: var(--grid-margin);
   bottom: var(--s-3);
   z-index: 400;
-  max-width: 480px;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2) var(--s-4);
+  max-width: min(760px, calc(100vw - 2 * var(--grid-margin)));
   background: var(--c-petrol-up);
   border: 1px solid var(--c-petrol-ln);
-  padding: var(--s-4);
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3);
   color: var(--c-ink);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
   transform: translateY(calc(100% + var(--s-5)));
   visibility: hidden;
 }
 .cookie.is-visible { visibility: visible; }
+.cookie__text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--c-ink-mute);
+  max-width: 56ch;
+}
+.cookie__text .link { color: var(--c-ink); }
 .cookie__actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2);
-  margin-top: var(--s-3);
+  flex: 0 0 auto;
+  gap: var(--s-1);
 }
-.cookie .btn { padding: 13px 26px; }
+.cookie .btn { padding: 12px 22px; }
 
-@media (max-width: 560px) {
+@media (max-width: 760px) {
   .cookie {
     left: var(--s-2);
     right: var(--s-2);
     bottom: var(--s-2);
     max-width: none;
+    flex-direction: column;
+    align-items: stretch;
+    padding: var(--s-3);
   }
-  .cookie__actions .btn { flex: 1 1 auto; }
+  .cookie__actions .btn { flex: 1 1 0; }
 }
 
 /* --------------------------------------------------------------------------
@@ -670,7 +732,7 @@ textarea.field__input { resize: vertical; min-height: 120px; }
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: var(--s-4) var(--s-3);
+  padding: var(--s-3) var(--s-3) var(--s-4);
   border: 1px solid var(--c-rule);
   border-radius: var(--r-none);
   text-decoration: none;
@@ -686,6 +748,26 @@ textarea.field__input { resize: vertical; min-height: 120px; }
   border-color: var(--c-action);
   transform: translateY(-3px);
 }
+.channel__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--s-3);
+  color: var(--c-action);
+}
+.channel__top > .icone { width: 26px; height: 26px; }
+/* Seta de canto nos canais que abrem fora do site (WhatsApp, mapa). */
+.channel__out .icone {
+  width: 18px;
+  height: 18px;
+  opacity: 0.45;
+  transition: opacity 0.4s var(--e-suave), transform 0.4s var(--e-suave);
+}
+.channel:hover .channel__out .icone,
+.channel:focus-visible .channel__out .icone {
+  opacity: 1;
+  transform: translate(2px, -2px);
+}
 .channel__label {
   font-size: var(--t-label);
   letter-spacing: var(--tr-label);
@@ -697,6 +779,8 @@ textarea.field__input { resize: vertical; min-height: 120px; }
   font-size: clamp(16px, 1.3vw, 19px);
   font-weight: 500;
   line-height: 1.3;
+  /* Rede de segurança do <wbr> do e-mail (src/partials/contato.mjs). */
+  overflow-wrap: anywhere;
 }
 .channel__note {
   font-size: var(--t-small);
@@ -707,8 +791,19 @@ textarea.field__input { resize: vertical; min-height: 120px; }
   .contato__direct { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 520px) {
-  .contato__direct { grid-template-columns: 1fr; }
-  .channel { padding: var(--s-3); }
+  /* Empilhados, os quatro cartões altos ocupavam uma tela inteira. Viram
+     linhas: ícone à esquerda, texto à direita. */
+  .contato__direct { grid-template-columns: 1fr; gap: var(--s-1); margin-block: var(--s-4); }
+  .channel {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    column-gap: var(--s-2);
+    row-gap: 2px;
+    padding: var(--s-2) var(--s-3);
+  }
+  .channel__top { grid-row: 1 / span 3; margin: 2px 0 0; }
+  .channel__out { display: none; }
+  .channel > :not(.channel__top) { grid-column: 2; }
 }
 @media (prefers-reduced-motion: reduce) {
   .channel:hover { transform: none; }
@@ -716,7 +811,7 @@ textarea.field__input { resize: vertical; min-height: 120px; }
 
 /* Slogan do rodapé */
 .footer__slogan {
-  margin-top: var(--s-2);
+  margin-top: var(--s-3);
   font-size: var(--t-small);
   color: var(--c-ink-mute);
   max-width: 24ch;
@@ -731,7 +826,6 @@ textarea.field__input { resize: vertical; min-height: 120px; }
    -------------------------------------------------------------------------- */
 .header.is-light-bg,
 .header.is-light-bg .brand,
-.header.is-light-bg .brand__name,
 .header.is-light-bg .menu-toggle { color: var(--c-ink-dark); }
 
 .header.is-light-bg .brand__word { color: var(--c-ink-dark-m); }
@@ -750,3 +844,31 @@ textarea.field__input { resize: vertical; min-height: 120px; }
 
 /* Com a cortina aberta o header volta ao contraste do painel de menta. */
 .header.is-light-bg .menu-toggle[aria-expanded='true'] { color: var(--c-abyss); }
+
+/* --------------------------------------------------------------------------
+   HEADER COM O MENU ABERTO
+   O header (z 100) ficava ABAIXO da cortina (z 200): o botão de fechar sumia
+   sob o painel de menta. No teclado ainda havia o Esc; no celular, a única
+   saída era escolher uma página. Aberto o menu, o header sobe acima da
+   cortina, perde o fundo e fica só com o botão — agora "Fechar".
+   A marca sai de cena junto com o "Fale conosco": sobre o painel fica só o
+   que fecha o menu.
+   -------------------------------------------------------------------------- */
+.menu-open .header {
+  z-index: calc(var(--z-menu) + 1);
+  transform: none;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.menu-open .header .brand,
+.menu-open .header .header__cta {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s var(--e-suave), visibility 0s linear 0.3s;
+}
+.brand,
+.header__cta {
+  transition: opacity 0.4s var(--e-suave) 0.25s, visibility 0s linear 0s, color 0.4s var(--e-suave);
+}
+.menu-open .header .menu-toggle { color: var(--c-abyss); }

@@ -1,9 +1,8 @@
-import { CIDADE, EMAIL, ENDERECO, OAB, TEL, TEL_HREF } from '../data/site.mjs';
 import { page } from '../lib/html.mjs';
-import { canaisDiretos, contatoForm } from '../partials/contato.mjs';
+import { canaisDiretos, contatoAside, contatoForm } from '../partials/contato.mjs';
 
 export function buildContato() {
-  const body = `  <section class="section contato is-light" style="padding-top:calc(var(--header-h) + var(--s-7))">
+  const body = `  <section class="section contato contato--page is-light">
     <div class="wrap">
       <p class="label" data-reveal="rise">Contato</p>
       <h1 class="display contato__title r-mask" data-reveal="mask">Fale com o escritório</h1>
@@ -16,25 +15,7 @@ ${canaisDiretos()}
       <div class="grid">
 ${contatoForm()}
 
-        <aside class="contato__aside" data-reveal="rise-group">
-          <div class="contato__info r-rise">
-            <p class="label label--mute">Escritório</p>
-            <address>${ENDERECO}<br>${CIDADE}</address>
-          </div>
-          <div class="contato__info r-rise">
-            <p class="label label--mute">Direto</p>
-            <a class="link" href="tel:${TEL_HREF}">${TEL}</a><br>
-            <a class="link" href="mailto:${EMAIL}">${EMAIL}</a>
-          </div>
-          <div class="contato__info r-rise">
-            <p class="label label--mute">Inscrição</p>
-            <p>${OAB}</p>
-          </div>
-          <div class="contato__info r-rise">
-            <p class="label label--mute">Atendimento</p>
-            <p>Segunda a sexta, das 9h às 18h</p>
-          </div>
-        </aside>
+${contatoAside()}
       </div>
     </div>
   </section>`;
@@ -42,7 +23,8 @@ ${contatoForm()}
   return page({
     path: 'contato.html',
     title: 'Contato — FHL Advocacia',
-    desc: 'Descreva sua situação. Respondemos em até um dia útil.',
+    desc: 'Fale com a FHL Advocacia, em Paranaguá: WhatsApp, telefone, e-mail ou ' +
+      'formulário. Respondemos em até um dia útil.',
     body,
   });
 }

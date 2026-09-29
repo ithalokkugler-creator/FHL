@@ -1,4 +1,6 @@
+import { EQUIPE } from '../data/equipe.mjs';
 import { nextBlock, page, pageHead } from '../lib/html.mjs';
+import { assinatura } from '../partials/equipe.mjs';
 import { metodo, numeros } from '../partials/institucional.mjs';
 
 export function buildEscritorio() {
@@ -11,10 +13,10 @@ export function buildEscritorio() {
 
   <section class="section">
     <div class="wrap grid">
-      <div style="grid-column:1 / span 5">
+      <div class="area__side">
         <p class="label" data-reveal="rise">Quem é a FHL</p>
       </div>
-      <div style="grid-column:7 / -1" data-reveal="rise-group">
+      <div class="area__main" data-reveal="rise-group">
         <div class="prose">
           <p class="lead r-rise">
             FHL são as iniciais dos sobrenomes dos sócios: Fonseca, Hespanha e Lisboa.
@@ -32,6 +34,10 @@ export function buildEscritorio() {
             fundiária e direito portuário — este último, natural para um escritório
             em Paranaguá.
           </p>
+        </div>
+
+        <div class="assinaturas assinaturas--duas">
+${EQUIPE.map((m) => `          <div class="r-rise">${assinatura(m)}</div>`).join('\n')}
         </div>
       </div>
     </div>

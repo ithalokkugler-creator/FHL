@@ -64,7 +64,7 @@ Para liberar os sócios, o administrador põe o e-mail de cada um na tela
 sistema/
   index.html · vercel.json · .vercelignore
   css/sistema.css            Tokens da marca, casca, componentes e telas
-  img/                       Logo e favicon (cópias de assets/img)
+  img/                       Logomarca, monograma e favicon (cópias de assets/img, `npm run marca`)
   js/
     app.js                   Rotas, menu por permissão, sessão
     config.js                URL e chave publicável do Supabase

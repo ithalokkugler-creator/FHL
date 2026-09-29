@@ -5,6 +5,10 @@
 // 40+ artigos, "áreas do direito civil") — e apareceu na tela durante a
 // reunião com o cliente. Com um lugar só, as páginas não divergem mais.
 
+import { AREAS } from '../data/areas.mjs';
+import { EQUIPE } from '../data/equipe.mjs';
+import { ANOS_DE_ATUACAO } from '../data/site.mjs';
+
 export function metodo() {
   return `  <!-- MÉTODO -->
   <section class="section metodo is-light">
@@ -51,19 +55,21 @@ export function numeros() {
        "causas ganhas" ou "valores recuperados". -->
   <section class="section section--fn numeros is-light section--flush-top">
     <div class="wrap">
+      <!-- O número já sai escrito no HTML: sem JS, ou antes da contagem, a
+           página não mostra "0 anos de atuação". home.js conta a partir dele. -->
       <div class="numeros__grid">
-        <div><div class="numeros__value numeral" data-count="10">0</div>
+        <div><div class="numeros__value numeral" data-count="${ANOS_DE_ATUACAO}">${ANOS_DE_ATUACAO}</div>
           <div class="numeros__label">Anos de<br>atuação</div></div>
-        <div><div class="numeros__value numeral" data-count="4">0</div>
+        <div><div class="numeros__value numeral" data-count="${AREAS.length}">${AREAS.length}</div>
           <div class="numeros__label">Áreas de<br>atuação</div></div>
-        <div><div class="numeros__value numeral" data-count="4">0</div>
+        <div><div class="numeros__value numeral" data-count="${EQUIPE.length}">${EQUIPE.length}</div>
           <div class="numeros__label">Advogados<br>na equipe</div></div>
-        <div><div class="numeros__value numeral" data-count="1">0</div>
+        <div><div class="numeros__value numeral" data-count="1">1</div>
           <div class="numeros__label">Escritório em<br>Paranaguá</div></div>
       </div>
       <p class="numeros__note">
         Atendimento a pessoas físicas e jurídicas em Paranaguá e região.
-        <!-- [CONFIRMAR] anos de atuação -->
+        <!-- [CONFIRMAR] anos de atuação: ANOS_DE_ATUACAO em src/data/site.mjs -->
       </p>
     </div>
   </section>`;

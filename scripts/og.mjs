@@ -34,6 +34,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { carregarConteudo } from '../src/data/conteudo.mjs';
 import { CIDADE, RAZAO } from '../src/data/site.mjs';
 import { ROOT } from '../src/lib/assets.mjs';
+import { monogramaSvg } from '../src/lib/marca.mjs';
 import { OG_MANIFEST, lerOgManifest, ogImagePath } from '../src/lib/seo.mjs';
 import { allPages } from './build.mjs';
 
@@ -77,10 +78,11 @@ body {
 .marca-dagua {
   position: absolute;
   top: 50%;
-  right: -170px;
-  height: 900px;
+  right: -300px;
+  height: 560px;
   transform: translateY(-50%);
-  opacity: 0.06;
+  fill: #EFF2EF;
+  opacity: 0.05;
 }
 .marca {
   position: absolute;
@@ -88,11 +90,18 @@ body {
   left: 80px;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 18px;
 }
-.marca img { height: 48px; }
-.marca b { font-size: 25px; font-weight: 700; letter-spacing: 0.02em; }
-.marca span { font-size: 14px; font-weight: 500; letter-spacing: 0.18em; color: #9FB2AC; }
+.marca svg { height: 46px; fill: #EFF2EF; }
+.marca span {
+  padding-left: 18px;
+  border-left: 1px solid #22443D;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 30px;
+  letter-spacing: 0.18em;
+  color: #9FB2AC;
+}
 .texto {
   position: absolute;
   top: 150px;
@@ -140,10 +149,9 @@ body {
 </style>
 </head>
 <body>
-<img class="marca-dagua" src="data:image/png;base64,${base64('assets/img/logo-watermark.png')}" alt="">
+${monogramaSvg({ classe: 'marca-dagua' })}
 <div class="marca">
-  <img src="data:image/png;base64,${base64('assets/img/logo.png')}" alt="">
-  <b>FHL</b><span>ADVOCACIA</span>
+  ${monogramaSvg()}<span>ADVOCACIA</span>
 </div>
 <div class="texto">
   <div class="rotulo">${label}</div>
@@ -183,7 +191,7 @@ export function estadoDasImagens(pages = allPages()) {
   });
 }
 
-function acharNavegador() {
+export function acharNavegador() {
   if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
 
   const pf = process.env.PROGRAMFILES;
@@ -207,7 +215,7 @@ function acharNavegador() {
   ].find((c) => c && existsSync(c)) ?? null;
 }
 
-function fotografar(navegador, html, destino, tmp) {
+export function fotografar(navegador, html, destino, tmp, [largura, altura] = [1200, 630]) {
   const arquivo = join(tmp, 'cartao.html');
   writeFileSync(arquivo, html, 'utf8');
   mkdirSync(dirname(destino), { recursive: true });
@@ -223,7 +231,7 @@ function fotografar(navegador, html, destino, tmp) {
     // Perfil próprio: com o navegador do usuário aberto, o comando seria
     // repassado à janela existente e voltaria sem gerar nada.
     `--user-data-dir=${join(tmp, 'perfil')}`,
-    '--window-size=1200,630',
+    `--window-size=${largura},${altura}`,
     '--virtual-time-budget=5000',
     `--screenshot=${destino}`,
     pathToFileURL(arquivo).href,

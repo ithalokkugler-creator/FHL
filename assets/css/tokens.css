@@ -54,11 +54,11 @@
 
 :root {
   /* ------------------------------------------------------------------------
-     PALETA — extraída da logomarca da FHL (Logo.jpg)
-     As três pétalas da marca dão as três cores. Amostradas do arquivo:
-       teal  #2E615D · vinho #6E5551 · menta #A2CBB8, sobre preto.
-     A direção anterior (verde-petróleo + latão) foi escolhida sem logo;
-     com a marca em mãos, o latão saiu — não existe dourado na identidade.
+     PALETA — verde-petróleo com três acentos:
+       teal  #2E615D · vinho #6E5551 · menta #A2CBB8.
+     A logomarca (monograma FHL, assets/img/logo.svg) é monocromática: entra
+     em tinta clara sobre o petróleo e em petróleo sobre o claro. As cores
+     são do site, não da marca. Não existe dourado na identidade.
      ------------------------------------------------------------------------ */
 
   /* Superfícies escuras */
@@ -77,12 +77,12 @@
   --c-ink-dark:   #0C1917;
   --c-ink-dark-m: #465953;
 
-  /* Acento — as cores da marca */
-  --c-mint:       #A2CBB8;  /* pétala clara — acento sobre fundo ESCURO */
+  /* Acento */
+  --c-mint:       #A2CBB8;  /* acento sobre fundo ESCURO */
   --c-mint-hi:    #C3DFD1;
-  --c-teal:       #2E615D;  /* pétala escura — acento sobre fundo CLARO */
+  --c-teal:       #2E615D;  /* acento sobre fundo CLARO */
   --c-teal-hi:    #3C7B76;
-  --c-wine:       #6E5551;  /* pétala vinho — acento quente, preenchimentos */
+  --c-wine:       #6E5551;  /* acento quente, preenchimentos */
   --c-wine-hi:    #9A7A74;
 
   /* --- Semânticos: nomeados por função, nunca por cor (anti-slop, 16) ---
@@ -201,8 +201,8 @@
   --c-text:         var(--c-ink-dark);
   --c-text-muted:   var(--c-ink-dark-m);
   --c-rule:         rgba(12, 25, 23, 0.14);
-  /* A menta reprova em fundo claro (1,6:1). O acento vira a pétala escura
-     da própria marca: teal #2E615D dá 6,2:1 sobre o off-white. */
+  /* A menta reprova em fundo claro (1,6:1). O acento vira o teal:
+     #2E615D dá 6,2:1 sobre o off-white. */
   --c-action:       var(--c-teal);
   --c-action-hover: var(--c-ink-dark);
   --c-focus:        var(--c-teal);

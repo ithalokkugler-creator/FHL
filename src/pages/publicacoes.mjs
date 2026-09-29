@@ -1,15 +1,60 @@
+import { advogadoPorNome } from '../data/equipe.mjs';
 import { POSTS } from '../data/posts.mjs';
 import { imageSize } from '../lib/assets.mjs';
 import { ARROW, attr, nextBlock, page, pageHead, prefix } from '../lib/html.mjs';
+import { ICONE } from '../lib/icones.mjs';
+import { absUrl } from '../lib/seo.mjs';
+import { assinatura } from '../partials/equipe.mjs';
 
-/** Item da lista de publicações. `indent` acompanha o recuo do bloco que o contém. */
-export function postItem(po, href, indent = '      ') {
+/**
+ * Item da lista de publicações. `indent` acompanha o recuo do bloco que o
+ * contém. `resumo` acrescenta a linha fina e o autor — no índice, onde a lista
+ * é o conteúdo da página; na home e no "continue lendo" ela fica enxuta.
+ */
+export function postItem(po, href, indent = '      ', { resumo = false } = {}) {
   const inner = indent + '  ';
-  return `${indent}<a class="post" href="${href}" data-thumb="${po.thumb}">
+  const extra = resumo
+    ? `\n${inner}  <span class="post__resumo">${po.resumo}</span>` +
+      `\n${inner}  <span class="post__autor">${po.autor}</span>`
+    : '';
+  return `${indent}<a class="post${resumo ? ' post--resumo' : ''}" href="${href}" data-thumb="${po.thumb}">
 ${inner}<span class="post__date">${po.data}</span>
-${inner}<span class="post__title">${po.titulo}</span>
+${inner}<span class="post__main">
+${inner}  <span class="post__title">${po.titulo}</span>${extra}
+${inner}</span>
 ${inner}<span class="post__area">${po.area}</span>
 ${indent}</a>`;
+}
+
+/** Minutos de leitura, a 200 palavras por minuto — a média para texto corrido. */
+function minutosDeLeitura(corpo) {
+  const texto = corpo.map(([tipo, valor]) => {
+    if (Array.isArray(valor)) return valor.join(' ');
+    if (typeof valor === 'string') return valor;
+    return valor?.legenda ?? '';
+  }).join(' ').replace(/<[^>]+>/g, ' ');
+  const palavras = texto.split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(palavras / 200));
+}
+
+/**
+ * Compartilhar: só links. Nenhum botão oficial de rede social — eles carregam
+ * script e cookies de terceiros assim que a página abre. O de copiar o link é
+ * ligado em site.js e, sem JS, simplesmente não aparece.
+ */
+function compartilhar(post, path) {
+  const url = absUrl(path);
+  const u = encodeURIComponent(url);
+  const alvo = 'target="_blank" rel="noopener noreferrer"';
+  return `        <div class="compartilhar">
+          <p class="label label--mute">Compartilhe</p>
+          <div class="compartilhar__links">
+            <a class="compartilhar__link" href="https://wa.me/?text=${encodeURIComponent(`${post.titulo} ${url}`)}" ${alvo} aria-label="Compartilhar no WhatsApp">${ICONE.whatsapp}</a>
+            <a class="compartilhar__link" href="https://www.linkedin.com/sharing/share-offsite/?url=${u}" ${alvo} aria-label="Compartilhar no LinkedIn">${ICONE.linkedin}</a>
+            <a class="compartilhar__link" href="https://www.facebook.com/sharer/sharer.php?u=${u}" ${alvo} aria-label="Compartilhar no Facebook">${ICONE.facebook}</a>
+            <button class="compartilhar__link compartilhar__copiar" type="button" data-copiar="${attr(url)}" hidden>${ICONE.link}<span>Copiar link</span></button>
+          </div>
+        </div>`;
 }
 
 // CARTÃO DE POST DE REDE SOCIAL
@@ -93,7 +138,7 @@ function renderCorpo(corpo, slug) {
 }
 
 export function buildPublicacoesIndex() {
-  const items = POSTS.map((po) => postItem(po, `publicacoes/${po.slug}.html`)).join('\n');
+  const items = POSTS.map((po) => postItem(po, `publicacoes/${po.slug}.html`, '      ', { resumo: true })).join('\n');
 
   const body = pageHead(
     'Publicações', 'O que estamos escrevendo',
@@ -119,51 +164,68 @@ ${items}
 
 export function buildPost(post) {
   const corpo = renderCorpo(post.corpo, post.slug);
+  const path = `publicacoes/${post.slug}.html`;
 
   // Os outros artigos são irmãos na mesma pasta, daí o href simples.
   const outros = POSTS.filter((x) => x.slug !== post.slug);
   const outrosHtml = outros.map((o) => postItem(o, `${o.slug}.html`)).join('\n');
-
-  const body = `  <section class="page-head">
-    <div class="wrap page-head__inner">
-      <p class="label" data-reveal="rise">${post.area}</p>
-      <h1 class="h1 page-head__title page-head__title--article r-mask" data-reveal="mask">${post.titulo}</h1>
-      <p class="lead" data-reveal="rise">${post.resumo}</p>
-    </div>
-  </section>
-
-  <article class="section">
-    <div class="wrap grid">
-      <div style="grid-column:3 / span 8">
-        <div class="article-meta">
-          <span>${post.autor}</span>
-          <time datetime="${post.datetime}">${post.data}</time>
-          <span>${post.area}</span>
-        </div>
-
-        <div class="article-body" data-reveal="rise-group">
-${corpo}
-        </div>
-
-        <p class="small text-muted" style="margin-top:var(--s-6);max-width:60ch">
-          Este texto tem finalidade informativa e não constitui consulta jurídica.
-          Cada situação depende de análise específica.
-        </p>
-      </div>
-    </div>
-  </article>
+  const continueLendo = outros.length ? `
 
   <section class="section section--fn publicacoes">
     <div class="wrap">
       <p class="label" data-reveal="rise" style="margin-bottom:var(--s-4)">Continue lendo</p>
 ${outrosHtml}
     </div>
+  </section>` : '';
+
+  // Quem escreveu: com par na equipe, retrato, inscrição e link para o perfil.
+  const adv = advogadoPorNome(post.autor);
+  const autor = `        <aside class="autor" aria-label="Quem escreveu">
+          <p class="label label--mute">Quem escreveu</p>
+          ${adv ? assinatura(adv, 1) : `<p class="assinatura__nome">${post.autor}</p>`}
+        </aside>`;
+
+  // O cabeçalho do artigo fica na mesma coluna do texto: título à esquerda da
+  // página e corpo recuado liam como duas páginas diferentes.
+  const body = `  <section class="page-head page-head--article">
+    <div class="wrap grid">
+      <div class="article-col page-head__inner">
+        <p class="label" data-reveal="rise"><a class="link" href="../publicacoes.html">Publicações</a> · ${post.area}</p>
+        <h1 class="h1 page-head__title page-head__title--article r-mask" data-reveal="mask">${post.titulo}</h1>
+        <p class="lead" data-reveal="rise">${post.resumo}</p>
+        <div class="article-meta" data-reveal="rise">
+          <span>${post.autor}</span>
+          <time datetime="${post.datetime}">${post.data}</time>
+          <span>${minutosDeLeitura(post.corpo)} min de leitura</span>
+        </div>
+      </div>
+    </div>
   </section>
+
+  <article class="section article">
+    <div class="wrap grid">
+      <div class="article-col">
+        <div class="article-body" data-reveal="rise-group">
+${corpo}
+        </div>
+
+        <p class="article-aviso">
+          Este texto tem finalidade informativa e não constitui consulta jurídica.
+          Cada situação depende de análise específica.
+        </p>
+
+        <div class="article-fim">
+${autor}
+${compartilhar(post, path)}
+        </div>
+      </div>
+    </div>
+  </article>${continueLendo}
 
 ` + nextBlock('Vamos conversar', 'contato.html', 'Entrar em contato', 1);
 
   return page({
-    path: `publicacoes/${post.slug}.html`,
+    path,
     title: `${post.titulo} — FHL Advocacia`,
     desc: post.resumo,
     body,

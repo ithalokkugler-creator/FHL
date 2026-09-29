@@ -1,11 +1,14 @@
 // Páginas jurídicas obrigatórias: LGPD (Lei 13.709/2018) e Provimento 205/2021
 // do Conselho Federal da OAB.
 
-import { CIDADE, EMAIL, ENDERECO, RAZAO } from '../data/site.mjs';
-import { page, pageHead } from '../lib/html.mjs';
-import { arrowLink } from '../lib/html.mjs';
+import { CIDADE, CNPJ, EMAIL, ENDERECO, RAZAO } from '../data/site.mjs';
+import { arrowLink, page, pageHead } from '../lib/html.mjs';
 
 export function buildPrivacidade() {
+  // CNPJ ainda não confirmado (src/data/site.mjs): melhor omitir do que
+  // publicar "00.000.000/0001-00" numa política de privacidade.
+  const cnpj = CNPJ ? `, inscrita no CNPJ sob o nº ${CNPJ},` : ',';
+
   const body = pageHead('Jurídico', 'Política de Privacidade') + `
 
   <section class="section">
@@ -18,7 +21,7 @@ export function buildPrivacidade() {
                (pendência 6 da preparação). --></p>
 
           <h2>1. Quem trata os seus dados</h2>
-          <p>${RAZAO}, inscrita no CNPJ sob o nº 00.000.000/0001-00,
+          <p>${RAZAO}${cnpj}
           com endereço em ${ENDERECO}, ${CIDADE}, é a controladora dos dados
           pessoais coletados neste site.</p>
 
@@ -127,14 +130,28 @@ export function buildTermos() {
 }
 
 export function build404() {
+  // Quem cai aqui quase sempre veio de um link antigo ou digitado à mão:
+  // além do início, os caminhos que costumam ser o destino de verdade.
+  //
+  // Caminhos a partir da raiz: a 404 é servida em QUALQUER endereço que não
+  // existe, inclusive dentro de /atuacao/ ou /publicacoes/, onde os relativos
+  // do resto do site apontariam para o lugar errado.
   const body = `  <section class="notfound">
-    <div class="wrap" style="width:100%">
+    <img class="watermark watermark--right" src="/assets/img/monograma.svg" alt="" aria-hidden="true">
+    <div class="wrap notfound__inner">
       <p class="label" data-reveal="rise">Erro 404</p>
-      <h1 class="display r-mask" data-reveal="mask" style="margin-block:var(--s-3) var(--s-4)">Página não encontrada</h1>
-      <p class="lead" data-reveal="rise" style="margin-inline:auto">
-        O endereço que você acessou não existe mais.
+      <h1 class="display notfound__title r-mask" data-reveal="mask">Página não encontrada</h1>
+      <p class="lead" data-reveal="rise">
+        O endereço que você acessou não existe mais — ou mudou de lugar.
       </p>
-      <div style="margin-top:var(--s-5)">${arrowLink('index.html', 'Voltar ao início')}</div>
+      <div class="notfound__actions" data-reveal="rise">
+        <a class="btn" href="/"><span class="btn__label">Voltar ao início</span></a>
+      </div>
+      <nav class="notfound__links" aria-label="Talvez você procure" data-reveal="rise">
+        ${arrowLink('/atuacao.html', 'Áreas de atuação')}
+        ${arrowLink('/publicacoes.html', 'Publicações')}
+        ${arrowLink('/contato.html', 'Contato')}
+      </nav>
     </div>
   </section>`;
 
@@ -144,5 +161,6 @@ export function build404() {
     desc: 'O endereço que você acessou não existe mais.',
     body,
     noindex: true,
+    raiz: true,
   });
 }

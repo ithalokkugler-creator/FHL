@@ -112,7 +112,7 @@ window.IED = window.IED || {};
     'uniform float uTime;',
 
     'const vec3 PETROL = vec3(0.047, 0.098, 0.090);',  // #0C1917
-    'const vec3 MINT   = vec3(0.635, 0.796, 0.722);',  // #A2CBB8 (pétala clara)
+    'const vec3 MINT   = vec3(0.635, 0.796, 0.722);',  // #A2CBB8 (menta)
     'const vec3 ABYSS  = vec3(0.027, 0.051, 0.047);',  // #070D0C
 
     'float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }',

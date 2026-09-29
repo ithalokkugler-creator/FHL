@@ -7,13 +7,38 @@ export const MARCA = 'FHL';
 export const MARCA_LONGA = 'FHL Advocacia';
 export const RAZAO = 'FHL Advocacia — Fonseca Hespanha Lisboa';
 export const SLOGAN = 'Advocacia estratégica e institucional';
-export const OAB = 'OAB/PR nº 00.000';               // [CONFIRMAR] inscrição da sociedade
+
+// Inscrição da SOCIEDADE na OAB e CNPJ — [CONFIRMAR], não constam em lugar
+// nenhum. Vazios de propósito: o site mostrava "OAB/PR nº 00.000" no rodapé,
+// no menu e no contato, e número inventado num site de advocacia é pior do
+// que nenhum. Enquanto estiverem vazios, o rodapé mostra a inscrição
+// de cada advogado (src/data/equipe.mjs) e a Política de Privacidade omite o
+// CNPJ. Preenchidos, aparecem sozinhos em todos esses lugares.
+export const OAB = '';    // ex.: 'OAB/PR nº 12.345'
+export const CNPJ = '';   // ex.: '12.345.678/0001-90'
+
 export const ENDERECO = 'Rua Dr. Leocádio, 282 — Centro';
 export const CIDADE = 'Paranaguá — PR';
 export const TEL = '(41) 2152-2607';
 export const TEL_HREF = '+554121522607';
 export const WHATS = '554121522607';
 export const EMAIL = 'contato@fhladvocacia.com.br';  // [CONFIRMAR] não constava no sistema
+
+// Horário de atendimento. Aparecia escrito à mão em sete lugares.
+export const HORARIO = 'Segunda a sexta, das 9h às 18h';
+export const HORARIO_CURTO = 'Seg. a sex., 9h às 18h';
+
+// Anos de atuação, no bloco de números (src/partials/institucional.mjs).
+// [CONFIRMAR] Era 10, sem fonte nenhuma. A única referência é o Vinícius na
+// reunião de 11/09: "hoje eu já estou há seis anos" — compatível com a
+// inscrição dele na OAB (105.790). Pode ser o tempo dele, não o do escritório.
+export const ANOS_DE_ATUACAO = 6;
+
+// Envio do formulário de contato. Vazio enquanto não há backend: o formulário
+// valida tudo e entrega a mensagem pronta no WhatsApp do escritório, em vez de
+// fingir um envio que não aconteceu. Com um endpoint (ex.: uma função do
+// Supabase que grava no módulo Contatos), vira um POST com os campos em JSON.
+export const FORM_ENDPOINT = '';
 
 // Endereço público do site. Vira URL absoluta no canonical, no og:image e no
 // sitemap — buscadores e redes sociais não aceitam caminho relativo ali.

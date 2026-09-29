@@ -217,17 +217,14 @@ window.IED = window.IED || {};
     if (!sec || M.reduced) return;
 
     var terms = sec.querySelectorAll('[data-term]');
+    var coda = sec.querySelector('.linguagem__coda');
     if (!terms.length) return;
 
-    /* Largura fixa em max(antigo, novo): a troca anima só transform
-       e opacity, sem reflow (11.8). */
-    terms.forEach(function (t) {
-      var oldEl = t.querySelector('.term__old');
-      var newEl = t.querySelector('.term__new');
-      var w = Math.max(oldEl.offsetWidth, newEl.offsetWidth);
-      t.style.width = w + 'px';
-    });
-
+    /* A caixa de cada termo começa na largura do texto antigo e termina na do
+       novo (ver swap). Antes ela ficava fixa em max(antigo, novo) e o texto
+       traduzido — o estado em que a seção passa a maior parte do tempo —
+       saía cheio de buracos: "tem que      entregar", "ou paga       multa".
+       São cinco caixas num parágrafo de duas linhas: o reflow é desprezível. */
     var mm = gsap.matchMedia();
 
     mm.add('(min-width: 901px)', function () {
@@ -237,28 +234,38 @@ window.IED = window.IED || {};
           start: 'top top',
           end: '+=150%',
           pin: sec.querySelector('.linguagem__sticky'),
-          scrub: 1
+          scrub: 1,
+          // as larguras são medidas de novo quando a fonte assenta
+          invalidateOnRefresh: true
         }
       });
 
       buildSwaps(tl, terms, 0.18);
-      return function () { tl.scrollTrigger && tl.scrollTrigger.kill(); tl.kill(); };
+
+      // A conclusão entra depois da última troca, na mesma cena.
+      if (coda) {
+        tl.fromTo(coda, { y: 30, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.5, ease: EASE.suave }, '+=0.05');
+      }
     });
 
-    /* Mobile: sem pin. As trocas disparam por IntersectionObserver com
-       duração fixa, no máximo 3, para não alongar demais (6.6). */
+    /* Mobile: sem pin. A tradução roda inteira, com tempo próprio, quando o
+       documento entra na tela. Eram só as três primeiras trocas: o parágrafo
+       terminava metade em português claro, metade em juridiquês. */
     mm.add('(max-width: 900px)', function () {
-      var limited = Array.prototype.slice.call(terms, 0, 3);
-      var obs = new IntersectionObserver(function (entries) {
-        entries.forEach(function (en) {
-          if (!en.isIntersecting) return;
-          swap(gsap.timeline(), en.target, 0);
-          obs.unobserve(en.target);
-        });
-      }, { threshold: 0.9 });
+      var tl = gsap.timeline({ paused: true });
+      buildSwaps(tl, terms, 0.22);
+      if (coda) {
+        tl.fromTo(coda, { y: 30, opacity: 0 },
+          { y: 0, opacity: 1, duration: DUR.reveal, ease: EASE.suave }, '-=0.3');
+      }
 
-      limited.forEach(function (t) { obs.observe(t); });
-      return function () { obs.disconnect(); };
+      ScrollTrigger.create({
+        trigger: sec.querySelector('.linguagem__doc'),
+        start: 'top 75%',
+        once: true,
+        onEnter: function () { tl.play(); }
+      });
     });
   }
 
@@ -279,7 +286,15 @@ window.IED = window.IED || {};
     // 2 · o antigo desfoca e sai
     tl.to(oldEl, { opacity: 0, filter: 'blur(3px)', duration: 0.25 }, at + 0.2);
 
-    /* 3 · o novo entra com máscara de baixo.
+    // 3 · a caixa acomoda o texto novo, e a frase se reorganiza em volta
+    //     dele, como numa revisão de verdade. Valores em função: são medidos
+    //     de novo a cada refresh (fonte carregada, janela redimensionada).
+    tl.fromTo(term,
+      { width: function () { return oldEl.offsetWidth; } },
+      { width: function () { return newEl.offsetWidth; }, duration: 0.4, ease: 'power2.inOut' },
+      at + 0.22);
+
+    /* 4 · o novo entra com máscara de baixo.
        `y: 0` explícito é obrigatório: o CSS dá ao termo novo um
        transform: translateY(0.6em) como estado de repouso, e o GSAP lê isso
        como `y` em PIXELS. Sem zerar, o yPercent: 0 não desfaz nada e o texto
@@ -287,7 +302,7 @@ window.IED = window.IED || {};
     tl.fromTo(newEl, { yPercent: 100, y: 0, opacity: 0 },
       { yPercent: 0, y: 0, opacity: 1, duration: 0.45, ease: EASE.entrada }, at + 0.28);
 
-    // 4 · sublinhado pisca sob o termo novo e some
+    // 5 · sublinhado pisca sob o termo novo e some
     if (under) {
       tl.fromTo(under, { scaleX: 0, opacity: 1 },
         { scaleX: 1, duration: 0.3, ease: 'power2.out' }, at + 0.34)

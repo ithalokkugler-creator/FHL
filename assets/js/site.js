@@ -20,8 +20,10 @@ window.IED = window.IED || {};
 
   /* =====================================================================
      LOADER (6.0)
-     Máximo 1,8s. Se as fontes carregarem antes, sai antes — loader que
-     dura mais do que precisa é arrogância. Só na 1ª visita da sessão.
+     A assinatura da FHL se monta: o F e o HL são desenhados a traço e
+     preenchidos, o filete cresce do centro e os três nomes saem de trás
+     dele. Depois os painéis se separam. ~2,6s, só na 1ª visita da sessão;
+     com movimento reduzido nem aparece.
      ===================================================================== */
   function initLoader(done) {
     var el = document.querySelector('.loader');
@@ -39,10 +41,26 @@ window.IED = window.IED || {};
 
     document.body.classList.add('is-locked');
 
-    var mark = el.querySelector('.loader__mark');
-    var bar = el.querySelector('.loader__bar i');
+    var marca = el.querySelector('.loader__marca');
+    var letras = el.querySelectorAll('.loader__letra');
+    var filete = el.querySelector('.loader__filete');
+    var nomes = el.querySelectorAll('.loader__nome');
     var panels = el.querySelectorAll('.loader__panel');
     var inner = el.querySelector('.loader__inner');
+
+    /* Traço do tamanho exato do contorno: começa todo recolhido e é
+       "desenhado" levando o deslocamento a zero. */
+    letras.forEach(function (p) {
+      var len = Math.ceil(p.getTotalLength());
+      gsap.set(p, { strokeDasharray: len, strokeDashoffset: len, fillOpacity: 0, strokeOpacity: 1 });
+    });
+    gsap.set(filete, { scaleY: 0, transformOrigin: '50% 50%' });
+    /* Cada nome começa inteiro à esquerda do filete — escondido pelo recorte
+       do SVG — e anda a própria largura até o lugar. */
+    gsap.set(nomes, {
+      x: function (i, n) { var b = n.getBBox(); return 505 - (b.x + b.width); },
+    });
+    gsap.set(marca, { visibility: 'visible' });
 
     var tl = gsap.timeline({
       onComplete: function () {
@@ -53,20 +71,22 @@ window.IED = window.IED || {};
       }
     });
 
-    tl.fromTo(mark,
-      { clipPath: 'inset(0 0 100% 0)' },
-      { clipPath: 'inset(0 0 0% 0)', duration: 0.7, ease: EASE.entrada })
-      .to(bar, { scaleX: 1, duration: 0.75, ease: 'power2.inOut' }, 0.3)
-      .to(bar, { backgroundColor: '#C3DFD1', duration: 0.12, yoyo: true, repeat: 1 })
-      .to(inner, { opacity: 0, duration: 0.25, ease: EASE.saida }, '+=0.05')
+    tl.fromTo(marca, { scale: 0.96 }, { scale: 1, duration: 1.7, ease: 'power2.out' }, 0)
+      .to(letras, { strokeDashoffset: 0, duration: 0.95, ease: 'power2.inOut', stagger: 0.14 }, 0)
+      .to(letras, { fillOpacity: 1, duration: 0.5, ease: 'power1.out', stagger: 0.14 }, 0.55)
+      .to(letras, { strokeOpacity: 0, duration: 0.4, ease: 'power1.out' }, 1.0)
+      .to(filete, { scaleY: 1, duration: 0.75, ease: EASE.entrada }, 0.5)
+      .to(nomes, { x: 0, duration: 0.9, ease: EASE.entrada, stagger: 0.1 }, 0.8)
+      .to(inner, { opacity: 0, y: -14, duration: 0.3, ease: EASE.saida }, 1.65)
       /* dois painéis se separam — um sobe, um desce (6.0) */
-      .to(panels[0], { yPercent: -100, duration: DUR.curtain, ease: EASE.cortina }, '-=0.1')
-      .to(panels[1], { yPercent: 100, duration: DUR.curtain, ease: EASE.cortina }, '<0.06');
+      .to(panels[0], { yPercent: -100, duration: 0.9, ease: EASE.cortina }, 1.72)
+      .to(panels[1], { yPercent: 100, duration: 0.9, ease: EASE.cortina }, '<0.06');
 
-    /* Teto rígido de 1,8s: se algo travar, o site abre mesmo assim. */
+    /* Teto rígido: se algo travar (aba em segundo plano, rAF parado), o site
+       abre mesmo assim. */
     setTimeout(function () {
       if (tl.isActive()) tl.progress(1);
-    }, 1800);
+    }, 3200);
   }
 
   /* =====================================================================
@@ -139,6 +159,7 @@ window.IED = window.IED || {};
     var seam = menu.querySelector('.menu__seam');
     var links = menu.querySelectorAll('.menu__link');
     var meta = menu.querySelectorAll('.menu__meta > *');
+    var label = toggle.querySelector('.menu-toggle__label');
     var open = false;
     var tl = null;
     var lastFocus = null;
@@ -186,8 +207,11 @@ window.IED = window.IED || {};
       return t;
     }
 
+    // O botão de fechar fica no header, fora da cortina, e vem antes dela no
+    // DOM: abre o ciclo do Tab, para o foco nunca ficar preso sem saída.
     function focusables() {
-      return menu.querySelectorAll('a[href], button:not([disabled])');
+      return [toggle].concat(Array.prototype.slice.call(
+        menu.querySelectorAll('a[href], button:not([disabled])')));
     }
 
     function setOpen(next) {
@@ -201,6 +225,8 @@ window.IED = window.IED || {};
       menu.setAttribute('aria-hidden', String(!open));
       toggle.setAttribute('aria-expanded', String(open));
       document.body.classList.toggle('is-locked', open);
+      // Com o menu aberto o botão é o único jeito de fechar no toque: diz isso.
+      if (label) label.textContent = open ? 'Fechar' : 'Menu';
 
       var lenis = M.lenis();
       if (lenis) { open ? lenis.stop() : lenis.start(); }
@@ -209,7 +235,7 @@ window.IED = window.IED || {};
         lastFocus = document.activeElement;
         if (reduced) { tl.progress(1); } else { tl.timeScale(1).play(); }
         var f = focusables();
-        if (f.length) setTimeout(function () { f[0].focus(); }, reduced ? 0 : 700);
+        if (f.length > 1) setTimeout(function () { f[1].focus(); }, reduced ? 0 : 700);
       } else {
         if (reduced) { tl.progress(0).pause(); gsap.set(menu, { visibility: 'hidden' }); }
         else {
@@ -338,14 +364,44 @@ window.IED = window.IED || {};
      FORMULÁRIO (6.9 / 14)
      Validação em português, honeypot + tempo de preenchimento no lugar
      de CAPTCHA de terceiros (14.6). Erros anunciados via aria-live.
+
+     ENVIO — com data-endpoint (FORM_ENDPOINT em src/data/site.mjs), POST
+     com os campos em JSON. Sem ele, a mensagem validada abre pronta no
+     WhatsApp do escritório. Antes, o formulário dizia "Mensagem enviada"
+     sem mandar nada a lugar nenhum: no ar, cada contato escrito ali se
+     perderia sem que o visitante nem o escritório soubessem.
      ===================================================================== */
+  var CAMPOS_WHATS = [
+    ['nome', 'Nome'], ['email', 'E-mail'], ['telefone', 'Telefone'],
+    ['empresa', 'Empresa'], ['campanha', 'Campanha']
+  ];
+
+  function mensagemWhats(d) {
+    var linhas = ['Olá! Escrevo pelo formulário do site da FHL Advocacia.', ''];
+    CAMPOS_WHATS.forEach(function (c) {
+      if (d[c[0]]) linhas.push(c[1] + ': ' + d[c[0]]);
+    });
+    linhas.push('', d.mensagem || '');
+    return linhas.join('\n');
+  }
+
   function initForm() {
     var form = document.querySelector('[data-form]');
-    if (!form) return;
+    // degradar() também chama: a guarda impede dois envios por clique.
+    if (!form || form.dataset.pronto) return;
+    form.dataset.pronto = '1';
 
     var status = form.querySelector('.form-status');
     var btn = form.querySelector('[type="submit"]');
+    var endpoint = form.getAttribute('data-endpoint') || '';
+    var whats = form.getAttribute('data-whatsapp') || '';
     var openedAt = Date.now();
+
+    function setStatus(msg, tipo) {
+      status.textContent = msg || '';
+      status.classList.toggle('is-ok', tipo === 'ok');
+      status.classList.toggle('is-erro', tipo === 'erro');
+    }
 
     function setError(input, msg) {
       var slot = input.parentElement.querySelector('.field__error');
@@ -381,38 +437,117 @@ window.IED = window.IED || {};
 
       var consent = form.querySelector('[name="consent"]');
       if (consent && !consent.checked) {
-        status.textContent = 'É necessário autorizar o tratamento dos dados para enviar.';
+        setStatus('É necessário autorizar o tratamento dos dados para enviar.', 'erro');
         ok = false;
+      } else {
+        setStatus('');
       }
 
       // honeypot + tempo mínimo de preenchimento
       var hp = form.querySelector('[name="website"]');
       if ((hp && hp.value) || Date.now() - openedAt < 2500) {
-        status.textContent = 'Não foi possível enviar. Tente novamente.';
+        setStatus('Não foi possível enviar. Tente novamente.', 'erro');
         return;
       }
 
       if (!ok) {
         var bad = form.querySelector('[aria-invalid="true"]');
         if (bad) bad.focus();
+        else if (consent && !consent.checked) consent.focus();
+        return;
+      }
+
+      var dados = Object.fromEntries(new FormData(form).entries());
+      delete dados.website;
+
+      if (!endpoint) {
+        // window.open é chamado ainda dentro do submit: fora do gesto do
+        // usuário, o bloqueador de pop-up o barraria.
+        var url = 'https://wa.me/' + whats + '?text=' + encodeURIComponent(mensagemWhats(dados));
+        var janela = window.open(url, '_blank');
+        if (janela) janela.opener = null;
+        else window.location.href = url;
+        setStatus('Abrimos o WhatsApp do escritório com a sua mensagem pronta. ' +
+          'Confira e toque em enviar — respondemos em até um dia útil.', 'ok');
         return;
       }
 
       btn.disabled = true;
-      status.textContent = 'Enviando…';
+      setStatus('Enviando…');
 
-      /* PENDENTE DE BACKEND: ligar ao endpoint de e-mail (Preparação 10).
-         Sem Node nesta máquina, o envio real não pôde ser conectado.
-         O contrato do formulário já está pronto: POST com os campos abaixo. */
-      var payload = Object.fromEntries(new FormData(form).entries());
-      console.info('[form] payload pronto para POST:', payload);
+      fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dados)
+      })
+        .then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          setStatus('Mensagem enviada. Retornamos em até um dia útil.', 'ok');
+          form.reset();
+        })
+        .catch(function () {
+          setStatus('Não foi possível enviar agora. Fale com o escritório pelo ' +
+            'WhatsApp ou pelo telefone, logo acima.', 'erro');
+        })
+        .then(function () { btn.disabled = false; });
+    });
+  }
 
-      setTimeout(function () {
-        status.textContent = 'Mensagem enviada. Retornamos em até um dia útil.';
-        status.style.color = 'var(--c-teal)';
-        form.reset();
-        btn.disabled = false;
-      }, 900);
+  /* =====================================================================
+     COPIAR LINK (fim dos artigos)
+     O botão sai escondido do build e só aparece onde a área de
+     transferência existe. Copia o endereço em que a página está — num
+     endereço provisório, o domínio oficial ainda não responderia.
+     ===================================================================== */
+  function initCopiar() {
+    var btns = document.querySelectorAll('[data-copiar]');
+    if (!btns.length || !navigator.clipboard || !window.isSecureContext) return;
+
+    btns.forEach(function (b) {
+      if (!b.hidden) return;   // já ligado (degradar() também chama)
+      var rotulo = b.querySelector('span');
+      var original = rotulo ? rotulo.textContent : '';
+      var timer;
+      b.hidden = false;
+
+      b.addEventListener('click', function () {
+        var url = /^https?:$/.test(location.protocol)
+          ? location.href.split('#')[0]
+          : b.getAttribute('data-copiar');
+        navigator.clipboard.writeText(url).then(function () {
+          b.classList.add('is-feito');
+          if (rotulo) rotulo.textContent = 'Link copiado';
+          clearTimeout(timer);
+          timer = setTimeout(function () {
+            b.classList.remove('is-feito');
+            if (rotulo) rotulo.textContent = original;
+          }, 2400);
+        });
+      });
+    });
+  }
+
+  /* =====================================================================
+     ÂNCORAS NA MESMA PÁGINA
+     "Prefiro escrever", nas campanhas, pulava seco até o formulário. Com o
+     Lenis ativo, a rolagem até a âncora é suave como o resto do site. O
+     link de pular para o conteúdo fica de fora: ele move o foco, e o salto
+     imediato é o comportamento esperado.
+     ===================================================================== */
+  function initAncoras() {
+    var lenis = M.lenis();
+    if (!lenis) return;
+
+    document.addEventListener('click', function (e) {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+      var a = e.target.closest('a[href^="#"]');
+      if (!a || a.classList.contains('skip-link')) return;
+      var id = decodeURIComponent(a.getAttribute('href').slice(1));
+      var alvo = id && document.getElementById(id);
+      if (!alvo) return;
+      e.preventDefault();
+      lenis.scrollTo(alvo);
+      if (history.replaceState) history.replaceState(null, '', '#' + id);
     });
   }
 
@@ -519,6 +654,10 @@ window.IED = window.IED || {};
     document.body.classList.remove('is-locked');
     initYear();
     initCampanha();
+    initCopiar();
+    // O formulário não depende do GSAP. Sem este init, o envio caía no
+    // comportamento nativo do navegador, sem validação.
+    try { initForm(); } catch (e) {}
     console.warn('[IED] ' + motivo + ' — site servido sem animação.', erro || '');
   }
 
@@ -544,11 +683,17 @@ window.IED = window.IED || {};
       initCookies();
       initMapa();
       initCampanha();
+      initCopiar();
+      initAncoras();
       initYear();
     } catch (err) {
       degradar('erro ao inicializar componentes', err);
       return;
     }
+
+    /* A partir daqui quem cuida das falhas é este arquivo: a rede de segurança
+       do <head> não pode derrubar o loader no meio da animação. */
+    document.documentElement.classList.add('ied-boot');
 
     initLoader(function () {
       try {

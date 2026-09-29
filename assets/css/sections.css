@@ -70,10 +70,12 @@
   margin-top: clamp(28px, 4vh, 48px);
 }
 
+/* left/right 0: com a margem da grade aqui E o padding do .wrap, os links
+   ficavam o dobro para dentro — desalinhados da marca no header e do título. */
 .hero__foot {
   position: absolute;
-  left: var(--grid-margin);
-  right: var(--grid-margin);
+  left: 0;
+  right: 0;
   bottom: clamp(24px, 5vh, 48px);
   z-index: var(--z-content);
   display: flex;
@@ -89,10 +91,19 @@
   text-transform: uppercase;
   font-weight: 500;
 }
+/* Centralizado, e sem transform: o GSAP anima o `y` deste elemento na entrada
+   do herói, e um translateX de centralização seria lido como x em pixels. */
 .hero__scroll {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: max-content;
+  margin-inline: auto;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--s-2);
+  gap: var(--s-1);
   font-size: var(--t-label);
   letter-spacing: var(--tr-label);
   text-transform: uppercase;
@@ -101,17 +112,27 @@
 }
 .hero__scroll i {
   display: block;
-  width: 1px; height: 34px;
-  background: linear-gradient(to bottom, var(--c-mint), transparent);
+  width: 1px; height: 40px;
+  background: var(--c-mint);
+  transform-origin: top;
+  animation: hero-scroll 2.4s var(--e-cortina) infinite;
+}
+/* O filete escorre e some: indica a rolagem sem piscar nem pulsar. */
+@keyframes hero-scroll {
+  0%   { transform: scaleY(0); transform-origin: top; }
+  45%  { transform: scaleY(1); transform-origin: top; }
+  55%  { transform: scaleY(1); transform-origin: bottom; }
+  100% { transform: scaleY(0); transform-origin: bottom; }
 }
 
 @media (max-width: 767px) {
   /* O teto é ditado pela PALAVRA MAIS LONGA do título, não pelo gosto:
-     com uma palavra por linha, "CONSEQUÊNCIA" a 13vw mede 386px contra 335px
-     disponíveis num iPhone de 375px — e como a máscara recorta, a palavra
-     era cortada sem nem gerar barra de rolagem. A 10.5vw ela cabe, inclusive
-     num aparelho de 320px. */
-  .hero__title { font-size: clamp(23px, 6.6vw, 32px); max-width: none; }
+     "COMPROMETIDA" precisa caber inteira na linha, porque a máscara recorta
+     sem gerar barra de rolagem. A 7.4vw ela cabe com folga até em 320px.
+     A entrelinha sobe para 1.02: a 0.92 o acento de "TÉCNICA" encostava na
+     linha de cima. */
+  .hero__title { font-size: clamp(26px, 7.4vw, 36px); line-height: 1.02; max-width: none; }
+  .hero__label { max-width: 30ch; }
   .hero__cta { gap: var(--s-2) var(--s-3); }
   .hero__foot { flex-direction: column; align-items: flex-start; }
   .hero__scroll { display: none; }
@@ -215,8 +236,10 @@
 .atuacao__panels {
   grid-column: 7 / -1;
   position: relative;
-  min-height: 340px;
+  min-height: 430px;
 }
+/* A troca de painel é o gesto "wipe": o que entra desce como uma cortina e o
+   texto sobe junto; o que sai some na hora, para os dois nunca se cruzarem. */
 .atuacao__panel {
   position: absolute;
   inset: 0;
@@ -227,9 +250,55 @@
   clip-path: inset(0 0 100% 0);
   pointer-events: none;
 }
-.atuacao__panel.is-active { clip-path: inset(0 0 0% 0); pointer-events: auto; }
+.atuacao__panel.is-active {
+  clip-path: inset(0 0 0% 0);
+  pointer-events: auto;
+  transition: clip-path var(--d-reveal) var(--e-entrada);
+}
+.atuacao__panel > * { transform: translate3d(0, 14px, 0); }
+.atuacao__panel.is-active > * {
+  transform: none;
+  transition: transform var(--d-reveal) var(--e-entrada);
+}
+.atuacao__panel.is-active > :nth-child(2) { transition-delay: 0.04s; }
+.atuacao__panel.is-active > :nth-child(3) { transition-delay: 0.08s; }
+.atuacao__panel.is-active > :nth-child(4) { transition-delay: 0.12s; }
+.atuacao__panel.is-active > :nth-child(5) { transition-delay: 0.16s; }
+
+.atuacao__panel-num {
+  font-size: clamp(34px, 3.4vw, 54px);
+  color: var(--c-mint);
+  margin-bottom: calc(-1 * var(--s-1));
+}
 .atuacao__panel-title { color: var(--c-text); }
 .atuacao__panel-text { color: var(--c-text-muted); max-width: 44ch; }
+
+/* Os quatro primeiros itens de "O que fazemos", em duas colunas. */
+.atuacao__panel-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2) var(--s-4);
+  width: 100%;
+  max-width: 640px;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--c-rule);
+}
+.atuacao__panel-list li {
+  position: relative;
+  padding-left: 22px;
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--c-text);
+}
+.atuacao__panel-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.75em;
+  width: 10px;
+  height: 1px;
+  background: var(--c-mint);
+}
 
 @media (max-width: 900px) {
   /* Pin desligado em mobile: vira pilha vertical (6.3) */
@@ -240,11 +309,16 @@
     position: static;
     clip-path: none;
     pointer-events: auto;
-    padding: var(--s-3) 0 var(--s-5);
+    padding: var(--s-4) 0 var(--s-5);
     border-bottom: 1px solid var(--c-rule);
+    gap: var(--s-2);
   }
+  .atuacao__panel > * { transform: none; }
   .atuacao__index { display: none; }
+  .atuacao__panel-num { font-size: 30px; margin-bottom: 0; }
   .atuacao__panel-title { margin-bottom: var(--s-1); }
+  /* Na pilha a lista alongaria demais a seção: a página da área tem tudo. */
+  .atuacao__panel-list { display: none; }
 }
 
 /* --------------------------------------------------------------------------
@@ -308,6 +382,9 @@
   border-top: 1px solid var(--c-rule);
   padding-top: var(--s-5);
 }
+/* Logo abaixo do Método, cujo último passo já fecha com um filete: eram dois
+   traços paralelos a 64px um do outro. */
+.metodo + .numeros .numeros__grid { border-top: 0; padding-top: 0; }
 .numeros__value {
   font-family: var(--font-serif);
   font-size: clamp(40px, 5.5vw, 82px);
@@ -360,8 +437,10 @@
   line-height: 1.03;
 }
 
+.linguagem__head { grid-column: 1 / span 5; grid-row: 1; }
 .linguagem__doc {
   grid-column: 7 / -1;
+  grid-row: 1;
   align-self: center;
   background: var(--c-petrol-up);
   border-left: 2px solid var(--c-mint);
@@ -369,6 +448,13 @@
   font-size: clamp(16px, 1.2vw, 19px);
   line-height: 2.1;   /* respiro: as trocas acontecem entre as linhas */
   max-width: 62ch;
+}
+/* A conclusão, logo abaixo do documento, dentro da cena fixada. */
+.linguagem__coda {
+  grid-column: 7 / -1;
+  grid-row: 2;
+  margin-top: var(--s-3);
+  max-width: 52ch;
 }
 .linguagem__doc p { margin: 0; }
 .linguagem__doc-label {
@@ -425,26 +511,29 @@
   transform-origin: left;
 }
 
-/* Sob movimento reduzido mostramos o texto já traduzido, e o original
-   fica disponível no <details> ao lado (Preparação 12). */
+/* Sob movimento reduzido mostramos o texto já traduzido (Preparação 12); as
+   duas versões inteiras estão no parágrafo para leitor de tela, em home.mjs.
+   Sem JS, o mesmo: a tradução nunca aconteceria e a seção ficaria só em
+   juridiquês. */
 @media (prefers-reduced-motion: reduce) {
   .term { white-space: normal; }
   .term__old, .term__strike, .term__underline { display: none; }
   .term__new { position: static; opacity: 1; transform: none; }
 }
-
-.linguagem__coda {
-  padding-bottom: var(--s-section);
-  padding-top: var(--s-5);
-}
-.linguagem__coda .lead { max-width: 56ch; margin-left: auto; }
+html:not(.js) .term { white-space: normal; }
+html:not(.js) .term__old,
+html:not(.js) .term__strike,
+html:not(.js) .term__underline { display: none; }
+html:not(.js) .term__new { position: static; opacity: 1; transform: none; }
 
 @media (max-width: 900px) {
-  .linguagem__sticky { min-height: 0; display: block; padding-bottom: var(--s-4); }
-  .linguagem__doc { grid-column: 1 / -1; margin-top: var(--s-4); }
-  .linguagem__title { max-width: none; }
-  .linguagem__coda .lead { margin-left: 0; }
-  .linguagem__inner > .grid > div:first-child { grid-column: 1 / -1 !important; }
+  .linguagem__sticky { min-height: 0; display: block; padding-block: var(--s-6); }
+  .linguagem__head,
+  .linguagem__doc,
+  .linguagem__coda { grid-column: 1 / -1; grid-row: auto; }
+  .linguagem__doc { margin-top: var(--s-4); padding: var(--s-4) var(--s-3); line-height: 1.9; }
+  .linguagem__title { max-width: none; margin-bottom: 0; }
+  .linguagem__coda { margin-top: var(--s-4); }
 }
 
 /* --------------------------------------------------------------------------
@@ -458,51 +547,53 @@
   gap: var(--s-5) var(--grid-gutter);
   align-items: start;
 }
-.equipe__card { text-decoration: none; display: block; }
+/* Cada cartão herda as linhas da grade (subgrid): com "GUILHERME O. FONSECA"
+   quebrando em duas linhas e os outros nomes em uma, as inscrições, os
+   filetes e os textos saíam cada um numa altura. Agora alinham. */
+.equipe__card {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 4;
+  row-gap: 0;
+  text-decoration: none;
+  color: var(--c-text);
+}
+.equipe__grid--perfil .equipe__card { grid-row: span 5; }
+@supports not (grid-template-rows: subgrid) {
+  .equipe__card { display: block; }
+}
+/* Chegando por equipe.html#nome, o header fixo cobria o topo do cartão. */
+.equipe__card[id] { scroll-margin-top: calc(var(--header-h) + var(--s-3)); }
+
 .equipe__media {
   position: relative;
   overflow: hidden;
   aspect-ratio: 4 / 5;
   background: var(--c-petrol-up);
 }
-.equipe__media img,
-.equipe__media .equipe__avatar,
-.equipe__media .equipe__ph {
+/* Foto do ensaio, quando existir: dessaturada em repouso, cor no hover. */
+.equipe__media .retrato__foto {
   width: 100%; height: 100%;
   object-fit: cover;
   filter: saturate(0.35);
   transform: scale(1);
   transition: filter 0.5s var(--e-suave), transform 0.6s var(--e-suave);
 }
-.equipe__card:hover .equipe__media img,
-.equipe__card:hover .equipe__avatar,
-.equipe__card:hover .equipe__ph {
+.equipe__card:hover .retrato__foto {
   filter: saturate(0.8);
   transform: scale(1.03);
 }
-/* Silhueta 2D sobre fundo quase preto — placeholder até o ensaio fotográfico
-   existir. Não recebe o tratamento de saturação: não há foto para dessaturar. */
-.equipe__avatar {
-  filter: none !important;
-  transform: none !important;
-  object-fit: cover;
-}
 
-/* Placeholder de iniciais (mantido para retrocompatibilidade) */
-.equipe__ph {
+.equipe__id {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: clamp(34px, 4vw, 60px);
-  font-weight: 700;
-  color: var(--c-petrol-ln);
-  background: var(--c-petrol-up);
-  letter-spacing: -0.03em;
+  flex-direction: column;
+  align-items: flex-start;
+  padding-top: var(--s-3);
 }
 .equipe__name {
-  margin-top: var(--s-3);
   position: relative;
   display: inline-block;
+  margin-bottom: var(--s-2);
   text-transform: uppercase;
   letter-spacing: var(--tr-h3);
 }
@@ -521,14 +612,16 @@
 /* Inscrição na OAB em pílula. O raio 999px é permitido pela regra binária
    de forma (4.7) — é a mesma família do botão primário. */
 .equipe__full {
-  margin-top: 4px;
+  margin: calc(4px - var(--s-2)) 0 var(--s-2);
   font-size: var(--t-small);
   color: var(--c-text-muted);
   line-height: 1.35;
 }
+/* margin-top auto: a pílula desce para a base da linha do nome, e fica na
+   mesma altura em todos os cartões. */
 .equipe__oab {
   display: inline-block;
-  margin-top: var(--s-2);
+  margin-top: auto;
   padding: 6px 14px;
   border-radius: var(--r-pill);
   border: 1px solid color-mix(in srgb, var(--c-mint) 32%, transparent);
@@ -562,11 +655,142 @@
   color: var(--c-text-muted);
 }
 
-@media (max-width: 1100px) { .equipe__grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 1100px) { .equipe__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) {
-  .equipe__grid { grid-template-columns: 1fr; }
+  /* No celular, quatro retratos 4:5 de tela cheia somavam três telas de
+     rolagem. Viram uma lista: retrato quadrado à esquerda, nome e inscrição
+     ao lado, textos embaixo. */
+  .equipe__grid { grid-template-columns: 1fr; gap: var(--s-5); }
+  .equipe__card {
+    grid-template-columns: 92px minmax(0, 1fr);
+    grid-template-rows: none;
+    grid-row: auto;
+    column-gap: var(--s-3);
+    align-items: center;
+  }
+  .equipe__grid--perfil .equipe__card { grid-row: auto; }
+  .equipe__media { aspect-ratio: 1; grid-column: 1; grid-row: 1; }
+  .equipe__id { grid-column: 2; grid-row: 1; padding-top: 0; }
+  .equipe__name { margin-bottom: 4px; }
+  .equipe__full { margin: 0; }
+  .equipe__oab { margin-top: var(--s-1); }
+  .equipe__rule,
+  .equipe__block,
+  .equipe__card > .equipe__block-text { grid-column: 1 / -1; }
+  .equipe__rule { margin-block: var(--s-3); }
   /* Sem hover em toque: o estado tratado vira o padrão (13) */
-  .equipe__media img, .equipe__ph { filter: saturate(0.7); }
+  .equipe__media .retrato__foto { filter: saturate(0.7); }
+}
+
+/* --------------------------------------------------------------------------
+   RETRATO TIPOGRÁFICO — src/partials/equipe.mjs
+   Iniciais em serifada e o filete da logomarca, até o ensaio fotográfico
+   existir. Substitui a silhueta de "usuário sem foto".
+   -------------------------------------------------------------------------- */
+.retrato {
+  --tom: var(--c-teal-hi);
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  background:
+    radial-gradient(110% 80% at 100% 0%, color-mix(in srgb, var(--tom) 30%, transparent), transparent 70%),
+    var(--c-petrol-up);
+}
+.retrato--vinho { --tom: var(--c-wine-hi); }
+.retrato--menta { --tom: var(--c-mint); }
+
+/* O traço vertical da assinatura, na cor do advogado. No hover ele cresce do
+   centro, como no loader da home. */
+.retrato__filete {
+  position: absolute;
+  top: 12%;
+  bottom: 12%;
+  right: 17%;
+  width: 2px;
+  background: var(--tom);
+  transform: scaleY(0.82);
+  transition: transform 0.9s var(--e-entrada);
+}
+.retrato__ini {
+  position: absolute;
+  left: 9%;
+  bottom: 8%;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 300;
+  font-size: clamp(54px, 6vw, 100px);
+  line-height: 0.8;
+  letter-spacing: -0.03em;
+  color: var(--c-ink);
+}
+.equipe__card:hover .retrato__filete,
+.assinatura:hover .retrato__filete { transform: scaleY(1); }
+
+@media (max-width: 1100px) {
+  .retrato__ini { font-size: clamp(54px, 11vw, 100px); }
+}
+@media (max-width: 600px) {
+  .equipe__media .retrato__ini { font-size: 38px; left: 12%; bottom: 12%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .retrato__filete { transition: none; }
+}
+
+/* Assinatura compacta: retrato pequeno, nome e inscrição. Em "Quem atende
+   nesta área", no Escritório e no fim de cada artigo. */
+.assinatura {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--c-text);
+  text-decoration: none;
+}
+.assinatura__media {
+  position: relative;
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  overflow: hidden;
+}
+.assinatura__media .retrato__ini { font-size: 28px; left: 8px; bottom: 8px; }
+.assinatura__media .retrato__filete { top: 14%; bottom: 14%; right: 16%; }
+.assinatura__media .retrato__foto { width: 100%; height: 100%; object-fit: cover; }
+.assinatura__txt {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.assinatura__nome {
+  font-size: clamp(15px, 1.15vw, 17px);
+  font-weight: 500;
+  line-height: 1.25;
+  text-transform: uppercase;
+  letter-spacing: var(--tr-h3);
+  transition: color 0.35s var(--e-suave);
+}
+.assinatura__oab {
+  font-size: var(--t-label);
+  letter-spacing: 0.08em;
+  color: var(--c-text-muted);
+}
+a.assinatura:hover .assinatura__nome,
+a.assinatura:focus-visible .assinatura__nome { color: var(--c-action); }
+
+.assinaturas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: var(--s-3) var(--s-4);
+  align-content: start;
+}
+.assinaturas--duas {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: var(--s-5);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--c-rule);
+}
+@media (max-width: 560px) {
+  .assinaturas--duas { grid-template-columns: 1fr; }
 }
 
 /* --------------------------------------------------------------------------
@@ -593,13 +817,32 @@
   text-transform: uppercase;
   color: var(--c-text-muted);
 }
+.post__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  transition: transform 0.4s var(--e-suave);
+}
+.post:hover .post__main { transform: translateX(12px); }
 .post__title {
   font-size: clamp(17px, 1.5vw, 22px);
   line-height: 1.25;
   font-weight: 500;
-  transition: transform 0.4s var(--e-suave);
 }
-.post:hover .post__title { transform: translateX(12px); }
+/* No índice: linha fina e autor abaixo do título. */
+.post__resumo {
+  max-width: 62ch;
+  font-size: var(--t-small);
+  line-height: 1.55;
+  color: var(--c-text-muted);
+}
+.post__autor {
+  margin-top: 4px;
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  color: var(--c-text-muted);
+}
 .post__area {
   font-size: var(--t-label);
   letter-spacing: var(--tr-label);
@@ -638,7 +881,7 @@
     gap: var(--s-1);
   }
   .post:hover { padding-block: var(--s-4); }
-  .post:hover .post__title { transform: none; }
+  .post:hover .post__main { transform: none; }
   .post__area { text-align: left; }
   .post-thumb { display: none; }
 }
@@ -647,8 +890,12 @@
    6.9 CONTATO — o site termina na luz
    -------------------------------------------------------------------------- */
 .contato { background: var(--c-bone); color: var(--c-ink-dark); }
+/* A página /contato começa por esta seção, sem page-head: o respiro do topo
+   é o mesmo das outras páginas internas. */
+.contato--page { padding-top: calc(var(--header-h) + var(--s-7)); }
 .contato__title {
-  margin-bottom: var(--s-3);
+  /* O rótulo "Contato" encostava no título: em toda outra seção há 24px. */
+  margin-block: var(--s-3);
   /* Sem empilhar uma palavra por linha: "Fale com o escritório" ocupava
      quatro linhas de display e empurrava os canais de contato para baixo —
      justamente o que se queria trazer para cima. */
@@ -657,16 +904,37 @@
 }
 .contato__intro { margin-bottom: var(--s-2); max-width: 52ch; }
 .contato__form { grid-column: 1 / span 7; }
+.contato__form-lead { margin-bottom: var(--s-3); }
 .contato__aside { grid-column: 9 / -1; }
-.contato__fields { display: grid; gap: var(--s-4); }
-.contato__row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-4); }
-.contato__submit { margin-top: var(--s-5); }
+.contato__fields { display: grid; gap: var(--s-3); }
+.contato__row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3) var(--s-4); }
+.contato__submit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-4);
+  margin-top: var(--s-4);
+}
+.contato__submit-note {
+  max-width: 34ch;
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--c-text-muted);
+}
+/* Vazio, não ocupa altura — mas continua na árvore de acessibilidade: com
+   display:none, o leitor de tela não anunciaria a mensagem quando chegasse. */
+.contato__submit .form-status { flex-basis: 100%; margin-top: 0; }
+.contato__submit .form-status:empty { min-height: 0; }
 .contato__info + .contato__info { margin-top: var(--s-4); }
+.contato__info p:not(.label) { margin-top: var(--s-1); max-width: 34ch; }
 
 @media (max-width: 900px) {
   .contato__form, .contato__aside { grid-column: 1 / -1; }
   .contato__aside { margin-top: var(--s-6); }
   .contato__row { grid-template-columns: 1fr; }
+}
+@media (max-width: 767px) {
+  .contato--page { padding-top: calc(var(--header-h) + var(--s-5)); }
 }
 
 /* --------------------------------------------------------------------------
@@ -697,9 +965,101 @@
 .page-head__title--article {
   text-transform: none;
   letter-spacing: -0.015em;
-  font-size: clamp(23px, 2.8vw, 38px);
+  font-size: clamp(25px, 3vw, 42px);
   line-height: 1.12;
-  max-width: 22ch;
+  max-width: 24ch;
+}
+
+@media (max-width: 767px) {
+  /* 212px de vazio antes do rótulo, no celular, empurravam o título para
+     baixo da dobra em telas menores. */
+  .page-head { padding-top: calc(var(--header-h) + var(--s-5)); padding-bottom: var(--s-5); }
+}
+
+/* Colunas das páginas internas: rótulo e subtítulo à esquerda, conteúdo à
+   direita. Eram estilos inline (grid-column:1 / span 5, 7 / -1). */
+.area__side { grid-column: 1 / span 5; }
+.area__main { grid-column: 7 / -1; }
+.area__h2 { margin-top: var(--s-3); max-width: 16ch; }
+.area__quando { max-width: 54ch; }
+
+@media (max-width: 900px) {
+  .area__side, .area__main { grid-column: 1 / -1; }
+  .area__main { margin-top: var(--s-4); }
+}
+
+/* ARTIGO — cabeçalho, texto e fim na mesma coluna. */
+.article-col { grid-column: 3 / span 8; }
+@media (max-width: 1100px) { .article-col { grid-column: 2 / span 10; } }
+@media (max-width: 767px)  { .article-col { grid-column: 1 / -1; } }
+
+.page-head--article { padding-bottom: var(--s-4); }
+.page-head--article .label .link { color: inherit; }
+.page-head--article .article-meta {
+  margin: var(--s-5) 0 0;
+  padding: var(--s-3) 0 0;
+  border-top: 1px solid var(--c-rule);
+  border-bottom: 0;
+}
+.article { padding-top: var(--s-5); }
+
+.article-aviso {
+  margin-top: var(--s-6);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--c-rule);
+  max-width: 62ch;
+  font-size: var(--t-small);
+  line-height: 1.55;
+  color: var(--c-text-muted);
+}
+.article-fim {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-4);
+  margin-top: var(--s-5);
+}
+.autor .label,
+.compartilhar .label { margin-bottom: var(--s-2); }
+
+/* Compartilhar: links comuns, sem script de rede social. */
+.compartilhar__links { display: flex; flex-wrap: wrap; gap: var(--s-1); }
+.compartilhar__link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--c-rule);
+  border-radius: var(--r-pill);
+  color: var(--c-text);
+  text-decoration: none;
+  transition: border-color 0.35s var(--e-suave), color 0.35s var(--e-suave),
+              background-color 0.35s var(--e-suave);
+}
+/* O display acima venceria o atributo hidden: o "Copiar link" só aparece
+   quando site.js confirma que a área de transferência existe. */
+.compartilhar__link[hidden] { display: none; }
+.compartilhar__link .icone { width: 18px; height: 18px; flex: 0 0 auto; }
+.compartilhar__link:hover,
+.compartilhar__link:focus-visible {
+  border-color: var(--c-action);
+  color: var(--c-action);
+}
+.compartilhar__copiar {
+  padding-inline: 16px;
+  font-size: var(--t-label);
+  letter-spacing: var(--tr-label);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.compartilhar__copiar.is-feito {
+  border-color: var(--c-action);
+  background: color-mix(in srgb, var(--c-action) 12%, transparent);
+  color: var(--c-action);
 }
 
 .prose { max-width: 68ch; }
@@ -795,20 +1155,72 @@
 
 /* Bloco de próxima etapa no fim das páginas internas */
 .next-block {
+  position: relative;
+  overflow: hidden;
   background: var(--c-abyss);
   padding-block: var(--s-7);
   text-align: center;
 }
-.next-block .display { margin-bottom: var(--s-4); }
+.next-block__inner {
+  position: relative;
+  z-index: var(--z-content);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.next-block__title {
+  font-size: var(--t-h1);
+  max-width: 18ch;
+  margin-bottom: var(--s-5);
+}
+.next-block__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3) var(--s-4);
+}
+.next-block__note {
+  margin-top: var(--s-4);
+  font-size: var(--t-small);
+  color: var(--c-text-muted);
+}
+@media (max-width: 767px) {
+  .next-block { padding-block: var(--s-6); }
+  .next-block__title { margin-bottom: var(--s-4); }
+}
 
 /* 404 */
 .notfound {
+  position: relative;
+  overflow: hidden;
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   align-items: center;
   text-align: center;
   background: var(--c-petrol);
+  padding-block: calc(var(--header-h) + var(--s-5)) var(--s-6);
+}
+.notfound__inner {
+  position: relative;
+  z-index: var(--z-content);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.notfound__title {
+  margin-block: var(--s-3) var(--s-4);
+  font-size: clamp(32px, min(6.4vw, 11vh), 92px);
+}
+.notfound .lead { max-width: 44ch; }
+.notfound__actions { margin-top: var(--s-5); }
+.notfound__links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-1) var(--s-4);
+  margin-top: var(--s-4);
 }
 
 /* --------------------------------------------------------------------------
@@ -1142,23 +1554,38 @@
   color: var(--c-text-muted);
 }
 
-/* Chamada da campanha na página da área */
+/* Chamada da campanha — na home e na página da área. Texto à esquerda e a
+   chamada à direita: numa coluna só, metade do cartão ficava vazia. */
 .campanha-callout {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--s-2);
-  padding: var(--s-5) var(--s-4);
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--s-3) var(--s-6);
+  padding: var(--s-5) var(--s-5) var(--s-5) var(--s-4);
   border: 1px solid var(--c-rule);
   border-left: 2px solid var(--c-action);
   color: var(--c-text);
   text-decoration: none;
-  transition: background-color 0.4s var(--e-suave);
+  transition: background-color 0.4s var(--e-suave), border-color 0.4s var(--e-suave);
 }
 .campanha-callout:hover,
-.campanha-callout:focus-visible { background: color-mix(in srgb, var(--c-action) 6%, transparent); }
+.campanha-callout:focus-visible {
+  background: color-mix(in srgb, var(--c-action) 6%, transparent);
+  border-color: color-mix(in srgb, var(--c-action) 45%, transparent);
+  border-left-color: var(--c-action);
+}
+.campanha-callout__body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
 .campanha-callout__title { text-transform: uppercase; letter-spacing: var(--tr-h3); }
 .campanha-callout__text { max-width: 60ch; color: var(--c-text-muted); }
+@media (max-width: 767px) {
+  .campanha-callout { grid-template-columns: 1fr; padding: var(--s-4) var(--s-3); }
+}
 .campanha-callout:hover .link-arrow svg,
 .campanha-callout:focus-visible .link-arrow svg { transform: translateX(6px); }
 .campanha-callout + .campanha-callout { margin-top: var(--s-3); }

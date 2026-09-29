@@ -161,8 +161,10 @@ link para abrir no celular.
    reunião que o mesmo site serve — **confirmar como isso vira estrutura**.
 4. **Logo** [46:47, fim do áudio]. "Estamos com um problema muito chato, a gente
    tentou repaginar a nossa logo" — a transcrição corta exatamente aqui.
-   **Assunto em aberto, e é onde o Rodrigo entra.** Hoje só existe o `Logo.jpg`,
-   do qual a marca do site foi extraída e quantizada.
+   **Resolvido em 29/09/2026:** a logo nova (monograma serifado FHL + filete +
+   "Fonseca Hespanha Lisboa", em `LogosNovas/`) substituiu a antiga no site e
+   na área dos advogados. Ainda falta o arquivo vetorial original — o site usa
+   uma vetorização do PNG (README §Identidade).
 5. **SEO / tráfego** [18:30]. Pergunta genuína dele: mais interação = mais
    entrega, como no Instagram? Quer orgânico **e** pago. Merece uma resposta
    curta e honesta na próxima conversa.
@@ -193,21 +195,21 @@ auto-hospedadas. Já implementado; não regredir.
 |---|---|
 | **E-mail oficial** | Site usa `contato@fhladvocacia.com.br` (suposição). O sistema dele traz `contato@casenhali.com`. **Conflito — perguntar qual é o real.** |
 | **Domínio** | `fhladvocacia.com.br` é suposição. Confirmar se já foi registrado. |
-| **OAB da sociedade e CNPJ** | `[CONFIRMAR]` em `src/data/site.mjs`. Os 4 advogados são OAB/PR; a inscrição da *sociedade* não aparece em lugar nenhum. |
-| **Anos de atuação** | Está `10` no site como marcador. Ele disse "estou há seis anos" [~24:30] — mas pode ser o tempo dele, não do escritório. |
+| **OAB da sociedade e CNPJ** | Vazios em `src/data/site.mjs` (o site mostrava "00.000"). Até lá, o rodapé lista a inscrição de cada advogado. Os 4 advogados são OAB/PR; a inscrição da *sociedade* não aparece em lugar nenhum. |
+| **Anos de atuação** | Era `10`, sem fonte; agora `6` (`ANOS_DE_ATUACAO`). Ele disse "estou há seis anos" [~24:30] — mas pode ser o tempo dele, não do escritório. |
 | **Redes sociais** | Os campos no sistema dele estão com URL genérica (`https://instagram.com/`). Nunca foram preenchidos. |
 | **Áreas de atuação** | O site mostra 4 (Trabalhista, Previdenciário, Consumidor, Cível), mas os perfis somam 12+, incluindo **Portuário** — que num escritório de Paranaguá provavelmente é central. Decisão dele: vitrine de 4 ou abrir uma quinta página? |
 | **Licença webfont Galano Grotesque** | Bloqueia o lançamento. Ver README §Pendências. |
 
 ---
 
-## 8. Bug conhecido no site
+## 8. Bug que apareceu na reunião — corrigido
 
-`src/pages/escritorio.mjs:7` (e o `dist/escritorio.html` gerado) ainda dizem
-**"A I&D Legal atua em direito cível e contratual…"** — texto herdado de
-`preparacao-ied-legal.md`, de quando o cliente era chamado de "I&D". **Ficou
-visível na tela durante a reunião** [37:59 e 46:14]. Corrigir antes de qualquer
-nova demo.
+`src/pages/escritorio.mjs` dizia **"A I&D Legal atua em direito cível e
+contratual…"** — texto herdado de `preparacao-ied-legal.md`, de quando o cliente
+era chamado de "I&D". **Ficou visível na tela durante a reunião** [37:59 e
+46:14]. Já corrigido; ao mexer em texto institucional, procurar "I&D" antes de
+qualquer demo.
 
 ---
 
@@ -220,7 +222,7 @@ nova demo.
    a um advogado, que é o terreno dele.
 4. Backend do formulário — e já projetá-lo para que o lead **caia no módulo
    Contatos** da fase 2. É a primeira ponte entre site e sistema.
-5. Logo: Rodrigo assume. Pedir o arquivo vetorial original, se existir.
+5. Logo: a nova já está no site. Pedir ao Rodrigo o arquivo vetorial original.
 
 **Depois (proposta da fase 2):**
 1. Orçar **só o Financeiro** primeiro. É a prioridade declarada, é o módulo mais
@@ -246,7 +248,7 @@ custo mensal é o critério dele. **Chegar na conversa com esse número pronto.*
 3. Direito Portuário entra como área do site?
 4. O que é o "Escritório Virtual" que aparece no menu do sistema?
 5. Quantos anos o **escritório** tem (não você)?
-6. Existe arquivo vetorial da logo? O que exatamente incomoda na atual?
+6. A logo nova está aprovada por todos os sócios? Existe o arquivo vetorial?
 7. Qual o teto mensal confortável para o sistema?
 8. Você topa que as avaliações do Google fiquem como link para o perfil, em vez
    de reproduzidas no site, se for isso que o Provimento 205 exigir?

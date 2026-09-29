@@ -3,10 +3,10 @@
    Um arquivo só: tokens, base, casca, componentes e telas.
    ========================================================================== */
 
-/* A identidade é a do site (assets/css/tokens.css): as três pétalas da marca
-   sobre o verde-petróleo e o raio de canto binário — 0 em tudo, pílula só no
-   botão principal. O que muda é o uso. Isto é tela de trabalho: clara, densa,
-   feita para tabela e número.
+/* A identidade é a do site (assets/css/tokens.css): o monograma FHL em tinta
+   clara sobre o verde-petróleo, os acentos menta e teal e o raio de canto
+   binário — 0 em tudo, pílula só no botão principal. O que muda é o uso.
+   Isto é tela de trabalho: clara, densa, feita para tabela e número.
 
    Por isso a fonte é a do sistema operacional. Nítida em 13px, com algarismos
    tabulares, carrega na hora — e não depende da licença webfont da Galano,
@@ -162,16 +162,15 @@ img { max-width: 100%; display: block; }
   color: var(--c-ink-claro);
   text-decoration: none;
 }
-.marca img { width: 26px; height: 26px; }
+/* Monograma da logomarca (img/monograma.svg, cópia de assets/img — ver
+   `npm run marca`) e "Advocacia" depois de um filete, como no site. */
+.marca__monograma { display: block; width: auto; height: 26px; }
 .marca__nome {
-  font-weight: 700;
-  font-size: 17px;
-  letter-spacing: 0.04em;
-}
-.marca__nome small {
-  margin-left: 6px;
+  padding-left: 10px;
+  border-left: 1px solid var(--c-petrol-ln);
   font-size: var(--t-rotulo);
   font-weight: 500;
+  line-height: 18px;
   letter-spacing: var(--tr-rotulo);
   text-transform: uppercase;
   color: var(--c-ink-claro-m);
@@ -824,8 +823,7 @@ a.lista__item:hover { background: var(--c-realce); }
   background: var(--c-petrol);
   color: var(--c-ink-claro);
 }
-.entrada__marca .marca img { width: 40px; height: 40px; }
-.entrada__marca .marca__nome { font-size: 22px; }
+.entrada__assinatura { display: block; width: min(300px, 100%); height: auto; }
 .entrada__frase {
   max-width: 18ch;
   margin-top: var(--s-3);
@@ -837,7 +835,10 @@ a.lista__item:hover { background: var(--c-realce); }
 .entrada__marca .rotulo { color: var(--c-mint); }
 .entrada__rodape { font-size: var(--t-pequeno); color: var(--c-ink-claro-m); }
 .entrada__painel { display: grid; place-items: center; padding: clamp(24px, 5vw, 64px); }
-.entrada__form { display: grid; gap: var(--s-4); width: min(380px, 100%); }
+.entrada__form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); width: min(380px, 100%); }
+/* `.campo` ocupa 12 colunas (a grade de .campos); aqui isso criava colunas
+   implícitas e os botões de baixo iam para o lado, espremidos. Uma por linha. */
+.entrada__form > * { grid-column: 1 / -1; }
 .entrada__form .nota { margin: 0; }
 .entrada__volta { margin: calc(var(--s-4) * -1 + 4px) 0 0; text-align: center; font-size: var(--t-pequeno); }
 .entrada__volta a { color: var(--c-texto-m); }

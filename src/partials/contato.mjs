@@ -6,51 +6,97 @@
 // põe os canais reais na frente — clicáveis, com o valor visível, antes do
 // formulário. Quem quer falar agora não precisa preencher nada.
 
-import { CIDADE, EMAIL, ENDERECO, MAPS, TEL, TEL_HREF, whatsappUrl } from '../data/site.mjs';
+import {
+  CIDADE, EMAIL, ENDERECO, FORM_ENDPOINT, HORARIO, HORARIO_CURTO, MAPS, OAB, TEL, TEL_HREF,
+  WHATS, whatsappUrl,
+} from '../data/site.mjs';
 import { attr, prefix } from '../lib/html.mjs';
+import { ICONE } from '../lib/icones.mjs';
+
+// O e-mail é a palavra mais longa do bloco: em telas de 1024 a 1280px ele
+// atravessava a borda do cartão e encostava no endereço ao lado. <wbr> deixa
+// a quebra acontecer depois da arroba, e só se precisar.
+const EMAIL_QUEBRAVEL = EMAIL.replace('@', '@<wbr>');
+
+function canal({ href, externo = false, icone, rotulo, valor, nota }) {
+  const alvo = externo ? ' target="_blank" rel="noopener noreferrer"' : '';
+  return `        <a class="channel r-rise" href="${href}"${alvo}>
+          <span class="channel__top">${ICONE[icone]}${externo ? `<span class="channel__out">${ICONE.externo}</span>` : ''}</span>
+          <span class="channel__label">${rotulo}</span>
+          <span class="channel__value">${valor}</span>
+          <span class="channel__note">${nota}</span>
+        </a>`;
+}
 
 /** `whatsapp` pré-preenche a mensagem — as campanhas usam para dizer de onde o contato veio. */
 export function canaisDiretos({ whatsapp = '' } = {}) {
   return `      <div class="contato__direct" data-reveal="rise-group">
-        <a class="channel r-rise" href="${whatsappUrl(whatsapp)}" target="_blank" rel="noopener noreferrer">
-          <span class="channel__label">WhatsApp</span>
-          <span class="channel__value">${TEL}</span>
-          <span class="channel__note">O caminho mais rápido</span>
-        </a>
-        <a class="channel r-rise" href="tel:${TEL_HREF}">
-          <span class="channel__label">Telefone</span>
-          <span class="channel__value">${TEL}</span>
-          <span class="channel__note">Seg. a sex., 9h às 18h</span>
-        </a>
-        <a class="channel r-rise" href="mailto:${EMAIL}">
-          <span class="channel__label">E-mail</span>
-          <span class="channel__value">${EMAIL}</span>
-          <span class="channel__note">Resposta em até um dia útil</span>
-        </a>
-        <a class="channel r-rise" href="${MAPS}" target="_blank" rel="noopener noreferrer">
-          <span class="channel__label">Escritório</span>
-          <span class="channel__value">${ENDERECO}</span>
-          <span class="channel__note">${CIDADE}</span>
-        </a>
+${[
+    canal({ href: whatsappUrl(whatsapp), externo: true, icone: 'whatsapp', rotulo: 'WhatsApp',
+      valor: TEL, nota: 'O caminho mais rápido' }),
+    canal({ href: `tel:${TEL_HREF}`, icone: 'telefone', rotulo: 'Telefone',
+      valor: TEL, nota: HORARIO_CURTO }),
+    canal({ href: `mailto:${EMAIL}`, icone: 'email', rotulo: 'E-mail',
+      valor: EMAIL_QUEBRAVEL, nota: 'Resposta em até um dia útil' }),
+    canal({ href: MAPS, externo: true, icone: 'local', rotulo: 'Escritório',
+      valor: ENDERECO, nota: CIDADE }),
+  ].join('\n')}
       </div>`;
+}
+
+/**
+ * Coluna ao lado do formulário. Não repete o endereço, que já está nos canais
+ * logo acima: diz como é o primeiro atendimento e quando o escritório atende.
+ */
+export function contatoAside({ extra = '' } = {}) {
+  const inscricao = OAB ? `
+          <div class="contato__info r-rise">
+            <p class="label label--mute">Inscrição</p>
+            <p>${OAB}</p>
+          </div>` : '';
+
+  return `        <aside class="contato__aside" data-reveal="rise-group">${extra}
+          <div class="contato__info r-rise">
+            <p class="label label--mute">Atendimento</p>
+            <p>${HORARIO}</p>
+          </div>
+          <div class="contato__info r-rise">
+            <p class="label label--mute">Primeira conversa</p>
+            <p>Pode ser pelo WhatsApp ou por telefone. Se for preciso, marcamos um
+            atendimento no escritório, em ${CIDADE.split(' — ')[0]}.</p>
+          </div>
+          <div class="contato__info r-rise">
+            <p class="label label--mute">Sigilo</p>
+            <p>O que você contar aqui é tratado com sigilo profissional e usado só
+            para responder ao seu contato.</p>
+          </div>${inscricao}
+        </aside>`;
 }
 
 // O formulário existe na raiz (home, contato.html) e em campanhas/, daí o
 // `depth` para o link da política de privacidade.
 //
-// `campanha` vai num campo oculto do formulário: quando ele for ligado a um
-// backend, o contato já chega dizendo de qual campanha veio.
+// `campanha` vai num campo oculto do formulário: o contato já chega dizendo de
+// qual campanha veio — no WhatsApp hoje, no backend quando ele existir.
+//
+// ENVIO — sem FORM_ENDPOINT (src/data/site.mjs), o formulário valida e abre o
+// WhatsApp do escritório com a mensagem montada. Antes ele exibia "Mensagem
+// enviada" sem mandar nada a lugar nenhum: no ar, todo contato escrito pelo
+// formulário se perderia sem ninguém saber.
 export function contatoForm({ depth = 0, campanha = '' } = {}) {
   const origem = campanha
     ? `\n\n              <input type="hidden" name="campanha" value="${attr(campanha)}">`
     : '';
+  const peloWhats = !FORM_ENDPOINT;
 
   return `        <div class="contato__form">
-          <p class="lead" data-reveal="rise" style="margin-bottom:var(--s-5)">
+          <p class="lead contato__form-lead" data-reveal="rise">
             Descreva sua situação. Respondemos em até um dia útil.
           </p>
 
-          <form data-form novalidate>
+          <!-- method="post": sem JavaScript, o envio nativo seria um GET e
+               nome, e-mail e mensagem iriam parar na URL (histórico, logs). -->
+          <form data-form data-endpoint="${attr(FORM_ENDPOINT)}" data-whatsapp="${WHATS}" method="post" novalidate>
             <div class="contato__fields">
               <div class="contato__row">
                 <div class="field">
@@ -104,8 +150,10 @@ export function contatoForm({ depth = 0, campanha = '' } = {}) {
 
             <div class="contato__submit">
               <button class="btn" type="submit" data-magnetic>
-                <span class="btn__label">Enviar</span>
-              </button>
+                <span class="btn__label">${peloWhats ? 'Enviar pelo WhatsApp' : 'Enviar'}</span>
+              </button>${peloWhats ? `
+              <p class="contato__submit-note">A mensagem abre pronta no WhatsApp do escritório — é só confirmar o envio.</p>` : ''}
+              <noscript><p class="contato__submit-note">Com o JavaScript desligado o formulário não envia: use o WhatsApp, o telefone ou o e-mail acima.</p></noscript>
               <p class="form-status" role="status" aria-live="polite"></p>
             </div>
           </form>
