@@ -21,11 +21,11 @@ FHL = iniciais dos sobrenomes dos sócios: **F**onseca, **H**espanha, **L**isboa
 |---|---|---|
 | Guilherme de Oliveira da Fonseca | 116.072 | Cível, Consumidor, Imobiliário, Contratual, Assessoria Preventiva |
 | Juliana Cristina da Silva Lisboa | 117.141 | Família, Sucessões, Previdenciário, Consumidor |
-| Marlon Albini Hespanha | 131.898 | Trabalhista, Empresarial, Administrativo, Portuário, Assessoria Preventiva |
+| ~~Marlon Albini Hespanha~~ | 131.898 | **Saiu da equipe (out/2026)** — removido do site e desativado na área dos advogados. Era Trabalhista, Empresarial, Administrativo, Portuário |
 | **Vinícius Rangel de Lima de Paula Lisboa** | 105.790 | Trabalhista, Criminal, Previdenciário, Regularização Fundiária, Ambiental, Portuário |
 
 **Vinícius é o interlocutor** — advogado-chefe, foi quem apresentou tudo e quem
-decide. Juliana é esposa dele. Escritório com 6 anos. Hoje são 4 pessoas; ele já
+decide. Juliana é esposa dele. Escritório com 6 anos. Hoje são 3 advogados (o Marlon saiu em out/2026 — o "H" de FHL e o nome da sociedade continuam: decidir com o Vinícius); ele já
 fala em estagiário e secretária no futuro.
 
 **Fornecedores — Ithalo e Rodrigo** (primos). Ithalo é o organizador da reunião;

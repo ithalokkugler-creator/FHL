@@ -543,7 +543,7 @@ html:not(.js) .term__new { position: static; opacity: 1; transform: none; }
 .equipe__head { margin-bottom: var(--s-6); }
 .equipe__grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--s-5) var(--grid-gutter);
   align-items: start;
 }
@@ -655,9 +655,8 @@ html:not(.js) .term__new { position: static; opacity: 1; transform: none; }
   color: var(--c-text-muted);
 }
 
-@media (max-width: 1100px) { .equipe__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) {
-  /* No celular, quatro retratos 4:5 de tela cheia somavam três telas de
+  /* No celular, os retratos 4:5 de tela cheia somavam telas e telas de
      rolagem. Viram uma lista: retrato quadrado à esquerda, nome e inscrição
      ao lado, textos embaixo. */
   .equipe__grid { grid-template-columns: 1fr; gap: var(--s-5); }

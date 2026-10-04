@@ -468,7 +468,9 @@ begin
       into v_txt from jsonb_array_elements(j #> '{divisao,socios}') as s;
     select sum((s ->> 'valor')::numeric) into v_num from jsonb_array_elements(j #> '{divisao,socios}') as s;
     res := res || jsonb_build_object('ok',
-      v_txt = 'Guilherme=100.00+0,Juliana=100.00+30.00,Marlon=100.00+0,Vinícius=100.01+0' and v_num = 400.01,
+      -- Três sócios ativos desde que o Marlon saiu (out/2026); o centavo do
+      -- arredondamento fica com o último da lista.
+      v_txt = 'Guilherme=133.34+0,Juliana=133.34+30.00,Vinícius=133.33+0' and v_num = 400.01,
       't', 'F48 divisão igual fecha no centavo e mostra o reembolso da sócia', 'd', v_txt);
 
     res := res || jsonb_build_object('ok',

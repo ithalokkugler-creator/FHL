@@ -20,7 +20,7 @@ export function buildEscritorio() {
         <div class="prose">
           <p class="lead r-rise">
             FHL são as iniciais dos sobrenomes dos sócios: Fonseca, Hespanha e Lisboa.
-            O escritório reúne quatro advogados e atende pessoas físicas e jurídicas
+            O escritório reúne três advogados e atende pessoas físicas e jurídicas
             com abordagem técnica, estratégica e personalizada.
           </p>
           <p class="r-rise">
@@ -30,8 +30,8 @@ export function buildEscritorio() {
           </p>
           <p class="r-rise">
             Além das quatro áreas principais, a equipe atua em família e sucessões,
-            direito empresarial, administrativo, criminal, ambiental, regularização
-            fundiária e direito portuário — este último, natural para um escritório
+            direito imobiliário, criminal, ambiental, regularização fundiária e
+            direito portuário — este último, natural para um escritório
             em Paranaguá.
           </p>
         </div>
@@ -52,7 +52,7 @@ ${numeros()}
   return page({
     path: 'escritorio.html',
     title: 'O Escritório — FHL Advocacia',
-    desc: 'Quem é a FHL Advocacia: quatro advogados em Paranaguá, com atuação ' +
+    desc: 'Quem é a FHL Advocacia: três advogados em Paranaguá, com atuação ' +
       'trabalhista, previdenciária, do consumidor e cível.',
     body,
   });

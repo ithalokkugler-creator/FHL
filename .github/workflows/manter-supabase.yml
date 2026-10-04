@@ -1,0 +1,34 @@
+# Mantém o Supabase do piloto acordado.
+#
+# No plano gratuito o projeto pausa depois de ~7 dias sem uso, e aí o site e a
+# área dos advogados param de ler o banco até alguém reativar no painel. A cada
+# 3 dias este job faz uma leitura pública — a mesma que o build do site faz,
+# com a chave publicável (pública por natureza, ver sistema/js/config.js) —, o
+# que conta como atividade. Não grava nada.
+#
+# Atenção: o GitHub desliga jobs agendados de repositórios sem nenhum commit
+# há 60 dias. Se isso acontecer, ele avisa por e-mail; basta reativar na aba
+# Actions. Também dá para rodar à mão em Actions → "Manter Supabase ativo".
+
+name: Manter Supabase ativo
+
+on:
+  schedule:
+    - cron: '17 12 */3 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ler publicações
+        run: |
+          status=$(curl -s -o /dev/null -w '%{http_code}' \
+            'https://ulnpnbzibwbrzrpomgia.supabase.co/rest/v1/publicacoes?select=slug&limit=1' \
+            -H 'apikey: sb_publishable_AlYu4_kFqmiep4QsQaTZsg_qCz4arVD')
+          echo "Supabase respondeu $status"
+          if [ "$status" != "200" ]; then
+            echo "::error::O Supabase não respondeu 200 — o projeto pode estar pausado. Reative no painel."
+            exit 1
+          fi

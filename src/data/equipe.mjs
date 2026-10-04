@@ -45,29 +45,12 @@ export const EQUIPE = [
       'criteriosa e estratégia processual individualizada.',
   },
   {
-    slug: 'marlon-hespanha',
-    nome: 'Marlon A. Hespanha',
-    completo: 'Marlon Albini Hespanha',
-    ini: 'MH',
-    foto: '',
-    tom: 'vinho',
-    oab: 'OAB/PR 131.898',
-    areas: ['trabalhista'],
-    atuacao:
-      'Direito Trabalhista, Empresarial, Administrativo, Portuário e ' +
-      'Assessoria Preventiva.',
-    perfil:
-      'Atuação em demandas empresariais, trabalhistas e administrativas, ' +
-      'com foco na prevenção de passivos, defesa técnica e estruturação ' +
-      'jurídica de procedimentos internos.',
-  },
-  {
     slug: 'vinicius-lisboa',
     nome: 'Vinicius L. Lisboa',
     completo: 'Vinicius Rangel de Lima de Paula Lisboa',
     ini: 'VL',
     foto: '',
-    tom: 'teal',
+    tom: 'vinho',
     oab: 'OAB/PR 105.790',
     areas: ['trabalhista', 'previdenciario'],
     atuacao:
@@ -84,7 +67,7 @@ const semAcento = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(
 
 /**
  * O advogado que assina um artigo. O autor é texto livre, digitado na área dos
- * advogados ("Marlon A. Hespanha", "Vinícius Lisboa"…), então a comparação é
+ * advogados ("Juliana S. Lisboa", "Vinícius Lisboa"…), então a comparação é
  * pelo primeiro nome e pelo último sobrenome, sem acento. Sem par, `null` — o
  * artigo mostra só o nome, sem inscrição nem link.
  */

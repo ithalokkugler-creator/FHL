@@ -14,6 +14,8 @@
 --
 -- Rodado em 15/09/2026, migrações 01–04, testes 01–71: 71 de 71.
 -- Rodado em 16/09/2026, migração 05 (conteúdo do site), testes 72–87: 16 de 16.
+-- Out/2026: Marlon desativado — a divisão passa a ter 3 sócios (teste 38); testes
+-- 33, 40, 43 e 79 deixaram de supor banco vazio (o piloto tem dados reais): 87 de 87.
 
 create or replace function pg_temp.testar_fhl()
 returns table (n bigint, ok boolean, teste text, detalhe text)
@@ -48,6 +50,8 @@ declare
   v_pub      uuid;
   v_camp     uuid;
   v_qtd      integer;
+  v_pend0    integer;
+  v_pubtot   integer;
   v_num      numeric;
   v_txt      text;
   v_bool     boolean;
@@ -67,6 +71,9 @@ begin
       (u_naoconf, 'naoconf@teste.local', null,  'authenticated', 'authenticated');
 
     update public.membros set email = 'admin@teste.local' where nome_curto = 'Vinícius' returning id into m_admin;
+    -- O banco do piloto tem outros administradores (suporte): para o teste 43
+    -- valer, o Vinícius precisa ser o único. Desfeito no fim, como o resto.
+    update public.membros set papel = 'socio' where papel = 'admin' and id <> m_admin;
     update public.membros set email = 'socia@teste.local' where nome_curto = 'Juliana' returning id into m_socia;
     update public.membros set email = 'naoconf@teste.local' where nome_curto = 'Guilherme';
     insert into public.membros (nome, nome_curto, email, papel, acesso_agenda, acesso_financeiro)
@@ -119,6 +126,8 @@ begin
     perform set_config('request.jwt.claims', jsonb_build_object('sub', u_socia, 'role', 'authenticated')::text, true);
     j := public.iniciar_sessao();
     res := res || jsonb_build_object('ok', (j ->> 'id')::uuid = m_socia, 't', '08 sócia vincula', 'd', j);
+    -- O piloto já tem contas reais no mês: o teste 40 mede só a que ele cria.
+    v_pend0 := (public.previa_fechamento(v_mes) -> 'pendencias' ->> 'contas_sem_baixa')::integer;
     perform set_config('request.jwt.claims', jsonb_build_object('sub', u_sec, 'role', 'authenticated')::text, true);
     j := public.iniciar_sessao();
     res := res || jsonb_build_object('ok', j ->> 'acesso_financeiro' = 'lancamentos', 't', '09 secretária vincula com nível lançamentos', 'd', j);
@@ -249,7 +258,8 @@ begin
     res := res || jsonb_build_object('ok', v_qtd = 0, 't', '31 gerar de novo não duplica', 'd', v_qtd);
     v_qtd := public.gerar_contas_do_mes((v_mes + interval '6 months')::date);
     res := res || jsonb_build_object('ok', v_qtd = 0, 't', '32 não gera conta de mês distante', 'd', v_qtd);
-    select vencimento into v_data from public.contas where recorrente_id is not null and competencia = v_mes;
+    select c.vencimento into v_data from public.contas c join public.contas_recorrentes r on r.id = c.recorrente_id
+     where r.descricao = 'Internet teste' and c.competencia = v_mes;
     res := res || jsonb_build_object('ok', v_data = (v_mes + interval '1 month')::date - 1, 't', '33 dia 31 cai no último dia do mês', 'd', v_data);
 
     insert into public.contas (descricao, categoria_id, valor, vencimento, data_pagamento, pago_por_id)
@@ -282,12 +292,13 @@ begin
     res := res || jsonb_build_object('ok', (j -> 'totais' ->> 'entradas')::numeric = 699.67 and (j -> 'totais' ->> 'saidas')::numeric = 250,
       't', '37 prévia: entradas e saídas do mês', 'd', j -> 'totais');
     select sum((x ->> 'valor')::numeric) into v_num from jsonb_array_elements(j -> 'divisao' -> 'socios') as x;
-    res := res || jsonb_build_object('ok', v_num = 449.67 and jsonb_array_length(j -> 'divisao' -> 'socios') = 4,
+    -- Três sócios ativos desde que o Marlon saiu (out/2026).
+    res := res || jsonb_build_object('ok', v_num = 449.67 and jsonb_array_length(j -> 'divisao' -> 'socios') = 3,
       't', '38 divisão fecha centavo a centavo', 'd', j -> 'divisao');
     select (x ->> 'reembolso_pendente')::numeric into v_num
       from jsonb_array_elements(j -> 'divisao' -> 'socios') as x where x ->> 'nome' = 'Juliana';
     res := res || jsonb_build_object('ok', v_num = 50, 't', '39 reembolso pendente aparece na divisão', 'd', v_num);
-    res := res || jsonb_build_object('ok', (j -> 'pendencias' ->> 'contas_sem_baixa')::integer = 1, 't', '40 pendência: conta sem baixa', 'd', j -> 'pendencias');
+    res := res || jsonb_build_object('ok', (j -> 'pendencias' ->> 'contas_sem_baixa')::integer = v_pend0 + 1, 't', '40 pendência: conta sem baixa', 'd', j -> 'pendencias');
 
     begin
       perform public.fechar_mes(v_mes);
@@ -461,6 +472,8 @@ begin
       values ('teste-rascunho', 'Rascunho de teste', 'Resumo.', 'Cível', 'Teste',
               '[["p","Texto."]]'::jsonb, false)
       returning id into v_pub;
+    -- O piloto pode ter rascunhos reais: o teste 79 compara com o total.
+    select count(*) into v_pubtot from public.publicacoes;
 
     perform set_config('request.jwt.claims', null, true);
     perform set_config('role', 'anon', true);
@@ -505,7 +518,7 @@ begin
     -- Administrador: 'editar' pelo papel, qualquer que seja o acesso_site gravado.
     perform set_config('request.jwt.claims', jsonb_build_object('sub', u_admin, 'role', 'authenticated')::text, true);
     select count(*) into v_qtd from public.publicacoes;
-    res := res || jsonb_build_object('ok', v_qtd = 4, 't', '79 quem edita o site vê rascunho também', 'd', v_qtd);
+    res := res || jsonb_build_object('ok', v_qtd = v_pubtot, 't', '79 quem edita o site vê rascunho também', 'd', v_qtd);
 
     update public.publicacoes set titulo = 'Rascunho revisado' where id = v_pub;
     select alterado_por = m_admin into v_bool from public.publicacoes where id = v_pub;
