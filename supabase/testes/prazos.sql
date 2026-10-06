@@ -83,8 +83,10 @@ begin
  return query select 'Prazo guarda intimação de origem',exists(select 1 from public.tarefas where id=t and intimacao_id=i);
  return query select 'Prazo confere intimação atomicamente',exists(select 1 from public.intimacoes where id=i and situacao='conferida' and conferida_por=s and conferida_em is not null);
  return query select 'Audiência em agenda alheia é recusada',pg_temp.recusa_prazo(format('select public.lancar_audiencia_intimacao(%L,%L::jsonb)',i,jsonb_build_object('tipo','audiencia','membro_id',m,'cliente_id',cl,'modalidade','presencial','inicio',now(),'fim',now()+interval '1 hour')),'42501');
- comp:=public.lancar_audiencia_intimacao(i,jsonb_build_object('tipo','audiencia','membro_id',s,'cliente_id',cl,'modalidade','presencial','inicio',now(),'fim',now()+interval '1 hour'));
+ return query select 'Lembrete inválido não cria audiência nem vínculo',pg_temp.recusa_prazo(format('select public.lancar_audiencia_intimacao(%L,%L::jsonb)',i,jsonb_build_object('tipo','audiencia','membro_id',s,'cliente_id',cl,'modalidade','presencial','inicio',now(),'fim',now()+interval '1 hour','lembrete_minutos',-1)),'23514') and exists(select 1 from public.intimacoes where id=i and compromisso_id is null);
+ comp:=public.lancar_audiencia_intimacao(i,jsonb_build_object('tipo','audiencia','membro_id',s,'cliente_id',cl,'modalidade','presencial','inicio',now(),'fim',now()+interval '1 hour','lembrete_minutos',1440));
  return query select 'Audiência e vínculo gravados juntos',exists(select 1 from public.intimacoes where id=i and compromisso_id=comp and situacao='conferida') and exists(select 1 from public.compromissos where id=comp and tipo='audiencia');
+ return query select 'Audiência preserva o lembrete escolhido no formulário',exists(select 1 from public.compromissos where id=comp and lembrete_minutos=1440);
  return query select 'Audiência duplicada é recusada',pg_temp.recusa_prazo(format('select public.lancar_audiencia_intimacao(%L,%L::jsonb)',i,jsonb_build_object('tipo','audiencia')),'P0001');
  update public.intimacoes set situacao='arquivada',observacoes='Não é do escritório' where id=i;
  return query select 'Arquivar preserva teor e autor da conferência',exists(select 1 from public.intimacoes where id=i and texto='Teor fictício' and conferida_por=s);
