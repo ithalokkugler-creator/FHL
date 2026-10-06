@@ -10,6 +10,7 @@
 // Seção sem conteúdo simplesmente não aparece — dá para publicar uma campanha
 // só com o topo e o formulário, e ir enchendo o resto depois.
 
+import { limparErrosFormulario, mostrarErroFormulario } from '../../nucleo/formularios.js';
 import { avisar } from '../../nucleo/avisos.js';
 import { hoje } from '../../nucleo/formato.js';
 import { $, desenhar, html, lerFormulario } from '../../nucleo/html.js';
@@ -39,12 +40,10 @@ export default async function telaCampanha(ctx) {
   desenhar(ctx.raiz, tela(c, nova));
 
   const form = $('form', ctx.raiz);
-  const erro = $('.erro-formulario', form);
 
-  const mostrarErro = (texto) => {
-    erro.textContent = texto;
-    erro.hidden = !texto;
-    if (texto) erro.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  const mostrarErro = (falha) => {
+    if (falha) mostrarErroFormulario(form, falha);
+    else limparErrosFormulario(form);
   };
 
   let slugAutomatico = nova;
@@ -73,7 +72,7 @@ export default async function telaCampanha(ctx) {
       avisar(nova ? 'Campanha criada.' : 'Campanha salva.');
       navegar('/site/campanhas');
     } catch (falha) {
-      mostrarErro(falha.message);
+      mostrarErro(falha);
       botao.disabled = false;
     }
   });

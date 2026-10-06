@@ -6,6 +6,7 @@
 
 import { $, aoClicar, desenhar, html, lerFormulario } from '../nucleo/html.js';
 import { entrar, pedirNovaSenha } from '../nucleo/supabase.js';
+import { ErroCampo, mostrarErroFormulario } from '../nucleo/formularios.js';
 
 export default function telaEntrada(app, { erro, aviso } = {}) {
   app.dataset.tela = 'entrada';
@@ -67,7 +68,7 @@ export default function telaEntrada(app, { erro, aviso } = {}) {
       // app.js percebe a sessão nova e abre o sistema.
       await entrar(email, senha);
     } catch (falha) {
-      mostrar(caixaErro, falha.message);
+      mostrarErroFormulario(form, falha);
       botao.disabled = false;
       botao.textContent = 'Entrar';
     }
@@ -77,8 +78,7 @@ export default function telaEntrada(app, { erro, aviso } = {}) {
     esqueci: async (alvo) => {
       const email = form.email.value.trim();
       if (!email || !form.email.checkValidity()) {
-        mostrar(caixaErro, 'Digite o seu e-mail acima e clique de novo em "Esqueci a senha".');
-        form.email.focus();
+        mostrarErroFormulario(form, new ErroCampo('email', 'Digite um e-mail válido acima e clique de novo em "Esqueci a senha".'));
         return;
       }
       alvo.disabled = true;
@@ -86,7 +86,7 @@ export default function telaEntrada(app, { erro, aviso } = {}) {
         await pedirNovaSenha(email);
         mostrar(caixaAviso, 'Se este e-mail tiver acesso, chega em alguns minutos um link para criar uma senha nova.');
       } catch (falha) {
-        mostrar(caixaErro, falha.message);
+        mostrarErroFormulario(form, falha);
       } finally {
         alvo.disabled = false;
       }

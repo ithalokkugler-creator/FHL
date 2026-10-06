@@ -13,6 +13,7 @@ import { gerarIcs, linkGoogleAgenda } from '../dominio/ics.js';
 import { mensagemLembrete } from '../dominio/mensagens.js';
 import { avisar, avisarErro } from '../nucleo/avisos.js';
 import { abrirDialogo, pedirMotivo } from '../nucleo/dialogo.js';
+import { ErroCampo } from '../nucleo/formularios.js';
 import { corDe, estado, membrosAtivos, nomeDe, pode } from '../nucleo/estado.js';
 import {
   data, dataCurta, dataExtensa, diasEntre, hoje, hora, horaDoMinuto, inicioDaSemana, inicioDoMes, instante,
@@ -533,10 +534,20 @@ export async function editarCompromisso(c = null, { config, dia = hoje(), minuto
       };
       const atualizarBlocos = () => {
         campoDoCliente.hidden = form.tipo.value === 'bloqueio';
+        form.cliente_texto.disabled = form.cliente_id.disabled = campoDoCliente.hidden;
         bloco('processo').hidden = form.tipo.value !== 'audiencia';
+        form.processo.disabled = bloco('processo').hidden;
         const inteiro = form.dia_inteiro.checked;
         bloco('horario').hidden = inteiro;
         bloco('dias').hidden = !inteiro;
+        for (const nome of ['dia', 'hora_inicio', 'hora_fim']) {
+          form.elements[nome].disabled = inteiro;
+          form.elements[nome].required = !inteiro;
+        }
+        for (const nome of ['dia_inicio', 'dia_fim']) {
+          form.elements[nome].disabled = !inteiro;
+          form.elements[nome].required = inteiro;
+        }
         const meu = (form.membro_id.value || eu) === eu;
         bloco('particular').hidden = !meu;
         if (!meu) form.particular.checked = false;
@@ -601,7 +612,7 @@ export async function editarCompromisso(c = null, { config, dia = hoje(), minuto
     aoEnviar: async (d, form) => {
       const p = periodo(form);
       if (!p) {
-        throw new Error(form.dia_inteiro.checked
+        throw new ErroCampo(form.dia_inteiro.checked ? 'dia_fim' : 'hora_fim', form.dia_inteiro.checked
           ? 'Informe o primeiro e o último dia — o último igual ou depois do primeiro.'
           : 'Informe o dia e um horário de fim depois do começo.');
       }
@@ -621,7 +632,7 @@ export async function editarCompromisso(c = null, { config, dia = hoje(), minuto
         lembrete_minutos: d.lembrete_minutos ? Number(d.lembrete_minutos) : null,
       };
       if (registro.tipo !== 'bloqueio' && !registro.titulo && !registro.cliente_id) {
-        throw new Error('Informe o assunto ou o cliente.');
+        throw new ErroCampo('titulo', 'Informe o assunto ou selecione um cliente.');
       }
 
       if (salvar) await salvar(registro);
@@ -651,7 +662,7 @@ function configurarAgenda(config) {
         ${numero('duracao_interno', 'Reunião interna (min)', 5, 600)}
       </div>`,
     aoEnviar: async (d) => {
-      if (Number(d.hora_fim) <= Number(d.hora_inicio)) throw new Error('A grade precisa terminar depois de começar.');
+      if (Number(d.hora_fim) <= Number(d.hora_inicio)) throw new ErroCampo('hora_fim', 'A grade precisa terminar depois de começar.');
       await db.alterar('config_agenda', [['id', 'eq', config.id]], {
         hora_inicio: Number(d.hora_inicio),
         hora_fim: Number(d.hora_fim),

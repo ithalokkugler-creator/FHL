@@ -11,6 +11,7 @@
 
 import { SUPABASE_CHAVE, SUPABASE_URL } from '../config.js';
 import { montarConsulta } from './consulta.js';
+import { descreverErroBanco } from './erros-banco.js';
 
 const CHAVE_LOCAL = 'fhl.sessao';
 
@@ -19,13 +20,14 @@ const CHAVE_LOCAL = 'fhl.sessao';
 const MARGEM = 90; // segundos
 
 export class ErroApi extends Error {
-  constructor(mensagem, { status = 0, codigo = '', detalhe = '', dica = '' } = {}) {
+  constructor(mensagem, { status = 0, codigo = '', detalhe = '', dica = '', campo = '' } = {}) {
     super(mensagem);
     this.name = 'ErroApi';
     this.status = status;
     this.codigo = codigo;
     this.detalhe = detalhe;
     this.dica = dica;
+    this.campo = campo;
   }
 }
 
@@ -269,28 +271,6 @@ export function sessaoDoLink() {
 // Data API
 // ---------------------------------------------------------------------------
 
-const MENSAGENS_BANCO = {
-  23505: 'Já existe um registro com esses dados.',
-  23503: 'Este registro depende de outro que não existe.',
-  23514: 'Algum valor não é aceito. Confira os campos.',
-  23502: 'Falta preencher um campo obrigatório.',
-  '22P02': 'Algum valor está num formato inválido.',
-  42501: 'Seu acesso não permite esta ação.',
-};
-
-function mensagemDoBanco(d, status) {
-  const codigo = d?.code || '';
-  const texto = d?.message || '';
-  // As funções do banco levantam erros já escritos para quem usa o sistema.
-  // Os do próprio Postgres vêm em inglês e ganham uma tradução genérica.
-  const escritoNoBanco = codigo === 'P0001' || codigo === '22023'
-    || (codigo === '42501' && !/permission denied/i.test(texto));
-  if (escritoNoBanco && texto) return texto;
-  if (MENSAGENS_BANCO[codigo]) return MENSAGENS_BANCO[codigo];
-  if (status === 401) return 'Sua sessão expirou. Entre de novo.';
-  return 'Não foi possível concluir. Tente de novo.';
-}
-
 async function rest(metodo, caminho, { params = [], corpo, prefer } = {}, repetida = false) {
   const token = await tokenValido();
   const headers = { apikey: SUPABASE_CHAVE, Accept: 'application/json' };
@@ -315,7 +295,9 @@ async function rest(metodo, caminho, { params = [], corpo, prefer } = {}, repeti
 
   const dados = await jsonOuNada(resposta);
   if (!resposta.ok) {
-    throw new ErroApi(mensagemDoBanco(dados, resposta.status), {
+    const erro = descreverErroBanco(dados, resposta.status);
+    throw new ErroApi(erro.mensagem, {
+      campo: erro.campo,
       status: resposta.status,
       codigo: dados?.code || '',
       detalhe: dados?.details || dados?.message || '',

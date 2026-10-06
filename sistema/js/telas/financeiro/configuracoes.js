@@ -5,6 +5,7 @@
 // categorias e formas de pagamento. Todos os níveis do Financeiro leem; só o
 // administrador muda (o banco garante).
 
+import { ErroCampo, mostrarErroFormulario } from '../../nucleo/formularios.js';
 import { atualizar } from '../../dominio/atraso.js';
 import { correcaoPara } from '../../dominio/indices.js';
 import { mensagemDeCobranca } from '../../dominio/cobranca.js';
@@ -199,7 +200,7 @@ function ligar(raiz, { config, cotas, recarregar }) {
       avisar(aviso);
       await recarregar();
     } catch (erro) {
-      avisarErro(erro);
+      mostrarErroFormulario(form, erro);
       botao.disabled = false;
     }
   };
@@ -211,7 +212,7 @@ function ligar(raiz, { config, cotas, recarregar }) {
     try {
       mudanca = lerCriterio(lerFormulario(criterio));
     } catch (erro) {
-      avisarErro(erro);
+      mostrarErroFormulario(criterio, erro);
       return;
     }
     salvarConfig(criterio, mudanca, 'Critério de atraso salvo.');
@@ -222,7 +223,7 @@ function ligar(raiz, { config, cotas, recarregar }) {
     e.preventDefault();
     const d = lerFormulario(cobranca);
     if (!d.mensagem_cobranca) {
-      avisarErro(new Error('O modelo da mensagem não pode ficar vazio.'));
+      mostrarErroFormulario(cobranca, new ErroCampo('mensagem_cobranca', 'O modelo da mensagem não pode ficar vazio.'));
       return;
     }
     salvarConfig(cobranca, { pix_chave: d.pix_chave || null, pix_titular: d.pix_titular || null, mensagem_cobranca: d.mensagem_cobranca }, 'Dados da cobrança salvos.');
@@ -248,17 +249,23 @@ function ligar(raiz, { config, cotas, recarregar }) {
     e.preventDefault();
     const { d, soma } = somaCotas();
     if (d.divisao_modelo === 'cotas' && Math.abs(soma - 100) >= 0.01) {
-      avisarErro(new Error('No modelo de cotas, as cotas de quem participa precisam somar 100%.'));
+      mostrarErroFormulario(divisao, new ErroCampo(divisao.querySelector('[name^="percentual_"]'), 'No modelo de cotas, as cotas de quem participa precisam somar 100%.'));
       return;
     }
     const botao = $('[type="submit"]', divisao);
     botao.disabled = true;
     try {
       const membros = Object.keys(d).filter((k) => k.startsWith('participa_')).map((k) => k.slice(10));
+      // Validar todos antes da primeira gravação evita salvar parte das cotas
+      // e só depois descobrir um percentual inválido em outra linha.
+      for (const membroId of membros) {
+        const valor = d[`percentual_${membroId}`];
+        const pct = valor?.trim() ? lerNumero(valor) : 0;
+        if (!entre(pct, 0, 100)) throw new ErroCampo(`percentual_${membroId}`, 'Cada cota precisa ser um número de 0 a 100%.');
+      }
       for (const membroId of membros) {
         const participa = Boolean(d[`participa_${membroId}`]);
         const pct = lerNumero(d[`percentual_${membroId}`]) ?? 0;
-        if (!entre(pct, 0, 100)) throw new Error('Cada cota vai de 0 a 100%.');
         const cota = cotas.find((c) => c.membro_id === membroId);
         if (cota && (cota.participa !== participa || Number(cota.percentual) !== pct)) {
           await db.alterar('divisao_cotas', [['id', 'eq', cota.id]], { participa, percentual: pct }, 'id');
@@ -273,7 +280,7 @@ function ligar(raiz, { config, cotas, recarregar }) {
       avisar('Divisão salva. Vale para os próximos fechamentos.');
       await recarregar();
     } catch (erro) {
-      avisarErro(erro);
+      mostrarErroFormulario(divisao, erro);
       botao.disabled = false;
     }
   });

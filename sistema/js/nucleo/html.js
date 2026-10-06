@@ -66,7 +66,7 @@ export const $$ = (seletor, raiz = document) => [...raiz.querySelectorAll(seleto
 export function lerFormulario(form) {
   const dados = {};
   for (const campo of form.elements) {
-    if (!campo.name || campo.disabled) continue;
+    if (!campo.name || campo.matches(':disabled')) continue;
     if (campo.type === 'checkbox') dados[campo.name] = campo.checked;
     else if (campo.type === 'radio') {
       if (campo.checked) dados[campo.name] = campo.value;

@@ -9,6 +9,7 @@
 // formulário inteiro. Esc e o × fecham.
 
 import { $, desenhar, html, lerFormulario } from './html.js';
+import { limparErrosFormulario, mostrarErroFormulario, validarFormulario } from './formularios.js';
 
 /**
  * @param {object} p
@@ -34,8 +35,8 @@ export function abrirDialogo({ titulo, corpo, rotuloOk = 'Salvar', perigo = fals
           <h2 class="dialogo__titulo">${titulo}</h2>
           <button type="button" class="dialogo__fechar" data-fechar aria-label="Fechar">×</button>
         </header>
-        <div class="dialogo__corpo">${corpo}</div>
         <p class="dialogo__erro" role="alert" hidden></p>
+        <div class="dialogo__corpo">${corpo}</div>
         <footer class="dialogo__rodape">
           <button type="button" class="botao" data-fechar>${somenteLeitura ? 'Fechar' : 'Cancelar'}</button>
           ${somenteLeitura ? '' : html`<button type="submit" class="botao ${perigo ? 'botao--perigo' : 'botao--primario'}">${rotuloOk}</button>`}
@@ -43,7 +44,6 @@ export function abrirDialogo({ titulo, corpo, rotuloOk = 'Salvar', perigo = fals
       </form>`);
 
     const form = $('form', dialogo);
-    const erro = $('.dialogo__erro', dialogo);
     let resultado = null;
     let salvando = false;
     let encerrado = false;
@@ -76,11 +76,8 @@ export function abrirDialogo({ titulo, corpo, rotuloOk = 'Salvar', perigo = fals
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (salvando) return;
-      erro.hidden = true;
-      if (!form.checkValidity()) {
-        form.reportValidity();
-        return;
-      }
+      limparErrosFormulario(form);
+      if (!validarFormulario(form)) return;
       if (!aoEnviar) {
         fechar(true);
         return;
@@ -89,16 +86,19 @@ export function abrirDialogo({ titulo, corpo, rotuloOk = 'Salvar', perigo = fals
       const botao = $('[type="submit"]', form);
       salvando = true;
       botao.disabled = true;
+      const rotuloAnterior = botao.textContent;
+      botao.textContent = 'Salvando…';
+      form.setAttribute('aria-busy', 'true');
       try {
         const valor = await aoEnviar(lerFormulario(form), form, dialogo);
         if (valor !== false) fechar(valor ?? true);
       } catch (falha) {
-        erro.textContent = falha?.message || 'Não foi possível salvar.';
-        erro.hidden = false;
-        erro.scrollIntoView({ block: 'nearest' });
+        mostrarErroFormulario(form, falha);
       } finally {
         salvando = false;
         botao.disabled = false;
+        botao.textContent = rotuloAnterior;
+        form.removeAttribute('aria-busy');
       }
     });
 

@@ -80,10 +80,15 @@ export default async function telaInicio(ctx) {
     }
   }, 60_000);
 
+  const largura = matchMedia('(max-width: 1100px)');
+  const ajustarColunas = () => { if (ctx.ativa()) desenhar(ctx.raiz, tela(dados, dia)); };
+  largura.addEventListener('change', ajustarColunas);
+
   return () => {
     removeEventListener('fhl:atualizacoes', sincronizar);
     desligar();
     clearInterval(relogio);
+    largura.removeEventListener('change', ajustarColunas);
   };
 }
 
@@ -190,17 +195,22 @@ function saudacao() {
 }
 
 function tela(dados, dia) {
+  const paineis = [
+    painelTarefas(dados.minhasTarefas),
+    pode.agenda() ? dados.agenda ? painelAgenda(dados.agenda) : indisponivel('Agenda de hoje') : '',
+    pode.clientes() ? painelAniversarios(dados.aniversarios) : '',
+    pode.agenda() ? painelLembretes(dados.amanha) : '',
+    pode.clientes() ? painelContatos(dados) : '',
+    pode.prazos() ? painelIntimacoes(dados) : '',
+    pode.financeiro() ? ['vencendo', 'vencidas', 'contas'].some((k) => dados[k] === null) ? indisponivel('Financeiro') : painelFinanceiro(dados, dia) : '',
+    pode.site() ? dados.falhas.includes('ultimaPublicacao') ? indisponivel('Publicações do site') : painelSite(dados.ultimaPublicacao, dia) : '',
+  ];
   return html`
     ${cabecalho(`${saudacao()}, ${estado.membro.nome_curto}`, capitalizar(dataExtensa(dia)))}
     <div class="grade grade--hoje">
-      ${painelTarefas(dados.minhasTarefas)}
-      ${pode.agenda() ? dados.agenda ? painelAgenda(dados.agenda) : indisponivel('Agenda de hoje') : ''}
-      ${pode.clientes() ? painelAniversarios(dados.aniversarios) : ''}
-      ${pode.agenda() ? painelLembretes(dados.amanha) : ''}
-      ${pode.clientes() ? painelContatos(dados) : ''}
-      ${pode.prazos() ? painelIntimacoes(dados) : ''}
-      ${pode.financeiro() ? ['vencendo', 'vencidas', 'contas'].some((k) => dados[k] === null) ? indisponivel('Financeiro') : painelFinanceiro(dados, dia) : ''}
-      ${pode.site() ? dados.falhas.includes('ultimaPublicacao') ? indisponivel('Publicações do site') : painelSite(dados.ultimaPublicacao, dia) : ''}
+      ${matchMedia('(max-width: 1100px)').matches ? paineis : html`
+        <div class="hoje-coluna">${paineis.filter((_, i) => i % 2 === 0)}</div>
+        <div class="hoje-coluna">${paineis.filter((_, i) => i % 2 === 1)}</div>`}
     </div>`;
 }
 

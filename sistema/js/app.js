@@ -11,6 +11,9 @@ import { resolver, rota } from './nucleo/rotas.js';
 import { aoMudarSessao, db, emailDaSessao, sair, sessaoAtual, sessaoDoLink } from './nucleo/supabase.js';
 import { atualizarAvisos, mudaContadores } from './nucleo/avisos-do-dia.js';
 import { ligarCronometro } from './telas/atualizacoes/cronometro.js';
+import { ligarValidacaoFormularios } from './nucleo/formularios.js';
+
+ligarValidacaoFormularios();
 
 const app = document.getElementById('app');
 

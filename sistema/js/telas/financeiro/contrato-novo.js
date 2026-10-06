@@ -5,6 +5,7 @@
 // cada uma. O banco confere a soma de novo (criar_contrato): a tela ajuda,
 // quem garante é ele.
 
+import { ErroCampo, limparErrosFormulario, mostrarErroFormulario } from '../../nucleo/formularios.js';
 import { gerarParcelas, nomeDaParcela, somaDasParcelas } from '../../dominio/parcelas.js';
 import { avisar } from '../../nucleo/avisos.js';
 import { estado, membrosAtivos } from '../../nucleo/estado.js';
@@ -123,17 +124,15 @@ export default async function telaNovoContrato(ctx) {
     </form>`);
 
   const form = $('form', ctx.raiz);
-  const erro = $('[role="alert"]', form);
   const corpoParcelas = $('[data-papel="parcelas"]', form);
   const celulaSoma = $('[data-papel="soma"]', form);
   let parcelas = [];
 
   ligarCampoCliente(form, clientes);
 
-  const mostrarErro = (texto) => {
-    erro.textContent = texto;
-    erro.hidden = !texto;
-    if (texto) erro.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  const mostrarErro = (falha) => {
+    if (falha) mostrarErroFormulario(form, falha);
+    else limparErrosFormulario(form);
   };
 
   const atualizarSoma = (aviso = '') => {
@@ -208,7 +207,7 @@ export default async function telaNovoContrato(ctx) {
       avisar('Contrato criado.');
       navegar(`/financeiro/contratos/${id}`);
     } catch (falha) {
-      mostrarErro(falha.message);
+      mostrarErro(falha);
       botao.disabled = false;
     }
   });
@@ -238,10 +237,14 @@ export default async function telaNovoContrato(ctx) {
 
     const total = lerMoeda(d.total);
     if (!(total > 0)) throw new Error('Informe o valor total.');
-    if (!parcelas.length) throw new Error('Confira entrada, número de parcelas e vencimento.');
-    if (parcelas.some((p) => !p.vencimento || !(p.valor > 0))) throw new Error('Toda parcela precisa de data e de valor.');
+    if (!parcelas.length) throw new ErroCampo('quantidade', 'Confira entrada, número de parcelas e vencimento.');
+    const incorreta = parcelas.findIndex((p) => !p.vencimento || !(p.valor > 0));
+    if (incorreta >= 0) {
+      const campo = parcelas[incorreta].vencimento ? 'valor' : 'vencimento';
+      throw new ErroCampo(corpoParcelas.querySelector(`[data-i="${incorreta}"][data-campo="${campo}"]`), 'Toda parcela precisa de data e de valor maior que zero.');
+    }
     const soma = somaDasParcelas(parcelas);
-    if (soma !== total) throw new Error(`A soma das parcelas (${moeda(soma)}) não fecha com o valor total (${moeda(total)}).`);
+    if (soma !== total) throw new ErroCampo('total', `A soma das parcelas (${moeda(soma)}) não fecha com o valor total (${moeda(total)}).`);
 
     const entrada = parcelas.find((p) => p.numero === 0);
     if (d.entrada_recebida && !entrada) throw new Error('Marcou "a entrada já foi paga", mas o contrato não tem entrada.');

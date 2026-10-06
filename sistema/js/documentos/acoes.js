@@ -139,14 +139,14 @@ export function imprimirDocumento(elemento) {
 // Word
 // ---------------------------------------------------------------------------
 
-// O Word abre HTML salvo como .doc. É o mesmo formato do protótipo; não é um
-// .docx de verdade, e a aparência precisa ser conferida no próprio Word.
+// O Word abre HTML/MHTML salvo como .doc. As imagens entram como anexos PNG
+// do mesmo arquivo, com largura e altura explícitas; não é um .docx.
 const ESTILO_WORD = [
   '@page{size:A4;margin:20mm}',
   'body{font:12pt "Times New Roman",Georgia,serif;color:#000}',
   'p{line-height:1.45;margin:0 0 12pt}',
   '.doc-titulo{text-align:center;font-size:16pt}',
-  '.doc-cabecalho{text-align:center}.doc-cabecalho img{width:180px}',
+  '.doc-cabecalho{text-align:center}.doc-cabecalho img{width:135pt;height:40.5pt}',
   '.doc-assinatura{text-align:center;margin-top:32pt;page-break-inside:avoid}',
   '.doc-rodape{font-size:8pt;text-align:center;margin-top:24pt}',
   'table{border-collapse:collapse;width:100%;font-size:10pt}',
@@ -160,15 +160,67 @@ const ESTILO_WORD = [
 const nomeDeArquivo = (titulo) => titulo.normalize('NFD').replace(/[̀-ͯ]/g, '')
   .replace(/[^a-z0-9-]+/gi, '-').replace(/^-|-$/g, '');
 
-export function baixarWord(elemento, titulo) {
+const emBase64 = (bytes) => {
+  let texto = '';
+  for (let i = 0; i < bytes.length; i += 8192) texto += String.fromCharCode(...bytes.subarray(i, i + 8192));
+  return btoa(texto).match(/.{1,76}/g)?.join('\r\n') || '';
+};
+
+async function imagemParaWord(src) {
+  const img = new Image();
+  img.src = new URL(src, location.origin).href;
+  try { await img.decode(); }
+  catch { throw new Error('Não foi possível carregar a marca para o Word. Tente baixar novamente.'); }
+  const canvas = document.createElement('canvas');
+  canvas.width = 915;
+  canvas.height = Math.round(canvas.width * img.naturalHeight / img.naturalWidth);
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return { base64: canvas.toDataURL('image/png').split(',')[1], altura: Math.round(180 * canvas.height / canvas.width) };
+}
+
+/** MHTML inclui a imagem PNG no arquivo: o Word respeita as dimensões físicas
+ *  e a marca não depende de uma conexão ao site ao reabrir o documento. */
+export async function montarWord(elemento, titulo) {
   const caixa = document.createElement('div');
   caixa.innerHTML = higienizar(elemento.innerHTML);
-  // O Word busca a imagem pelo endereço completo; só as da lista branca chegam aqui.
-  for (const img of caixa.querySelectorAll('img')) img.src = new URL(img.getAttribute('src'), location.origin).href;
+  const imagens = [];
+  const cache = new Map();
+  for (const img of caixa.querySelectorAll('img')) {
+    const src = img.getAttribute('src');
+    if (!cache.has(src)) cache.set(src, await imagemParaWord(src));
+    const imagem = cache.get(src);
+    const caminho = `file:///fhl-documento/imagem-${imagens.length}.png`;
+    img.setAttribute('src', caminho);
+    img.setAttribute('width', '180');
+    img.setAttribute('height', String(imagem.altura));
+    // CSSOM evita aplicar um atributo inline na página com CSP restrita.
+    // As propriedades são serializadas no HTML que só será aberto no Word.
+    img.style.width = '135pt';
+    img.style.height = `${imagem.altura * 0.75}pt`;
+    imagens.push({ caminho, base64: imagem.base64 });
+  }
 
-  const texto = `﻿<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>${titulo.replace(/[<>&]/g, '')}</title>`
-    + `<style>${ESTILO_WORD}</style><body>${caixa.innerHTML}</body></html>`;
-  const url = URL.createObjectURL(new Blob([texto], { type: 'application/msword;charset=utf-8' }));
+  const texto = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${titulo.replace(/[<>&]/g, '')}</title>`
+    + `<style>${ESTILO_WORD}</style></head><body>${caixa.innerHTML}</body></html>`;
+  const limite = '----FHL-documento-' + crypto.randomUUID();
+  const partes = [
+    'MIME-Version: 1.0',
+    `Content-Type: multipart/related; boundary="${limite}"; type="text/html"`,
+    '', `--${limite}`, 'Content-Type: text/html; charset="utf-8"',
+    'Content-Transfer-Encoding: base64', 'Content-Location: file:///fhl-documento/documento.htm',
+    '', emBase64(new TextEncoder().encode(texto)),
+  ];
+  for (const img of imagens) partes.push(
+    `--${limite}`, 'Content-Type: image/png', 'Content-Transfer-Encoding: base64',
+    `Content-Location: ${img.caminho}`, '', img.base64.match(/.{1,76}/g).join('\r\n'),
+  );
+  partes.push(`--${limite}--`, '');
+  return new Blob([partes.join('\r\n')], { type: 'application/msword' });
+}
+
+export async function baixarWord(elemento, titulo) {
+  const url = URL.createObjectURL(await montarWord(elemento, titulo));
   const a = document.createElement('a');
   a.href = url;
   a.download = `${nomeDeArquivo(titulo)}.doc`;

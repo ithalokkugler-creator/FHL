@@ -1,6 +1,7 @@
 // Minha conta: dados de acesso e troca de senha.
 
 import { avisar } from '../nucleo/avisos.js';
+import { ErroCampo, mostrarErroFormulario } from '../nucleo/formularios.js';
 import { estado, NIVEIS_AGENDA, NIVEIS_FINANCEIRO, PAPEIS } from '../nucleo/estado.js';
 import { $, desenhar, html, lerFormulario } from '../nucleo/html.js';
 import { emailDaSessao, trocarSenha } from '../nucleo/supabase.js';
@@ -55,8 +56,7 @@ export default function telaConta({ raiz, consulta }) {
     }
     const { senha, repeticao } = lerFormulario(form);
     if (senha !== repeticao) {
-      erro.textContent = 'As duas senhas não são iguais.';
-      erro.hidden = false;
+      mostrarErroFormulario(form, new ErroCampo('repeticao', 'As duas senhas não são iguais.'));
       return;
     }
     const botao = $('[type="submit"]', form);
@@ -66,8 +66,7 @@ export default function telaConta({ raiz, consulta }) {
       form.reset();
       avisar('Senha trocada.');
     } catch (falha) {
-      erro.textContent = falha.message;
-      erro.hidden = false;
+      mostrarErroFormulario(form, falha);
     } finally {
       botao.disabled = false;
     }

@@ -2,6 +2,7 @@
 // período, confere a folha e imprime, baixa ou salva. Toda saída fica gravada
 // em Documentos.
 
+import { ErroCampo, mostrarErroFormulario, validarFormulario } from '../../nucleo/formularios.js';
 import { avisar, avisarErro } from '../../nucleo/avisos.js';
 import { estado } from '../../nucleo/estado.js';
 import { hoje, instante, somarDias } from '../../nucleo/formato.js';
@@ -117,7 +118,15 @@ export default async function telaRelatorio(ctx) {
 
   const executar = async (acao) => {
     if (ocupado) return;
-    if (!form.reportValidity() || f.ate < f.de || !f.cliente) return;
+    if (!validarFormulario(form)) return;
+    if (f.ate < f.de) {
+      mostrarErroFormulario(form, new ErroCampo('ate', 'O fim do período deve ser igual ou posterior ao início.'));
+      return;
+    }
+    if (!f.cliente) {
+      mostrarErroFormulario(form, new ErroCampo('cliente', 'Selecione um cliente para gerar o relatório.'));
+      return;
+    }
     ocupado = true;
     try {
       // Relê o banco antes de gravar: o papel sai com o que existe agora.
@@ -132,11 +141,11 @@ export default async function telaRelatorio(ctx) {
         conteudo: folha.innerHTML,
       });
       if (acao === 'imprimir') imprimirDocumento(folha);
-      else if (acao === 'word') baixarWord(folha, 'Relatório de atividades');
+      else if (acao === 'word') await baixarWord(folha, 'Relatório de atividades');
       avisar('Relatório registrado.');
       navegar(`/documentos/${salvo.id}`);
     } catch (erro) {
-      avisarErro(erro);
+      mostrarErroFormulario(form, erro);
     } finally {
       ocupado = false;
     }

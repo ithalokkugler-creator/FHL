@@ -416,6 +416,9 @@ window.IED = window.IED || {};
       if (input.type === 'email' && v && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) {
         setError(input, 'Confira o e-mail digitado.'); return false;
       }
+      if (input.type === 'tel' && v && !/^\d{10,13}$/.test(v.replace(/\D/g, ''))) {
+        setError(input, 'Informe o telefone com DDD, como (41) 99999-9999.'); return false;
+      }
       setError(input, '');
       return true;
     }
@@ -444,17 +447,25 @@ window.IED = window.IED || {};
         setStatus('');
       }
 
-      // honeypot + tempo mínimo de preenchimento
-      var hp = form.querySelector('[name="website"]');
-      if ((hp && hp.value) || Date.now() - openedAt < 2500) {
-        setStatus('Não foi possível enviar. Tente novamente.', 'erro');
+      if (!ok) {
+        var bad = form.querySelector('[aria-invalid="true"]');
+        var campoErrado = bad || (consent && !consent.checked ? consent : null);
+        if (bad) setStatus('Revise os campos destacados antes de enviar.', 'erro');
+        if (campoErrado) {
+          campoErrado.focus({ preventScroll: true });
+          campoErrado.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
         return;
       }
 
-      if (!ok) {
-        var bad = form.querySelector('[aria-invalid="true"]');
-        if (bad) bad.focus();
-        else if (consent && !consent.checked) consent.focus();
+      // Uma tentativa rápida com erro deve mostrar o campo a corrigir.
+      var hp = form.querySelector('[name="website"]');
+      if (hp && hp.value) {
+        setStatus('Não foi possível enviar. Tente novamente.', 'erro');
+        return;
+      }
+      if (Date.now() - openedAt < 2500) {
+        setStatus('Aguarde alguns segundos e clique novamente em enviar.', 'erro');
         return;
       }
 
@@ -490,6 +501,17 @@ window.IED = window.IED || {};
         })
         .catch(function (erro) {
           setStatus(erro.message && erro.name === 'Error' ? erro.message : 'Não foi possível enviar agora.', 'erro');
+          var nome = /telefone|DDD/i.test(erro.message) ? 'telefone' : /e-mail/i.test(erro.message) ? 'email' : null;
+          var campo = nome ? form.querySelector('[name="' + nome + '"]') : null;
+          if (campo) {
+            setError(campo, erro.message);
+            campo.focus({ preventScroll: true });
+            campo.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          } else {
+            status.tabIndex = -1;
+            status.focus({ preventScroll: true });
+            status.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }
           var alternativa = document.createElement('a');
           alternativa.href = 'https://wa.me/' + whats + '?text=' + encodeURIComponent(mensagemWhats(dados));
           alternativa.target = '_blank';

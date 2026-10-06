@@ -24,6 +24,13 @@ begin
  t:=public.criar_tarefa(jsonb_build_object('titulo','Tarefa comum','cliente_id',cl,'processo_id',pr,'responsavel_id',m));
  return query select 'Associado cria tarefa comum',exists(select 1 from public.tarefas where id=t and criado_por=m);
  return query select 'Associado lê tarefa e feriados',exists(select 1 from public.v_tarefas where id=t);
+ comp:=public.criar_tarefa(jsonb_build_object('titulo','Tarefa com opcionais vazios','tipo','tarefa','responsavel_id',m,
+   'cliente_id',null,'processo_id',null,'entrega',null,'fatal_em',null,'base_em',null,
+   'contagem',null,'quantidade',null,'memoria_prazo',null));
+ return query select 'Payload do formulário com JSON null vira memória SQL NULL',
+   exists(select 1 from public.tarefas where id=comp and tipo='tarefa' and memoria_prazo is null);
+ return query select 'Memória não nula continua proibida em tarefa comum',
+   pg_temp.recusa_prazo(format('select public.criar_tarefa(%L::jsonb)',jsonb_build_object('titulo','Inválida','memoria_prazo',jsonb_build_object('dias',1))),'23514');
  p:=jsonb_build_object('tipo','prazo','titulo','Manifestação','cliente_id',cl,'processo_id',pr,'responsavel_id',m,
   'fatal_em',now()+interval '5 days','base_em',now(),'contagem','uteis','quantidade',5);
  return query select 'Associado não cria prazo',pg_temp.recusa_prazo(format('select public.criar_tarefa(%L::jsonb)',p),'P0001');

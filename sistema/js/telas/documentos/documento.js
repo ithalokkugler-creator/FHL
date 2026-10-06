@@ -61,7 +61,7 @@ export default async function telaDocumento(ctx) {
         dados: { ...dados, origem_documento: id, acao },
         conteudo: folha.innerHTML,
       });
-      if (acao === 'word') baixarWord(folha, nome);
+      if (acao === 'word') await baixarWord(folha, nome);
       else imprimirDocumento(folha);
       avisar('Nova geração registrada.');
     } catch (erro) {

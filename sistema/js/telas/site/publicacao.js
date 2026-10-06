@@ -16,6 +16,7 @@
 // artigo. A imagem é enviada aqui e passa a ser servida pelo próprio site: o
 // endereço da imagem dentro do Instagram muda e expira, e o cartão quebraria.
 
+import { limparErrosFormulario, mostrarErroFormulario } from '../../nucleo/formularios.js';
 import { avisar } from '../../nucleo/avisos.js';
 import { estado } from '../../nucleo/estado.js';
 import { hoje } from '../../nucleo/formato.js';
@@ -73,12 +74,10 @@ export default async function telaPublicacao(ctx) {
 
   const form = $('form', ctx.raiz);
   const caixaBlocos = $('[data-papel="blocos"]', form);
-  const erro = $('.erro-formulario', form);
 
-  const mostrarErro = (texto) => {
-    erro.textContent = texto;
-    erro.hidden = !texto;
-    if (texto) erro.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  const mostrarErro = (falha) => {
+    if (falha) mostrarErroFormulario(form, falha);
+    else limparErrosFormulario(form);
   };
 
   const desenharBlocos = () => {
@@ -151,7 +150,7 @@ export default async function telaPublicacao(ctx) {
         avisar('Imagem enviada.');
         desenharBlocos();
       } catch (falha) {
-        mostrarErro(falha.message);
+        mostrarErro(falha);
         campo.disabled = false;
       }
     }
@@ -208,7 +207,7 @@ export default async function telaPublicacao(ctx) {
       avisar(nova ? 'Artigo criado.' : 'Artigo salvo.');
       navegar('/site/publicacoes');
     } catch (falha) {
-      mostrarErro(falha.message);
+      mostrarErro(falha);
       botao.disabled = false;
     }
   });

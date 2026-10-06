@@ -2,6 +2,7 @@
 // com quem fez e quanto tempo levou. É também o que permite a qualquer sócio
 // atender o cliente de outro sem parecer perdido (CLAUDE.md §4).
 
+import { ErroCampo, mostrarErroFormulario, validarFormulario } from '../../nucleo/formularios.js';
 import { avisar, avisarErro } from '../../nucleo/avisos.js';
 import { abrirDialogo, pedirMotivo } from '../../nucleo/dialogo.js';
 import { estado, nomeDe, pode } from '../../nucleo/estado.js';
@@ -187,12 +188,12 @@ export default async function telaAtualizacoes(ctx) {
     const form = $('form', ctx.raiz);
     form.addEventListener('submit', (e) => e.preventDefault());
     form.addEventListener('change', async (e) => {
-      if (!form.checkValidity()) return;
+      if (!validarFormulario(form)) return;
       const antes = { ...f };
       Object.assign(f, Object.fromEntries(new FormData(form)));
       if (e.target.name === 'cliente') f.processo = '';
       if (f.ate < f.de) {
-        avisarErro(new Error('O fim do período deve ser igual ou posterior ao início.'));
+        mostrarErroFormulario(form, new ErroCampo('ate', 'O fim do período deve ser igual ou posterior ao início.'));
         Object.assign(f, antes);
         return;
       }

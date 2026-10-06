@@ -17,6 +17,7 @@ import { db } from '../../nucleo/supabase.js';
 import { COLUNAS_CLIENTE, COLUNAS_DETALHES, COLUNAS_PROCESSO } from '../../dominio/clientes.js';
 import { COLUNAS_ATUALIZACAO } from '../../dominio/tempo.js';
 import { ajustarFolha, baixarWord, confirmarPendencias, imprimirDocumento, salvarDocumento } from '../../documentos/acoes.js';
+import { ErroCampo, mostrarErroFormulario, validarFormulario } from '../../nucleo/formularios.js';
 import { MODELOS } from '../../documentos/modelos.js';
 import { AREAS_JURIDICAS, cabecalho, opcoes } from '../comum.js';
 import { campoCliente, ligarCampoCliente } from '../clientes.js';
@@ -226,7 +227,7 @@ export default async function telaNovoDocumento(ctx) {
     try {
       const v = ler();
       if (!v.cliente_id && form.cliente_texto.value.trim()) {
-        form.cliente_texto.reportValidity();
+        mostrarErroFormulario(form, new ErroCampo('cliente_texto', 'Escolha um cliente da lista ou cadastre um novo.'));
         return;
       }
       if (sujo && !await abrirDialogo({
@@ -290,10 +291,7 @@ export default async function telaNovoDocumento(ctx) {
 
   const executar = async (acao) => {
     if (ocupado || alterando) return;
-    if (!form.checkValidity()) {
-      form.reportValidity();
-      return;
-    }
+    if (!validarFormulario(form)) return;
     ocupado = true;
     const botoes = ctx.raiz.querySelectorAll('[data-acao]');
     botoes.forEach((b) => { b.disabled = true; });
@@ -313,11 +311,11 @@ export default async function telaNovoDocumento(ctx) {
         conteudo: folha.innerHTML,
       });
       if (acao === 'imprimir') imprimirDocumento(folha);
-      else if (acao === 'word') baixarWord(folha, MODELOS[modelo].nome);
+      else if (acao === 'word') await baixarWord(folha, MODELOS[modelo].nome);
       avisar('Documento registrado.');
       navegar(`/documentos/${salvo.id}`);
     } catch (erro) {
-      avisarErro(erro);
+      mostrarErroFormulario(form, erro);
     } finally {
       ocupado = false;
       botoes.forEach((b) => { b.disabled = false; });
