@@ -15,7 +15,7 @@ export function buildPrivacidade() {
     <div class="wrap grid">
       <div style="grid-column:3 / span 8">
         <div class="prose" data-reveal="rise-group">
-          <p class="r-rise"><strong>Última atualização:</strong> setembro de 2026.
+          <p class="r-rise"><strong>Última atualização:</strong> outubro de 2026.
           <!-- [CONFIRMAR] Este texto é um esqueleto conforme a Lei 13.709/2018 e
                PRECISA ser revisado pelo próprio escritório antes do lançamento
                (pendência 6 da preparação). --></p>
@@ -44,15 +44,21 @@ export function buildPrivacidade() {
           que partiu de você.</p>
 
           <h2>5. Por quanto tempo guardamos</h2>
-          <p>As mensagens recebidas pelo formulário são mantidas por 24 meses
-          <!-- [CONFIRMAR] prazo, pendência 14 --> e depois eliminadas, salvo quando a
-          guarda for necessária para cumprimento de obrigação legal ou para o exercício
-          regular de direitos.</p>
+          <p>Guardamos as mensagens pelo tempo necessário ao atendimento e ao
+          exercício regular de direitos.</p>
+          <!-- [CONFIRMAR] F1 §5.7: prazo e procedimento de anonimização dependem
+               da revisão do escritório. Não há eliminação automática. -->
 
           <h2>6. Com quem compartilhamos</h2>
-          <p>Com o provedor de hospedagem e com o serviço de envio de e-mail, apenas
-          na medida necessária para operar o site. Não há transferência para
-          finalidades comerciais.</p>
+          <p>As mensagens ficam no sistema interno do escritório, no Supabase,
+          com banco de dados em São Paulo e acesso restrito à equipe autorizada.
+          O formulário registra também a página de origem, a campanha quando
+          houver e a data do consentimento. Para prevenir abuso, usamos um resumo
+          criptográfico do endereço IP, com segredo. Os registros técnicos com
+          mais de um dia são removidos no processamento de novos envios;
+          o endereço IP não é gravado na ficha do contato.</p>
+          <p>Compartilhamos com os provedores de hospedagem apenas os dados
+          necessários à operação. Não há compartilhamento para finalidades comerciais.</p>
 
           <h2>7. Seus direitos</h2>
           <p>Nos termos do art. 18 da LGPD, você pode solicitar confirmação da

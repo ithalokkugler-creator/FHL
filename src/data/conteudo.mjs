@@ -152,9 +152,13 @@ function substituir(alvo, novos) {
  * 'arquivo' quando o build caiu na cópia de segurança. `imagens` são os
  * arquivos que o build precisa escrever em dist/ ([] no modo arquivo).
  */
-export async function carregarConteudo({ quiet = false } = {}) {
+export async function carregarConteudo({ quiet = false, local = false } = {}) {
   const log = quiet ? () => {} : (...a) => console.log(...a);
   const imagens = [];
+  if (local) {
+    log('  conteúdo: cópia local de src/data/ (sem consultar o Supabase)');
+    return { origem: 'arquivo', imagens };
+  }
 
   try {
     const [publicacoes, campanhas] = await Promise.all([

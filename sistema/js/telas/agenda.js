@@ -6,24 +6,29 @@
 // O aviso de conflito conta o intervalo mínimo entre atendimentos (7.7), mas
 // não impede marcar: quem decide é quem está marcando.
 //
-// Ainda não conversa com o Google Agenda (notaGoogle).
+// Google Agenda por cópia manual (.ics ou formulário preenchido).
 
 import { conflitos, distribuirColunas } from '../dominio/agenda.js';
+import { gerarIcs, linkGoogleAgenda } from '../dominio/ics.js';
+import { mensagemLembrete } from '../dominio/mensagens.js';
 import { avisar, avisarErro } from '../nucleo/avisos.js';
 import { abrirDialogo, pedirMotivo } from '../nucleo/dialogo.js';
 import { corDe, estado, membrosAtivos, nomeDe, pode } from '../nucleo/estado.js';
 import {
-  data, dataCurta, dataExtensa, diasEntre, hoje, hora, horaDoMinuto, inicioDaSemana, instante,
-  linkWhatsApp, nomeDoDia, noFuso, somarDias, telefone,
+  data, dataCurta, dataExtensa, diasEntre, hoje, hora, horaDoMinuto, inicioDaSemana, inicioDoMes, instante,
+  linkWhatsApp, nomeDoDia, noFuso, semAcento, somarDias, somarMeses, telefone,
 } from '../nucleo/formato.js';
 import { $, aoClicar, desenhar, html } from '../nucleo/html.js';
-import { guardarConsulta } from '../nucleo/rotas.js';
+import { guardarConsulta, navegar } from '../nucleo/rotas.js';
 import { db } from '../nucleo/supabase.js';
+import { baixarArquivo } from '../nucleo/csv.js';
 import { campoCliente, carregarClientes, ligarCampoCliente } from './clientes.js';
 import {
   cabecalho, capitalizar, MODALIDADES, notaGoogle, opcoes, rotuloTipo, seloCompromisso, TIPOS_COMPROMISSO, vazio,
 } from './comum.js';
 import { abrirHistorico } from './historico.js';
+import { iniciarCronometro } from './atualizacoes/cronometro.js';
+import { prepararMensagem } from './preparar-mensagem.js';
 
 const LEMBRETES = [
   ['', 'Sem lembrete'], ['15', '15 minutos antes'], ['30', '30 minutos antes'],
@@ -39,16 +44,39 @@ export default async function telaAgenda(ctx) {
   const ocultos = new Set((ctx.consulta.ocultos ?? '').split(',').filter(Boolean));
   let config = await db.um('config_agenda', { select: '*' });
   let compromissos = [];
+  let feriados = [];
+  let pedido = 0;
 
-  const redesenhar = () => desenhar(ctx.raiz, tela({ semana, compromissos, config, ocultos }));
+  const redesenhar = () => desenhar(ctx.raiz, tela({ semana, compromissos, config, ocultos, feriados }));
 
   const carregar = async () => {
-    const lista = await db.rpc('agenda_periodo', { p_de: instante(semana), p_ate: instante(somarDias(semana, 7)) });
-    if (!ctx.ativa()) return;
+    const este = ++pedido;
+    const de = semana;
+    // Feriado com tribunal vazio vale para todos e aparece na grade. Se a
+    // consulta falhar, a agenda abre do mesmo jeito, com um aviso.
+    const [lista, datas] = await Promise.all([
+      db.rpc('agenda_periodo', { p_de: instante(de), p_ate: instante(somarDias(de, 7)) }),
+      db.todos('feriados', {
+        select: 'id,data,nome',
+        filtros: [['data', 'gte', de], ['data', 'lt', somarDias(de, 7)], ['ativo', 'eq', true], ['tribunal', 'is', null]],
+      }).catch((erro) => {
+        console.error('Não foi possível ler os feriados cadastrados.', erro);
+        return null;
+      }),
+    ]);
+    if (!ctx.ativa() || este !== pedido) return;
     compromissos = lista;
+    feriados = datas;
     redesenhar();
   };
   await carregar();
+  if (!ctx.ativa()) return;
+
+  // "Iniciar atendimento" e "Parar" mexem no compromisso (chegada, realizado).
+  const sincronizar = () => {
+    if (ctx.ativa()) carregar().catch(avisarErro);
+  };
+  addEventListener('fhl:atualizacoes', sincronizar);
 
   const guardar = () => guardarConsulta({
     dia: semana === inicioDaSemana(hoje()) ? '' : semana,
@@ -77,6 +105,7 @@ export default async function telaAgenda(ctx) {
     'semana-seguinte': () => trocarSemana(7),
     'semana-atual': () => trocarSemana(0),
     imprimir: () => print(),
+    exportar: () => exportarAgenda({ semana, ocultos }).catch(avisarErro),
     membro: (el) => {
       if (ocultos.has(el.dataset.id)) ocultos.delete(el.dataset.id);
       else ocultos.add(el.dataset.id);
@@ -116,6 +145,7 @@ export default async function telaAgenda(ctx) {
   ctx.raiz.addEventListener('click', clicarNaGrade);
 
   return () => {
+    removeEventListener('fhl:atualizacoes', sincronizar);
     desligar();
     clearInterval(relogio);
     ctx.raiz.removeEventListener('click', clicarNaGrade);
@@ -135,20 +165,24 @@ function rotuloSemana(inicio, dias) {
   return `${data(inicio)} a ${data(fim)}`;
 }
 
-function montarSemana({ semana, compromissos, config, ocultos }) {
+function montarSemana({ semana, compromissos, config, ocultos, feriados }) {
   const dia = hoje();
   const visiveis = compromissos.filter((c) => !ocultos.has(c.membro_id));
 
   // Seg–sex, sábado se configurado, e o fim de semana se tiver compromisso nele.
   let quantos = config.sabado ? 6 : 5;
   for (const c of visiveis) {
-    const indice = diasEntre(semana, noFuso(c.inicio).dia);
+    const indice = Math.min(6, diasEntre(semana, noFuso(new Date(ms(c.fim) - 1).toISOString()).dia));
+    if (indice >= quantos && indice < 7) quantos = indice + 1;
+  }
+  for (const f of feriados ?? []) {
+    const indice = diasEntre(semana, f.data);
     if (indice >= quantos && indice < 7) quantos = indice + 1;
   }
 
   const dias = Array.from({ length: quantos }, (_, i) => {
     const iso = somarDias(semana, i);
-    return { iso, hoje: iso === dia, diaTodo: [], itens: [] };
+    return { iso, hoje: iso === dia, diaTodo: [], itens: [], feriados: (feriados ?? []).filter((f) => f.data === iso) };
   });
 
   let inicioGrade = config.hora_inicio * 60;
@@ -193,10 +227,12 @@ function tela(estadoTela) {
         <button type="button" class="botao" data-acao="semana-seguinte" aria-label="Semana seguinte">›</button>
       </span>
       <button type="button" class="botao" data-acao="imprimir">Imprimir</button>
+      <button type="button" class="botao" data-acao="exportar">Exportar .ics</button>
       ${pode.administrar() ? html`<button type="button" class="botao" data-acao="configurar">Configurar</button>` : ''}
       <button type="button" class="botao botao--primario" data-acao="novo">Novo compromisso</button>`)}
 
     <div class="nao-imprimir">${notaGoogle()}</div>
+    ${estadoTela.feriados === null ? html`<p class="nota secao">Não foi possível ler os feriados cadastrados. Recarregue a agenda para conferir.</p>` : ''}
 
     <div class="chips secao nao-imprimir" role="group" aria-label="Mostrar a agenda de">
       ${membrosAtivos().map((m) => html`
@@ -207,9 +243,10 @@ function tela(estadoTela) {
       <div class="agenda__grade">
         <div class="agenda__cabeca"></div>
         ${dias.map((d) => html`
-          <div class="agenda__cabeca${d.hoje ? ' agenda__cabeca--hoje' : ''}">
+          <div class="agenda__cabeca${d.hoje ? ' agenda__cabeca--hoje' : ''}${d.feriados.length ? ' agenda__cabeca--feriado' : ''}">
             <span class="rotulo">${nomeDoDia(d.iso)}</span>
             <strong>${dataCurta(d.iso)}</strong>
+            ${d.feriados.map((f) => html`<span class="agenda__feriado">${f.nome}</span>`)}
           </div>`)}
 
         <div class="agenda__dia-todo agenda__dia-todo--rotulo">dia todo</div>
@@ -224,7 +261,7 @@ function tela(estadoTela) {
           ${horas.map((h, i) => html`<span data-vars="--i:${i}">${String(h).padStart(2, '0')}h</span>`)}
         </div>
         ${dias.map((d) => html`
-          <div class="agenda__coluna${d.hoje ? ' agenda__coluna--hoje' : ''}" data-dia="${d.iso}" data-inicio="${inicioGrade}" data-fim="${fimGrade}"
+          <div class="agenda__coluna${d.hoje ? ' agenda__coluna--hoje' : ''}${d.feriados.length ? ' agenda__coluna--feriado' : ''}" data-dia="${d.iso}" data-inicio="${inicioGrade}" data-fim="${fimGrade}"
             title="Clique num horário livre para marcar">
             ${d.hoje && agora.minuto >= inicioGrade && agora.minuto <= fimGrade ? html`<span class="agenda__agora" data-vars="--topo:${pct(agora.minuto)}%"></span>` : ''}
             ${d.itens.map(({ c, inicio, fim, duracao, coluna, colunas }) => html`
@@ -241,9 +278,11 @@ function tela(estadoTela) {
     </div>
 
     <div class="agenda-lista secao">
-      ${vazia ? html`<section class="painel">${vazio('Nenhum compromisso nesta semana.')}</section>` : dias.filter((d) => d.itens.length || d.diaTodo.length).map((d) => html`
+      ${vazia ? html`<section class="painel">${vazio('Nenhum compromisso nesta semana.')}</section>` : ''}
+      ${dias.filter((d) => d.itens.length || d.diaTodo.length || d.feriados.length).map((d) => html`
         <section class="agenda-lista__dia">
           <h3>${capitalizar(dataExtensa(d.iso))}${d.hoje ? ' — hoje' : ''}</h3>
+          ${d.feriados.map((f) => html`<p class="agenda-lista__feriado">${f.nome}</p>`)}
           <ul class="compromissos painel">
             ${[...d.diaTodo.map((c) => ({ c, texto: 'Dia todo' })), ...d.itens.map(({ c }) => ({ c, texto: `${hora(c.inicio)}–${hora(c.fim)}` }))].map(({ c, texto }) => html`
               <li class="compromisso" data-vars="--cor:${corDe(c.membro_id)}">
@@ -265,6 +304,45 @@ function tela(estadoTela) {
 // Diálogos
 // ---------------------------------------------------------------------------
 
+const paraExportacao = (c) => ({ ...c, responsavel_nome: nomeDe(c.membro_id), tipo_nome: rotuloTipo(c.tipo, c.modalidade) });
+
+function exportarAgenda({ semana, ocultos }) {
+  const marcados = membrosAtivos().filter((m) => !ocultos.has(m.id));
+  const selecionado = marcados.length === 1 ? marcados[0].id : ocultos.size ? 'marcados' : 'todos';
+  return abrirDialogo({
+    titulo: 'Exportar agenda (.ics)', rotuloOk: 'Baixar .ics',
+    corpo: html`<div class="campos">
+      <label class="campo"><span>Período</span><select name="periodo">${opcoes([['semana', `Semana de ${data(semana)} a ${data(somarDias(semana, 6))}`], ['mes', 'Mês']], 'semana')}</select></label>
+      <label class="campo" data-mes hidden><span>Mês</span><input type="month" name="mes" value="${semana.slice(0, 7)}" required disabled></label>
+      <label class="campo"><span>Advogados</span><select name="membro">${opcoes([['todos', 'Todos os advogados'], ['marcados', 'Advogados marcados na grade'], ...membrosAtivos().map((m) => [m.id, m.nome_curto])], selecionado)}</select></label>
+    </div>
+    <p class="nota secao">Particulares de outras pessoas aparecem como Ocupado. Observações internas não são exportadas.
+      Importar cria uma cópia: alterações e cancelamentos posteriores precisam ser ajustados no Google.</p>
+    <p class="sub secao">No Google Agenda, abra Configurações → Importar e exportar e escolha este arquivo e a agenda de destino.</p>`,
+    aoAbrir: (dialogo, form) => {
+      form.periodo.addEventListener('change', () => {
+        const mes = form.periodo.value === 'mes';
+        $('[data-mes]', dialogo).hidden = !mes;
+        form.mes.disabled = !mes;
+      });
+    },
+    aoEnviar: async (d) => {
+      if (d.periodo === 'mes' && !/^\d{4}-(0[1-9]|1[0-2])$/.test(d.mes ?? '')) throw new Error('Escolha um mês válido.');
+      const de = d.periodo === 'mes' ? inicioDoMes(d.mes + '-01') : semana;
+      const ate = d.periodo === 'mes' ? somarMeses(de, 1) : somarDias(de, 7);
+      const lista = await db.rpc('agenda_periodo', { p_de: instante(de), p_ate: instante(ate) });
+      const filtrados = lista.filter((c) => !c.cancelado_em && (d.membro === 'todos' || d.membro === 'marcados' && !ocultos.has(c.membro_id) || c.membro_id === d.membro));
+      if (!filtrados.length) throw new Error('Nenhum compromisso no período e nos advogados escolhidos.');
+      const nome = d.membro === 'todos' ? 'Todos os advogados' : d.membro === 'marcados' ? 'Advogados marcados' : nomeDe(d.membro);
+      const quem = ['todos', 'marcados'].includes(d.membro) ? d.membro : semAcento(nomeDe(d.membro)).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      baixarArquivo(`agenda-fhl-${d.periodo}-${de}-${quem}.ics`,
+        gerarIcs(filtrados.map(paraExportacao), { nome: `FHL Advocacia · ${nome}` }), 'text/calendar;charset=utf-8');
+      avisar('Arquivo .ics preparado. Importe e confira os horários na agenda de destino.');
+      return true;
+    },
+  });
+}
+
 const linkOuTexto = (texto) => (/^https?:\/\//i.test(texto)
   ? html`<a href="${texto}" target="_blank" rel="noopener">${texto}</a>`
   : texto);
@@ -283,6 +361,10 @@ function quando(c) {
 
 function detalhe(c) {
   const podeMarcar = c.pode_editar && ['atendimento', 'audiencia'].includes(c.tipo) && c.situacao === 'agendado';
+  const podeIniciar = podeMarcar && pode.clientes() && c.cliente_id && c.tipo === 'atendimento' && noFuso(c.inicio).dia === hoje();
+  // Particular só vai para o Google pelas mãos do dono.
+  const google = !c.particular || c.membro_id === estado.membro.id ? linkGoogleAgenda(paraExportacao(c)) : null;
+  const lembrete = !c.mascarado && !c.particular && c.tipo === 'atendimento' && c.situacao === 'agendado' && c.cliente_nome && c.cliente_telefone;
 
   return abrirDialogo({
     titulo: c.titulo || c.cliente_nome || rotuloTipo(c.tipo, c.modalidade),
@@ -298,24 +380,46 @@ function detalhe(c) {
         ${c.observacoes ? html`<div><dt>Observações</dt><dd>${c.observacoes}</dd></div>` : ''}
         <div><dt>Situação</dt><dd>${seloCompromisso(c.situacao)}${c.chegada_em ? ` · cliente chegou às ${hora(c.chegada_em)}` : ''}</dd></div>
       </dl>
-      <p class="grupo-botoes secao">
+      <div class="detalhe-acoes secao">
         ${podeMarcar ? html`
-          ${c.tipo === 'atendimento' && !c.chegada_em ? html`<button type="button" class="botao" data-papel="situacao" data-valor="chegou">Cliente chegou</button>` : ''}
-          <button type="button" class="botao" data-papel="situacao" data-valor="realizado">Realizado</button>
-          <button type="button" class="botao" data-papel="situacao" data-valor="faltou">Faltou</button>
-          <button type="button" class="botao" data-papel="situacao" data-valor="remarcado">Remarcado</button>` : ''}
-        ${c.pode_editar ? html`
-          <button type="button" class="botao" data-papel="editar">Editar</button>
-          <button type="button" class="botao botao--discreto" data-papel="cancelar">Cancelar compromisso</button>` : ''}
-        <button type="button" class="botao botao--discreto" data-papel="historico">Histórico</button>
-      </p>`,
+          <div class="grupo-botoes" role="group" aria-label="Situação do atendimento">
+            ${podeIniciar ? html`<button type="button" class="botao botao--primario" data-papel="iniciar">Iniciar atendimento</button>` : ''}
+            ${c.tipo === 'atendimento' && !c.chegada_em ? html`<button type="button" class="botao" data-papel="situacao" data-valor="chegou">Cliente chegou</button>` : ''}
+            <button type="button" class="botao" data-papel="situacao" data-valor="realizado">Realizado</button>
+            <button type="button" class="botao" data-papel="situacao" data-valor="faltou">Faltou</button>
+            <button type="button" class="botao" data-papel="situacao" data-valor="remarcado">Remarcado</button>
+          </div>` : ''}
+        <div class="grupo-botoes">
+          ${c.pode_editar ? html`<button type="button" class="botao" data-papel="editar">Editar</button>` : ''}
+          ${google ? html`<a class="botao" href="${google}" target="_blank" rel="noopener noreferrer">Pôr no Google Agenda</a>` : ''}
+          ${lembrete ? html`<button type="button" class="botao" data-papel="lembrete">Preparar lembrete</button>` : ''}
+          ${pode.clientes() && c.cliente_id ? html`<button type="button" class="botao" data-papel="documento">Declaração de comparecimento</button>` : ''}
+        </div>
+        <div class="grupo-botoes">
+          <button type="button" class="botao botao--pequeno botao--discreto" data-papel="historico">Histórico</button>
+          ${c.pode_editar ? html`<button type="button" class="botao botao--pequeno botao--discreto" data-papel="cancelar">Cancelar compromisso</button>` : ''}
+        </div>
+      </div>`,
 
     aoAbrir: (dialogo, _, fechar) => {
       dialogo.addEventListener('click', async (e) => {
         const alvo = e.target.closest('[data-papel]');
         if (!alvo) return;
         try {
-          if (alvo.dataset.papel === 'situacao') {
+          if (alvo.dataset.papel === 'lembrete') {
+            prepararMensagem({ titulo: `Lembrete — ${c.cliente_nome}`, telefone: c.cliente_telefone,
+              texto: mensagemLembrete({ compromisso: c, remetente: estado.membro.nome_curto, advogado: nomeDe(c.membro_id) }) });
+          } else if (alvo.dataset.papel === 'iniciar') {
+            fechar(true);
+            await iniciarCronometro({
+              cliente_id: c.cliente_id,
+              compromisso_id: c.id,
+              tipo: c.modalidade === 'online' ? 'atendimento_online' : 'atendimento_presencial',
+            });
+          } else if (alvo.dataset.papel === 'documento') {
+            fechar(true);
+            navegar('/documentos/novo', { modelo: 'declaracao_comparecimento', cliente: c.cliente_id, compromisso: c.id });
+          } else if (alvo.dataset.papel === 'situacao') {
             const valor = alvo.dataset.valor;
             await db.alterar('compromissos', [['id', 'eq', c.id]], valor === 'chegou' ? { chegada_em: new Date().toISOString() } : { situacao: valor }, 'id');
             avisar(valor === 'chegou' ? 'Chegada registrada.' : 'Situação atualizada.');
@@ -360,14 +464,21 @@ function periodo(form) {
   return { inicio: instante(dia, comeca), fim: instante(dia, termina), primeiro: dia, ultimo: dia };
 }
 
-async function editarCompromisso(c, { config, dia = hoje(), minuto = 9 * 60 }) {
+/**
+ * Novo compromisso ou edição. Chamado também de fora da Agenda — Intimações
+ * lança a audiência com `iniciais` e grava por `salvar` (a conferência vai
+ * junto, numa transação) — e aí busca a configuração sozinho.
+ */
+export async function editarCompromisso(c = null, { config, dia = hoje(), minuto = 9 * 60, iniciais = {}, salvar = null } = {}) {
+  config ??= await db.um('config_agenda', { select: '*' });
+  const inicial = c ?? iniciais;
   const clientes = await carregarClientes();
   const novo = !c;
   const eu = estado.membro.id;
   const deTodos = pode.agendaDeTodos();
-  const tipo = c?.tipo ?? 'atendimento';
+  const tipo = inicial.tipo ?? 'atendimento';
   const comeca = c ? noFuso(c.inicio) : { dia, minuto };
-  const duracao = c ? Math.round((ms(c.fim) - ms(c.inicio)) / 60000) : duracaoPadrao(config, 'atendimento', 'presencial');
+  const duracao = c ? Math.round((ms(c.fim) - ms(c.inicio)) / 60000) : duracaoPadrao(config, tipo, inicial.modalidade ?? 'presencial');
   const termina = Math.min(comeca.minuto + duracao, 23 * 60 + 55);
   const ultimoDia = c?.dia_inteiro ? somarDias(noFuso(c.fim).dia, -1) : comeca.dia;
 
@@ -381,7 +492,7 @@ async function editarCompromisso(c, { config, dia = hoje(), minuto = 9 * 60 }) {
         <label class="campo campo--4"><span>Modalidade</span><select name="modalidade"></select></label>
         <label class="campo campo--4">
           <span>Responsável</span>
-          <select name="membro_id" ${deTodos ? '' : 'disabled'}>${opcoes(membrosAtivos().map((m) => [m.id, m.nome_curto]), c?.membro_id ?? eu)}</select>
+          <select name="membro_id" ${deTodos ? '' : 'disabled'}>${opcoes(membrosAtivos().map((m) => [m.id, m.nome_curto]), deTodos ? inicial.membro_id ?? eu : eu)}</select>
         </label>
         <label class="opcao"><input type="checkbox" name="dia_inteiro" ${c?.dia_inteiro ? 'checked' : ''}> Dia inteiro — férias, viagem, ausência de um ou mais dias</label>
 
@@ -395,15 +506,15 @@ async function editarCompromisso(c, { config, dia = hoje(), minuto = 9 * 60 }) {
           <label class="campo campo--6"><span>Último dia</span><input type="date" name="dia_fim" value="${ultimoDia}"></label>
         </div>
 
-        <label class="campo"><span>Assunto</span><input name="titulo" value="${c?.titulo ?? ''}" maxlength="200" placeholder="Ex.: Primeira conversa — rescisão"></label>
-        ${campoCliente(clientes, { rotulo: 'Cliente', obrigatorio: false, atual: c?.cliente_id, classe: 'campo--8' })}
-        <label class="campo campo--4" data-papel="processo"><span>Nº do processo</span><input name="processo" value="${c?.processo ?? ''}" maxlength="40"></label>
+        <label class="campo"><span>Assunto</span><input name="titulo" value="${inicial.titulo ?? ''}" maxlength="200" placeholder="Ex.: Primeira conversa — rescisão"></label>
+        ${campoCliente(clientes, { rotulo: 'Cliente', obrigatorio: false, atual: inicial.cliente_id, classe: 'campo--8' })}
+        <label class="campo campo--4" data-papel="processo"><span>Nº do processo</span><input name="processo" value="${inicial.processo ?? ''}" maxlength="40"></label>
         <label class="campo"><span>Local ou link</span><input name="local_ou_link" value="${c?.local_ou_link ?? ''}" maxlength="300" placeholder="Sala, fórum ou link da reunião"></label>
         <label class="campo"><span>Observações</span><textarea name="observacoes" rows="2">${c?.observacoes ?? ''}</textarea></label>
         <label class="campo campo--6">
           <span>Lembrete</span>
           <select name="lembrete_minutos">${opcoes(LEMBRETES, c?.lembrete_minutos ?? '')}</select>
-          <span class="campo__ajuda">Vira alerta no Google Agenda quando a integração existir.</span>
+          <span class="campo__ajuda">Incluído no arquivo .ics. Ao usar Pôr no Google Agenda, confira o alerta no Google antes de salvar.</span>
         </label>
         <label class="opcao campo--6" data-papel="particular"><input type="checkbox" name="particular" ${c?.particular ? 'checked' : ''}> Particular — os outros veem só "Ocupado"</label>
       </div>
@@ -513,7 +624,8 @@ async function editarCompromisso(c, { config, dia = hoje(), minuto = 9 * 60 }) {
         throw new Error('Informe o assunto ou o cliente.');
       }
 
-      if (novo) await db.inserir('compromissos', registro, 'id');
+      if (salvar) await salvar(registro);
+      else if (novo) await db.inserir('compromissos', registro, 'id');
       else await db.alterar('compromissos', [['id', 'eq', c.id]], registro, 'id');
       avisar(novo ? 'Compromisso marcado.' : 'Compromisso salvo.');
       return true;

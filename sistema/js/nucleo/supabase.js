@@ -322,6 +322,9 @@ async function rest(metodo, caminho, { params = [], corpo, prefer } = {}, repeti
       dica: dados?.hint || '',
     });
   }
+  // Quem depende de uma gravação (os contadores do menu, por exemplo) decide
+  // por conta própria se ela interessa: aqui só se avisa onde se gravou.
+  if (metodo !== 'GET') dispatchEvent(new CustomEvent('fhl:gravou', { detail: { caminho } }));
   return dados;
 }
 

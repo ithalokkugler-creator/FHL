@@ -1,0 +1,9 @@
+project_id = "fhl-advocacia"
+
+# O visitante ainda não tem conta; validação e limites ficam no servidor.
+[functions.receber-contato]
+verify_jwt = false
+
+# Preserva o modo da função existente: ela confere o usuário e o acesso ao Site.
+[functions.publicar-site]
+verify_jwt = false

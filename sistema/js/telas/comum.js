@@ -63,6 +63,57 @@ export function seletorMes(mes) {
 const selo = ([rotulo, tom]) => html`<span class="selo${tom ? ` selo--${tom}` : ''}">${rotulo}</span>`;
 
 // ---------------------------------------------------------------------------
+// Tarefas, prazos e intimações
+// ---------------------------------------------------------------------------
+
+const SITUACOES_TAREFA = {
+  pendente: ['Pendente', ''],
+  em_andamento: ['Em andamento', 'alerta'],
+  concluida: ['Concluída', 'ok'],
+  cancelada: ['Cancelada', 'escuro'],
+};
+export const seloTarefa = (s) => selo(SITUACOES_TAREFA[s] ?? [s, '']);
+
+// O alerta de `v_tarefas` (ou de alertaTarefa): só aparece quando pede atenção.
+const ALERTAS_TAREFA = {
+  vencida: ['Fatal vencido', 'perigo'],
+  fatal_hoje: ['Fatal hoje', 'perigo'],
+  atrasada: ['Entrega atrasada', 'perigo'],
+  entrega_hoje: ['Entrega hoje', 'alerta'],
+};
+export const seloAlertaTarefa = (s) => (ALERTAS_TAREFA[s] ? selo(ALERTAS_TAREFA[s]) : '');
+
+const SITUACOES_INTIMACAO = {
+  pendente: ['Pendente de conferência', 'alerta'],
+  conferida: ['Conferida', 'ok'],
+  arquivada: ['Arquivada', 'escuro'],
+};
+export const seloIntimacao = (s) => selo(SITUACOES_INTIMACAO[s] ?? [s, '']);
+
+// ---------------------------------------------------------------------------
+// Clientes e contatos
+// ---------------------------------------------------------------------------
+
+export const AREAS_JURIDICAS = {
+  trabalhista: 'Trabalhista', previdenciario: 'Previdenciário', consumidor: 'Consumidor',
+  civel: 'Cível', familia: 'Família', sucessoes: 'Sucessões', criminal: 'Criminal',
+  contratual: 'Contratual', imobiliario: 'Imobiliário', empresarial: 'Empresarial',
+  administrativo: 'Administrativo', portuario: 'Portuário', ambiental: 'Ambiental',
+  regularizacao_fundiaria: 'Regularização fundiária', outro: 'Outro',
+};
+
+export const SITUACOES_CONTATO = {
+  novo: 'Novo contato', em_atendimento: 'Em atendimento', contatado: 'Contatado',
+  convertido: 'Convertido em cliente', arquivado: 'Arquivado',
+};
+export const CANAIS_CONTATO = {
+  site: 'Site', whatsapp: 'WhatsApp', telefone: 'Telefone', presencial: 'Presencial',
+  indicacao: 'Indicação', outro: 'Outro',
+};
+export const seloContato = (s) => selo([SITUACOES_CONTATO[s] ?? s,
+  ({ novo: 'perigo', em_atendimento: 'alerta', convertido: 'ok', arquivado: 'escuro' })[s] ?? '']);
+
+// ---------------------------------------------------------------------------
 // Financeiro
 // ---------------------------------------------------------------------------
 
@@ -141,10 +192,10 @@ const SITUACOES_COMPROMISSO = {
 };
 export const seloCompromisso = (s) => selo(SITUACOES_COMPROMISSO[s] ?? [s, '']);
 
-/** O aviso que acompanha a agenda enquanto a conta do Google não é definida. */
+/** Exportação manual: só o usuário salva no Google e confere a disponibilidade. */
 export const notaGoogle = () => html`
   <p class="nota">
-    <strong>Piloto:</strong> esta agenda ainda não conversa com o Google Agenda. O que for
-    marcado aqui não bloqueia horário no link de agendamento que vocês mandam aos clientes.
-    A ligação depende da conta do Google que o escritório vai usar.
+    Use <strong>Pôr no Google Agenda</strong> no compromisso ou importe o arquivo <strong>.ics</strong>.
+    Salve na agenda usada pelo link de agendamento e confira se ela verifica os horários ocupados.
+    Alterações e cancelamentos posteriores precisam ser ajustados também no Google.
   </p>`;

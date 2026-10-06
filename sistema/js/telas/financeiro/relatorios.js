@@ -300,6 +300,9 @@ async function copiaDeSeguranca() {
   if (pode.fechamento()) tabelas.push('fechamentos', 'divisao_cotas');
   if (pode.agenda()) tabelas.push('config_agenda', 'compromissos');
   if (pode.site()) tabelas.push('publicacoes', 'campanhas', 'site_deploys');
+  tabelas.push('processos','tarefas','feriados');
+  if (pode.prazos()) tabelas.push('intimacoes','intimacoes_consultas');
+  if (pode.clientes()) tabelas.push('contatos','clientes_detalhes','documentos','atualizacoes');
 
   const copia = { gerado_em: new Date().toISOString(), sistema: 'FHL Advocacia — área dos advogados', tabelas: {} };
   for (const tabela of tabelas) {

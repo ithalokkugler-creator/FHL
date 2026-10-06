@@ -97,18 +97,23 @@ Disallow: /${SISTEMA}/
 Sitemap: ${DOMINIO}/sitemap.xml
 `;
 
-export async function build({ quiet = false } = {}) {
+export async function build({ quiet = false, local = false, destino = DIST } = {}) {
+  const saida = resolve(destino);
+  // As duas saídas são descartáveis. Nunca apaga outro caminho recebido.
+  if (![DIST, join(ROOT, '.local', 'previa')].includes(saida)) {
+    throw new Error('Destino do build deve ser dist/ ou .local/previa/.');
+  }
   const log = quiet ? () => {} : (...a) => console.log(...a);
 
   // Antes de montar qualquer página: é isto que enche POSTS e CAMPANHAS.
-  const { imagens } = await carregarConteudo({ quiet });
+  const { imagens } = await carregarConteudo({ quiet, local });
   const pages = allPages();
 
-  await rm(DIST, { recursive: true, force: true });
-  await mkdir(DIST, { recursive: true });
+  await rm(saida, { recursive: true, force: true });
+  await mkdir(saida, { recursive: true });
 
   for (const pg of pages) {
-    const out = join(DIST, pg.path);
+    const out = join(saida, pg.path);
     await mkdir(dirname(out), { recursive: true });
     await writeFile(out, shell(pg), 'utf8');
     log(`  ${pg.path}`);
@@ -117,7 +122,7 @@ export async function build({ quiet = false } = {}) {
   // Os assets são copiados sem transformação: o CSS e o JS deste site são
   // escritos à mão e servidos como estão. O manifesto das imagens de
   // compartilhamento é controle interno de `npm run og` e não vai ao ar.
-  await cp(join(ROOT, 'assets'), join(DIST, 'assets'), {
+  await cp(join(ROOT, 'assets'), join(saida, 'assets'), {
     recursive: true,
     filter: (src) => !src.endsWith('manifest.json'),
   });
@@ -127,23 +132,23 @@ export async function build({ quiet = false } = {}) {
   // entram junto com os assets do repositório, como se sempre tivessem estado
   // lá. Depois da cópia, para não serem apagadas por ela.
   for (const imagem of imagens) {
-    const out = join(DIST, imagem.rel);
+    const out = join(saida, imagem.rel);
     await mkdir(dirname(out), { recursive: true });
     await writeFile(out, imagem.bytes);
     log(`  ${imagem.rel}`);
   }
 
-  await cp(join(ROOT, SISTEMA), join(DIST, SISTEMA), {
+  await cp(join(ROOT, SISTEMA), join(saida, SISTEMA), {
     recursive: true,
     filter: (src) => !FORA_DO_SISTEMA.some((f) => src.endsWith(`${sep}${f}`)),
   });
   log('  sistema/');
 
-  await writeFile(join(DIST, 'sitemap.xml'), sitemap(pages), 'utf8');
-  await writeFile(join(DIST, 'robots.txt'), ROBOTS, 'utf8');
+  await writeFile(join(saida, 'sitemap.xml'), sitemap(pages), 'utf8');
+  await writeFile(join(saida, 'robots.txt'), ROBOTS, 'utf8');
   log('  sitemap.xml\n  robots.txt');
 
-  log(`\n${pages.length} páginas + assets + sistema + sitemap.xml + robots.txt → dist/`);
+  log(`\n${pages.length} páginas + assets + sistema + sitemap.xml + robots.txt → ${saida}`);
   return pages;
 }
 

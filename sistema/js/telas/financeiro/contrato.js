@@ -10,7 +10,7 @@
 import { gerarParcelas, nomeDaParcela, posicoes } from '../../dominio/parcelas.js';
 import { avisar, avisarErro } from '../../nucleo/avisos.js';
 import { abrirDialogo, pedirMotivo } from '../../nucleo/dialogo.js';
-import { membrosAtivos, nomeDe } from '../../nucleo/estado.js';
+import { membrosAtivos, nomeDe, pode } from '../../nucleo/estado.js';
 import {
   centavos, data, dataHora, decimal, hoje, lerMoeda, moeda, paraReais, percentual, telefone,
 } from '../../nucleo/formato.js';
@@ -163,6 +163,7 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, cobrancas, a
   return html`
     <a class="pagina__voltar" href="#/financeiro/contratos">← Contratos</a>
     ${cabecalho(c.descricao, subtitulo, html`
+      ${pode.clientes()?html`<a class="botao" href="#/documentos/novo?modelo=contrato_honorarios&cliente=${c.cliente_id}&contrato=${c.id}">Gerar contrato</a><a class="botao" href="#/documentos/novo?modelo=prestacao_contas&cliente=${c.cliente_id}&contrato=${c.id}">Prestação de contas</a>`:''}
       ${seloContrato(c.situacao)}
       <button type="button" class="botao" data-acao="historico">Histórico</button>
       ${ativo ? html`<button type="button" class="botao" data-acao="editar">Editar</button>` : ''}

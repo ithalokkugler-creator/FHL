@@ -10,6 +10,24 @@ A área **vai ao ar junto com o site**, em `/sistema`, no mesmo deploy e no mesm
 repositório. O site tem um link discreto para ela no rodapé; ela tem "Ver o
 site" na lateral e "Voltar ao site" na tela de entrada.
 
+**05/10/2026 · E0/F1–F4 implementados e testados localmente:** níveis de acesso
+Clientes/Prazos, Contatos, cadastro completo, processos, documentos e atualizações.
+F5/F6 estão parcialmente implementadas com tarefas, prazos manuais, feriados
+cadastrados e intimações manuais. Contagem automática, datas móveis e
+busca/importação DJEN permanecem pendentes. F7 acrescenta os avisos de Hoje,
+aniversários, lembretes e contadores conforme o acesso. F8 acrescenta botão
+Google, exportação `.ics`, lembrete no detalhe e feriados cadastrados na grade;
+feriados nacionais automáticos continuam pendentes. As oito migrações e `receber-contato`
+continuam pendentes de aplicação/publicação. Para testar sem login real e
+sem gravar na produção: `npm run testar:local` →
+<http://127.0.0.1:8125/__teste>. Roteiro completo em
+[TESTAR-NOVAS-FUNCOES.md](../TESTAR-NOVAS-FUNCOES.md).
+
+**05/10/2026 (noite) · revisão:** bugs funcionais e visuais corrigidos, código
+novo reescrito no estilo do projeto e migrações novas reformatadas, sem mudar
+regra nem texto jurídico. Detalhes em
+[REVISAO-NOVAS-FUNCOES.md](../REVISAO-NOVAS-FUNCOES.md).
+
 ---
 
 ## Como rodar
@@ -29,18 +47,20 @@ evita a classe de erro que só aparece em produção.
 |---|---|
 | `npm run dev` | Serve o site em `/` e a área dos advogados em `/sistema`, com live reload |
 | `npm run dev -- 3000` | O mesmo, em outra porta |
+| `npm run testar:local` | Novas funções, incluindo Agenda/Google/`.ics`, com API simulada, perfis fictícios e handler HTTP real; porta 8125 |
 | `npm run sistema:test` | Testes dos cálculos: atraso, parcelas, índices, cobrança, agenda, formatos |
 
-Não existe banco local: rodando na máquina, o sistema já fala com o projeto
-Supabase **fhl-advocacia** (organização Haderach solutions, região São Paulo).
+Com `npm run dev`, o sistema fala com o projeto Supabase **fhl-advocacia**,
+região São Paulo. Para a entrega nova, use `testar:local`: os dados ficam em
+memória e o frontend sai em `.local/previa/`, separado de `dist/`.
 
 ### Primeiro acesso
 
 Não há tela de cadastro, de propósito — quem entra é o escritório que decide.
 
-1. O e-mail precisa estar num **membro ativo**. Os quatro advogados já estão
-   cadastrados, sem e-mail; há também um administrador de suporte do piloto
-   (Ithalo), com e-mail.
+1. O e-mail precisa estar num **membro ativo**. Confira os cadastros em Membros.
+   A equipe atual tem três sócios; Marlon está desativado. Há também o
+   administrador de suporte do piloto.
 2. Supabase → **Authentication → Users → Add user → Create new user**: o mesmo
    e-mail, uma senha e **Auto Confirm User** marcado.
 3. Entrar. No primeiro acesso o login se liga ao membro sozinho
@@ -68,19 +88,31 @@ sistema/
   js/
     app.js                   Rotas, menu por permissão, sessão
     config.js                URL e chave publicável do Supabase
-    nucleo/                  supabase, consulta, html, formato, csv, dialogo, estado, rotas, avisos
-    dominio/                 atraso, parcelas, indices, cobranca, agenda
-    telas/                   entrar, inicio, agenda, membros, historico, conta, clientes, comum
+    nucleo/                  supabase, consulta, html, formato, csv, dialogo, estado, rotas, avisos,
+                             avisos-do-dia (contadores do menu), higienizar (lista branca dos documentos)
+    escritorio.js            Identidade única, compartilhada com o build público
+    dominio/                 atraso, parcelas, indices, cobranca, agenda, contatos, mensagens, clientes,
+                             tempo, tarefas, aniversarios, avisos-do-dia, ics
+    documentos/              partes, modelos, acoes, relatorio — oito modelos e folha A4
+    telas/                   entrar, inicio, agenda, membros, historico, conta, clientes, contatos,
+                             processos, intimacoes, feriados, preparar-mensagem, comum
+    telas/clientes/          lista, cliente (a ficha), formulario (cadastro completo)
     telas/financeiro/        base, painel, recebiveis, em-atraso, contratos, contrato,
                              contrato-novo, contas, fechamento, relatorios, configuracoes
     telas/site/              base, publicacoes, publicacao, campanhas, campanha, publicar
+    telas/documentos/        lista, novo, documento
+    telas/atualizacoes/      lista, formulario, cronometro, relatorio
+    telas/tarefas/           lista, formulario, prazos
   testes/                    node --test
 
 supabase/
-  migrations/                base · financeiro · agenda · ajustes_piloto · conteudo · ajustes_financeiro
+  migrations/                seis aplicadas + oito pendentes de E0/F1–F7
   functions/publicar-site/   função de borda que chama o Deploy Hook da Vercel
+  functions/receber-contato/ entrada pública do formulário; pendente de publicação
   testes/permissoes.sql      87 testes de permissão e de regra, desfeitos no fim
   testes/financeiro.sql      62 cenários do Financeiro, do contrato ao fechamento, desfeitos no fim
+  testes/clientes.sql        64 cenários locais de E0/F1/F2, desfeitos no fim
+  testes/documentos-atualizacoes.sql  42 cenários locais de F3/F4
 ```
 
 ### Segurança
@@ -98,8 +130,9 @@ supabase/
 - **CSP estrita** (`vercel.json`): `script-src 'self'` e `style-src 'self'`. Cor e
   posição na agenda passam por variável CSS definida em JavaScript
   (`aplicarVariaveis`), porque `style=""` dentro de HTML gerado seria bloqueado.
-- **Origem separada do site.** O site vai receber pixel e analytics; a sessão do
-  sistema não fica ao alcance deles.
+- **Mesma origem do site.** `/sistema` tem HTML e CSP próprios, sem scripts
+  de analytics. Isso não separa o armazenamento por origem; avaliar essa
+  arquitetura antes de introduzir scripts de terceiros no domínio público.
 
 As 12 funções `SECURITY DEFINER` que o advisor do Supabase aponta são de
 propósito: cada uma confere a permissão na primeira linha.
@@ -201,10 +234,26 @@ atendimentos, chegada do cliente com tempo de espera, situação do atendimento 
 impressão. A tela **Hoje** junta a agenda do dia e o que pede atenção no
 Financeiro.
 
-**Não conversa com o Google Agenda.** A ligação (7.3, opção C) depende da conta
-que o escritório vai usar — Gmail comum ou Workspace, pergunta 12. As colunas
-`google_*` de `compromissos` ficam reservadas. Até lá, o que é marcado aqui não
-bloqueia o link de agendamento do Google, e a tela avisa isso.
+**F8 local:** no detalhe, **Pôr no Google Agenda** abre o formulário preenchido
+para a pessoa conferir e salvar. **Exportar .ics** baixa a semana inteira ou
+o mês escolhido, de um responsável ou de todos; a seleção inicial acompanha
+os advogados marcados. Uma nova consulta a `agenda_periodo` preserva a máscara
+dos particulares alheios. A exportação exclui cancelados e observações
+internas, conserva os limites originais de blocos que cruzam o período,
+inclui alarmes configurados e usa fim exclusivo em eventos de dia inteiro.
+
+**Preparar lembrete** aparece no atendimento agendado com cliente/telefone,
+com data, hora de Brasília, responsável e endereço ou link online. Os feriados
+cadastrados ativos com tribunal vazio aparecem no cabeçalho e na lista móvel;
+falha dessa consulta mantém a agenda utilizável. Feriados automáticos continuam
+pendentes após o bloqueio registrado em F5/F6. F8 não tem migração própria.
+
+Salvar/importar cria uma cópia. Para ocupar o link de agendamento, a agenda
+de destino precisa participar da verificação de disponibilidade do Google.
+Alterações/cancelamentos posteriores também precisam ser ajustados ali.
+A sincronização nos dois sentidos (7.3, opção C) continua aguardando a conta
+do escritório; as colunas `google_*` ficam reservadas. A importação real na
+conta Google ainda precisa de teste humano.
 
 ---
 
@@ -297,22 +346,111 @@ quem não é sócio.
 | 20260915201001 | `ajustes_piloto` | Índices das chaves estrangeiras; correção pelo IPCA como padrão |
 | 20260916120520 | `conteudo` | Publicações, campanhas, `acesso_site`, pedidos de publicação, balde das imagens — e o conteúdo que já estava no site como semente |
 | 20260923111816 | `ajustes_financeiro` | Conta avulsa muda de mês junto com o vencimento; o fechamento gera as contas fixas do mês antes de tirar a foto |
+| 20261005130311 | `base_modulos` **(pendente no remoto)** | Clientes/Prazos, sessão e autorização de auditoria |
+| 20261005130317 | `contatos` **(pendente no remoto)** | Contatos, ingresso pelo servidor, limites, consentimento, conversão e auditoria |
+| 20261005140521 | `clientes_processos` **(pendente no remoto)** | Dados completos restritos, processos, CNJ válido, cadastro atômico e auditoria |
+| 20261005212635 | `documentos` **(pendente no remoto)** | Modelos, texto final imutável, vínculos e cancelamento auditado |
+| 20261005212642 | `atualizacoes` **(pendente no remoto)** | Atividades, participantes, relógio do servidor, autoria e vínculo com Agenda |
+| 20261005225741 | `tarefas_prazos` **(pendente no remoto)** | Tarefas, prazos informados manualmente, feriados cadastrados e bloqueio da Agenda |
+| 20261005225750 | `intimacoes` **(pendente no remoto)** | Registro/conferência manual e vínculos atômicos de prazo/audiência |
+| 20261005232739 | `avisos_do_dia` **(pendente no remoto)** | Contadores pessoais e por permissão, sem sobreposição de tarefas |
 
-O nome de cada arquivo é a versão que o Supabase registrou ao aplicar — é por
-ela que `supabase db push` sabe o que já rodou. Arquivo com outra data seria
-aplicado de novo.
+As seis primeiras versões foram conferidas no projeto remoto. As oito novas
+foram geradas pela CLI e executadas somente em PostgreSQL isolado. Elas ainda
+não estão no histórico remoto. Preserve as versões ao aplicar; não execute
+`db push` antes da aprovação desta entrega.
 
-Numa base nova: rodar as seis em ordem no SQL Editor, ou `supabase db push`
-com a CLI. Depois, os dois arquivos de teste — nada fica gravado em nenhum:
+Numa base **local ou isolada**, aplicar as quatorze migrações em ordem. Depois,
+executar os seis arquivos de teste. O piloto atual tem três sócios ativos;
+o teste antigo de divisão pressupõe Marlon desativado.
 
 | Arquivo | O que confere |
 |---|---|
 | `supabase/testes/permissoes.sql` | 87 testes de **quem pode**: anônimo, login sem membro, e-mail não confirmado, administrador, sócia, secretária e associado |
 | `supabase/testes/financeiro.sql` | 62 cenários de **se está certo**: somas, saldos, situações, renegociação, êxito, contas fixas, mês fechado e a divisão entre os sócios no centavo |
+| `supabase/testes/clientes.sql` | 64 cenários E0/F1/F2: acessos, RLS, grants, auditoria, contatos, consentimento, limites, cadastro atômico, CNJ e vínculos |
+| `supabase/testes/documentos-atualizacoes.sql` | 42 cenários F3/F4: imutabilidade, cancelamento, autoria, RLS, vínculos, marcador e relógio do servidor |
+| `supabase/testes/prazos.sql` | 53 cenários de tarefas/prazos/intimações manuais e seus vínculos/permissões |
+| `supabase/testes/avisos.sql` | 21 cenários de contadores F7: autoria, RLS, perfis, estados e execução |
+
+Resultado local em 05/10/2026, depois da revisão: **329/329 verificações SQL**,
+em PostgreSQL 17 via PGlite (Auth e Storage com esquemas mínimos),
+**104/104 testes JavaScript**, **93/93 fluxos** no navegador e 17 páginas
+aprovadas por `npm run check`. Cada `select`, filtro e ordenação do frontend
+também foi conferido contra o esquema das migrações.
+Nove arquivos F8 passaram no parser independente `icalendar 6.3.2`, sem
+gravação/importação na conta Google. As evidências locais ficam em `.local/`.
+
+### Contatos (E0/F1)
+
+`acesso_clientes='editar'` libera Contatos; `acesso_prazos` está preparado para
+F5/F6 e ainda não cria uma tela de Prazos. O cadastro mínimo de clientes usado
+pela Agenda/Financeiro mantém suas permissões anteriores; os dados completos
+ficam separados em `clientes_detalhes`, com acesso a Clientes.
+
+O visitante chama a função pública `receber-contato`, que valida os campos e
+chama `registrar_contato` com a chave de serviço. `anon` e `authenticated` não
+podem executar essa RPC. Limites: 3 envios por hash de IP em 10 minutos,
+30 envios globais por hora; trava transacional evita exceder por concorrência.
+`CONTATO_SAL` é obrigatório; configuração ausente resulta em 503.
+
+A equipe pode incluir contatos manuais e alterar situação, responsável,
+cliente e observações. Mensagem, origem e consentimento ficam protegidos por
+GRANT de coluna. Conversão exige cliente e tem data do servidor. Resposta abre
+texto para envio humano; arquivar mantém o histórico. Contatos entram na
+cópia de segurança quando o usuário também tem acesso a Clientes.
+
+A proposta de anonimização após 12 meses depende do escritório e ainda não
+foi implementada. Hashes técnicos antigos são limpos no ingresso de novos
+envios. A política pública permanece marcada para revisão.
 
 **Tabela nova segue o mesmo roteiro:** `privado.aplicar_padrao()` (carimbo,
 auditoria, sem exclusão), RLS, GRANT coluna a coluna e a tabela no
 `privado.pode_ver_auditoria()`.
+
+### Clientes e processos (F2)
+
+Menu Clientes → **Clientes** e **Processos**. Cadastro completo PF/PJ com
+qualificação, endereço, recados, representante, banco/Pix e responsável.
+`salvar_cliente` salva mínimo e detalhe em uma transação; a falha de qualquer
+parte desfaz tudo. O RPC ignora IDs de detalhe e carimbos fornecidos pelo cliente.
+
+Processos permitem o mesmo CNJ para clientes distintos, mas impedem duplicação
+para o mesmo cliente. O dígito verificador é conferido no formulário e no banco.
+Casos consultivos/extrajudiciais aceitam referência sem CNJ. Todos os membros
+ativos leem processos para Agenda/Financeiro; só acesso a Clientes autoriza escrita.
+
+A ficha abre processos, dados completos, contato de origem e histórico;
+consulta Agenda e Financeiro apenas quando o perfil permite. Desativar mantém
+os registros e permite reativação. O cadastro rápido de contratos/compromissos
+continua disponível. A cópia de segurança inclui processos e, com o nível de
+Clientes, detalhes. Próximo prazo e seções futuras chegam nas respectivas etapas.
+CEP é manual; não houve integração opcional com ViaCEP nem mudança na CSP.
+
+### Documentos e atualizações (F3/F4)
+
+Menu Clientes → **Documentos** e **Atualizações**. Oito modelos do Apêndice A
+geram qualificação PF/PJ, complementos e folha editável. Texto higienizado por
+lista branca ao colar, gravar, exibir e exportar; imagens só de `/sistema/img/`.
+O texto salvo é imutável, reimpressão/exportação registra nova geração e
+cancelamento exige motivo. Modelos permanecem sujeitos à revisão do §7.8.
+Contrato/prestação de contas e comparecimento consultam Financeiro/Agenda
+somente com os níveis correspondentes. Relato de atualização preenche a FAA.
+
+`iniciar_cronometro` e `parar_cronometro` usam relógio do servidor, trava e uma
+atividade aberta por membro. `meu_cronometro` sincroniza hora e cliente; a UI
+consulta a cada 15 segundos, interpola com `performance.now()` e sincroniza
+abas com BroadcastChannel. Chegada e realização da Agenda são gravadas com o
+início/parada. Autor edita o seu; admin edita/cancela os outros. Horário
+corrigido remove o marcador; alteração só do relato preserva segundos.
+Relatório A4 salva texto final em Documentos, com relato oculto por padrão.
+Participantes contam o tempo integral, sem duplicar o total do cliente.
+
+O PDF de duas páginas foi conferido no Chrome: assinatura e rodapé em ambas,
+marca escura derivada da fonte única, sem controles da interface. Caixas de
+margem paginada evitam sobrepor o rodapé; elemento fixo fica como alternativa
+para navegadores sem suporte. Word gera HTML `.doc`; sua abertura no Word e
+a retomada em dois computadores físicos ficam para a conferência do usuário.
 
 ---
 
@@ -327,6 +465,10 @@ que ficavam em `sistema/vercel.json` estão no `vercel.json` da raiz, aplicados
 só às rotas `/sistema` e `/sistema/*`.
 
 Com o endereço definido:
+
+Para E0/F1–F4, seguir a ordem de publicação em
+[TESTAR-NOVAS-FUNCOES.md](../TESTAR-NOVAS-FUNCOES.md): banco, segredo,
+função pública e então frontend. Nenhuma dessas ações remotas foi feita.
 
 1. Supabase → **Authentication → URL Configuration** → pôr `https://<domínio>/sistema`
    em *Site URL* e *Redirect URLs*, para o link de "Esqueci a senha" voltar para
@@ -357,7 +499,7 @@ painel). O Hobby da Vercel é só para uso não comercial.
 | Sócios no Financeiro (perguntas 7 e 15) | Completo; secretária lança sem ver a divisão | Membros |
 | Critério de atraso (pergunta 4) | 10% + 1% ao mês + IPCA, sem carência | Financeiro → Configurações |
 | Pagamento parcial | Saldo primeiro, depois encargos | `receberParcela` em `telas/financeiro/base.js` |
-| Divisão (perguntas 1 e 2) | Partes iguais entre os quatro, depois das despesas | Financeiro → Configurações |
+| Divisão (perguntas 1 e 2) | Partes iguais entre os sócios ativos (três), depois das despesas | Financeiro → Configurações |
 | Agenda (pergunta 17) | Grade 8h–19h sem sábado; atendimento 60 min, retorno 30, intervalo de 15 | Agenda → Configurar |
 | Categorias e formas de pagamento | As da preparação (6.2) | Financeiro → Configurações |
 | Quem escreve no site | Só sócio e administrador; associado e secretária ficam de fora | Membros → Site |
@@ -376,10 +518,14 @@ painel). O Hobby da Vercel é só para uso não comercial.
 ### Para depois
 
 Comprovante anexado ao recebimento, importação de extrato OFX, feriados
-(nacionais, do Paraná e de Paranaguá) na agenda, resumo diário por e-mail,
+automáticos (nacionais, do Paraná e de Paranaguá) na agenda, resumo diário por e-mail,
 "desfazer" pelo histórico e horas trabalhadas vindas de Atualizações. No Site:
-agendar a publicação de um artigo para uma data, editar áreas de atuação e
-receber no módulo Contatos quem preencher o formulário do site.
+agendar a publicação de um artigo para uma data e editar áreas de atuação.
+O módulo Contatos já está implementado localmente em F1; faltam aplicação e
+publicação após o teste do Ithalo. F2–F4 e F7 também estão prontos localmente.
+F5/F6 têm a parte manual pronta; contagem automática e DJEN continuam pendentes.
+F8 tem `.ics`/Google, lembrete e feriados cadastrados prontos localmente;
+feriados automáticos e importação na conta Google permanecem pendentes.
 
 ---
 
@@ -421,6 +567,24 @@ receber no módulo Contatos quem preencher o formulário do site.
   — as novas continuam a contagem (11, 12…), e é esse número que aparece no
   recibo e na cobrança. A tela do contrato mostra também "1 de 2 da
   renegociação" (`posicoes` em `dominio/parcelas.js`).
+- **Gravou, avisa; quem se interessa, escuta.** Toda gravação bem-sucedida
+  dispara `fhl:gravou` com o caminho (`tarefas`, `rpc/criar_tarefa`…).
+  `nucleo/avisos-do-dia.js` decide se os contadores do menu mudam — o cliente
+  de dados não conhece regra de módulo. Cronômetro iniciado ou parado dispara
+  `fhl:atualizacoes`, e as telas abertas (Hoje, Agenda, ficha, Atualizações)
+  se atualizam no lugar, sem perder a rolagem.
+- **Tempo total não conta cronômetro aberto** (`totais` em `dominio/tempo.js`):
+  é o mesmo critério do relatório para o cliente, e o aberto aparece à parte.
+- **Folha A4 encolhe para caber** (`ajustarFolha` em `documentos/acoes.js`,
+  via `zoom` e a variável `--escala`). A impressão usa outra cópia, sempre em
+  tamanho real.
+- **Coisa absoluta dentro de tabela rolável** (o `.sr-only` do cabeçalho
+  "Ações") precisa do `position: relative` de `.tabela-rolagem` — sem ele,
+  escapava da rolagem e alargava a página inteira no celular.
+- **A prévia local não confere nomes de coluna:** a API simulada devolve
+  `null` para qualquer coluna pedida. Coluna nova ou renomeada se confere no
+  esquema (migrações) — foi assim que apareceu `mostrar_fim_semana`, que não
+  existe e quebraria "Lançar audiência" em produção.
 - **Bloco de artigo tem três guardiões**, e os três precisam concordar: o editor
   (`telas/site/publicacao.js`), o gatilho do banco (`privado.validar_corpo`) e o
   renderizador do site (`src/pages/publicacoes.mjs`). Tipo novo se acrescenta

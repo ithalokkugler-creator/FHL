@@ -24,6 +24,15 @@ const TABELAS = {
   contas_recorrentes: 'Conta recorrente',
   fechamentos: 'Fechamento',
   clientes: 'Cliente',
+  clientes_detalhes: 'Dados completos do cliente',
+  processos: 'Processo / caso',
+  contatos: 'Contato',
+  documentos: 'Documento',
+  atualizacoes: 'Atualização',
+  tarefas: 'Tarefa / prazo',
+  feriados: 'Feriado / suspensão',
+  intimacoes: 'Intimação',
+  intimacoes_consultas: 'Consulta ao diário',
   membros: 'Membro',
   compromissos: 'Compromisso',
   categorias: 'Categoria',
@@ -48,6 +57,20 @@ const ACOES = {
 };
 
 const CAMPOS = {
+  prioridade:'prioridade', ato:'ato', contagem:'contagem', base_em:'publicação / intimação',
+  quantidade:'quantidade', recesso:'suspensão no recesso', concluida_por:'concluída por',
+  conferida_por:'conferida por', disponibilizada_em:'disponibilização / recebimento',
+  publicada_em:'publicação', intimacao_id:'intimação de origem', texto:'teor',
+  tipo_pessoa: 'tipo de pessoa', flexao: 'concordância nos documentos', rg: 'RG / inscrição estadual',
+  nascimento: 'nascimento / constituição', recado_nome: 'nome para recados', recado_relacao: 'relação / parentesco',
+  recado_telefone: 'telefone para recados', recado_observacao: 'observação para recados',
+  representante_nome: 'nome do representante', representante_documento: 'CPF / CNPJ do representante',
+  representante_relacao: 'relação com o cliente', representante_qualificacao: 'qualificação do representante',
+  situacao: 'situação',
+  observacoes: 'observações',
+  recebido_em: 'recebido em',
+  convertido_em: 'convertido em',
+  consentimento_em: 'consentimento em',
   motivo_cancelamento: 'motivo',
   motivo_estorno: 'motivo do estorno',
   motivo_reabertura: 'motivo da reabertura',
@@ -64,6 +87,16 @@ const CAMPOS = {
   user_id: 'login',
   acesso_agenda: 'acesso à agenda',
   acesso_financeiro: 'acesso ao financeiro',
+  acesso_site: 'acesso ao site',
+  acesso_clientes: 'acesso aos clientes',
+  acesso_prazos: 'acesso aos prazos',
+  cliente_id: 'cliente',
+  processo_id: 'processo',
+  fatal_em: 'prazo fatal',
+  entrega: 'prazo de entrega',
+  proxima_providencia: 'próxima providência',
+  concluida_em: 'concluída em',
+  conferida_em: 'conferida em',
   renegociacao_id: 'renegociação',
   chegada_em: 'chegada do cliente',
 };
@@ -73,6 +106,7 @@ const nomeCampo = (c) => CAMPOS[c] ?? c.replace(/_id$/, '').replace(/_/g, ' ');
 function legivel(campo, v) {
   if (v == null || v === '') return '—';
   if (typeof v === 'boolean') return v ? 'sim' : 'não';
+  if (campo === 'participantes' && Array.isArray(v)) return v.map(nomeDe).join(' + ') || '—';
   if (typeof v === 'object') return JSON.stringify(v).slice(0, 140);
   if (estado.porId.has(v)) return nomeDe(v);
   if (/_id$/.test(campo)) return `registro …${String(v).slice(-6)}`;

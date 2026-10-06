@@ -6,6 +6,13 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 8123
+    },
+    {
+      "name": "previa",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/testar-local.mjs"],
+      "env": { "PORT_TESTE": "8127" },
+      "port": 8127
     }
   ]
 }

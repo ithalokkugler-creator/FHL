@@ -100,13 +100,13 @@ export function contatoForm({ depth = 0, campanha = '' } = {}) {
             <div class="contato__fields">
               <div class="contato__row">
                 <div class="field">
-                  <input class="field__input" type="text" id="nome" name="nome" placeholder=" " required autocomplete="name">
+                  <input class="field__input" type="text" id="nome" name="nome" placeholder=" " required maxlength="200" autocomplete="name">
                   <span class="field__line" aria-hidden="true"></span>
                   <label class="field__label" for="nome">Nome</label>
                   <span class="field__error" role="alert" aria-live="polite"></span>
                 </div>
                 <div class="field">
-                  <input class="field__input" type="email" id="email" name="email" placeholder=" " required autocomplete="email">
+                  <input class="field__input" type="email" id="email" name="email" placeholder=" " required maxlength="200" autocomplete="email">
                   <span class="field__line" aria-hidden="true"></span>
                   <label class="field__label" for="email">E-mail</label>
                   <span class="field__error" role="alert" aria-live="polite"></span>
@@ -115,13 +115,13 @@ export function contatoForm({ depth = 0, campanha = '' } = {}) {
 
               <div class="contato__row">
                 <div class="field">
-                  <input class="field__input" type="tel" id="telefone" name="telefone" placeholder=" " autocomplete="tel">
+                  <input class="field__input" type="tel" id="telefone" name="telefone" placeholder=" " maxlength="40" autocomplete="tel">
                   <span class="field__line" aria-hidden="true"></span>
                   <label class="field__label" for="telefone">Telefone</label>
                   <span class="field__error" role="alert" aria-live="polite"></span>
                 </div>
                 <div class="field">
-                  <input class="field__input" type="text" id="empresa" name="empresa" placeholder=" " autocomplete="organization">
+                  <input class="field__input" type="text" id="empresa" name="empresa" placeholder=" " maxlength="200" autocomplete="organization">
                   <span class="field__line" aria-hidden="true"></span>
                   <label class="field__label" for="empresa">Empresa (opcional)</label>
                   <span class="field__error" role="alert" aria-live="polite"></span>
@@ -129,7 +129,7 @@ export function contatoForm({ depth = 0, campanha = '' } = {}) {
               </div>
 
               <div class="field">
-                <textarea class="field__input" id="mensagem" name="mensagem" placeholder=" " required rows="4"></textarea>
+                <textarea class="field__input" id="mensagem" name="mensagem" placeholder=" " required maxlength="5000" rows="4"></textarea>
                 <span class="field__line" aria-hidden="true"></span>
                 <label class="field__label" for="mensagem">Mensagem</label>
                 <span class="field__error" role="alert" aria-live="polite"></span>

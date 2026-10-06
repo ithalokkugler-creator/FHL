@@ -26,7 +26,7 @@ import { join } from 'node:path';
 import { AREAS } from '../src/data/areas.mjs';
 import { SLOGAN } from '../src/data/site.mjs';
 import { ROOT } from '../src/lib/assets.mjs';
-import { FONTE_MARCA, arquivoMonograma, monogramaSvg } from '../src/lib/marca.mjs';
+import { FONTE_MARCA, arquivoAssinatura, arquivoMonograma, monogramaSvg } from '../src/lib/marca.mjs';
 import { acharNavegador, cartaoHtml, fotografar } from './og.mjs';
 
 /** Monograma claro centrado num quadrado petróleo, ocupando `largura` do lado. */
@@ -71,6 +71,7 @@ function main() {
   }
 
   copiar(FONTE_MARCA, 'sistema/img/logo.svg');
+  escrever('sistema/img/logo-documento.svg', arquivoAssinatura());
   copiar('assets/img/monograma.svg', 'sistema/img/monograma.svg');
   copiar('assets/img/favicon.png', 'sistema/img/favicon.png');
   console.log('\n  Marca em dia. Rode `npm run og -- --todas` se o monograma mudou.\n');
