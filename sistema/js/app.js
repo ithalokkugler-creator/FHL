@@ -9,6 +9,8 @@ import { carregarMembros, estado, iniciais, PAPEIS, pode } from './nucleo/estado
 import { $, $$, aoClicar, desenhar, html } from './nucleo/html.js';
 import { resolver, rota } from './nucleo/rotas.js';
 import { aoMudarSessao, db, emailDaSessao, sair, sessaoAtual, sessaoDoLink } from './nucleo/supabase.js';
+import { atualizarAvisos, mudaContadores } from './nucleo/avisos-do-dia.js';
+import { ligarCronometro } from './telas/atualizacoes/cronometro.js';
 
 const app = document.getElementById('app');
 
@@ -20,6 +22,19 @@ const doFinanceiro = { permitido: pode.financeiro };
 
 rota('/inicio', () => import('./telas/inicio.js'), { titulo: 'Hoje' });
 rota('/agenda', () => import('./telas/agenda.js'), { titulo: 'Agenda', permitido: pode.agenda });
+rota('/contatos', () => import('./telas/contatos.js'), { titulo: 'Contatos', permitido: pode.clientes });
+rota('/clientes', () => import('./telas/clientes/lista.js'), { titulo: 'Clientes', permitido: pode.clientes });
+rota('/clientes/:id', () => import('./telas/clientes/cliente.js'), { titulo: 'Ficha do cliente', permitido: pode.clientes });
+rota('/processos', () => import('./telas/processos.js'), { titulo: 'Processos', permitido: pode.clientes });
+rota('/documentos', () => import('./telas/documentos/lista.js'), { titulo: 'Documentos', permitido: pode.clientes });
+rota('/documentos/novo', () => import('./telas/documentos/novo.js'), { titulo: 'Gerar documento', permitido: pode.clientes });
+rota('/documentos/:id', () => import('./telas/documentos/documento.js'), { titulo: 'Documento', permitido: pode.clientes });
+rota('/atualizacoes', () => import('./telas/atualizacoes/lista.js'), { titulo: 'Atualizações', permitido: pode.clientes });
+rota('/atualizacoes/relatorio', () => import('./telas/atualizacoes/relatorio.js'), { titulo: 'Relatório de atividades', permitido: pode.clientes });
+rota('/tarefas', () => import('./telas/tarefas/lista.js'), { titulo: 'Tarefas' });
+rota('/prazos', () => import('./telas/tarefas/prazos.js'), { titulo: 'Prazos' });
+rota('/feriados', () => import('./telas/feriados.js'), { titulo: 'Feriados', permitido: pode.prazos });
+rota('/intimacoes', () => import('./telas/intimacoes.js'), { titulo: 'Intimações', permitido: pode.prazos });
 rota('/financeiro', () => import('./telas/financeiro/painel.js'), { titulo: 'Financeiro', ...doFinanceiro });
 rota('/financeiro/recebiveis', () => import('./telas/financeiro/recebiveis.js'), { titulo: 'Recebíveis', ...doFinanceiro });
 rota('/financeiro/atraso', () => import('./telas/financeiro/em-atraso.js'), { titulo: 'Em atraso', ...doFinanceiro });
@@ -48,6 +63,27 @@ const MENU = [
     itens: [
       { caminho: '/inicio', rotulo: 'Hoje' },
       { caminho: '/agenda', rotulo: 'Agenda', permitido: pode.agenda },
+    ],
+  },
+  {
+    titulo: 'Clientes',
+    permitido: pode.clientes,
+    itens: [
+      { caminho: '/contatos', rotulo: 'Contatos', contagem: true },
+      { caminho: '/clientes', rotulo: 'Clientes' },
+      { caminho: '/processos', rotulo: 'Processos' },
+      { caminho: '/atualizacoes', rotulo: 'Atualizações' },
+      { caminho: '/documentos', rotulo: 'Documentos' },
+    ],
+  },
+  {
+    // Tarefas e Prazos abrem para todos: quem recebe uma tarefa precisa vê-la.
+    titulo: 'Tarefas e prazos',
+    itens: [
+      { caminho: '/tarefas', rotulo: 'Tarefas', contagem: true },
+      { caminho: '/prazos', rotulo: 'Prazos' },
+      { caminho: '/intimacoes', rotulo: 'Intimações', permitido: pode.prazos, contagem: true },
+      { caminho: '/feriados', rotulo: 'Feriados', permitido: pode.prazos },
     ],
   },
   {
@@ -96,14 +132,23 @@ const marca = () => html`
 // ---------------------------------------------------------------------------
 
 let saindo = false;
+let desligarCronometro = () => {};
 
 async function mostrarEntrada(opcoes) {
+  ++geracao;
+  limparTela?.();
+  limparTela = null;
+  desligarCronometro();
   estado.membro = null;
   const { default: telaEntrada } = await import('./telas/entrar.js');
   telaEntrada(app, opcoes);
 }
 
 function mostrarMensagem(titulo, texto, { tentar = false } = {}) {
+  ++geracao;
+  limparTela?.();
+  limparTela = null;
+  desligarCronometro();
   app.dataset.tela = 'mensagem';
   desenhar(app, html`
     <div class="entrada">
@@ -124,6 +169,7 @@ function mostrarMensagem(titulo, texto, { tentar = false } = {}) {
 }
 
 function desenharCasca() {
+  desligarCronometro();
   app.dataset.tela = 'sistema';
   const m = estado.membro;
 
@@ -140,7 +186,7 @@ function desenharCasca() {
             <div class="menu__grupo">
               ${grupo.titulo ? html`<p class="menu__titulo">${grupo.titulo}</p>` : ''}
               ${grupo.itens.filter(liberado).map((item) => html`
-                <a href="#${item.caminho}" data-caminho="${item.caminho}">${item.rotulo}</a>`)}
+                <a href="#${item.caminho}" data-caminho="${item.caminho}">${item.rotulo}${item.contagem ? html`<span class="menu__contagem" hidden></span>` : ''}</a>`)}
             </div>`)}
         </nav>
         <div class="lateral__rodape">
@@ -155,6 +201,8 @@ function desenharCasca() {
       </aside>
       <main class="conteudo" id="conteudo" tabindex="-1"></main>
     </div>`);
+  desligarCronometro = ligarCronometro(app);
+  atualizarAvisos(app);
 }
 
 let abrindo = null;
@@ -203,6 +251,7 @@ let limparTela = null;
 
 async function mostrarRota() {
   if (app.dataset.tela !== 'sistema') return;
+  atualizarAvisos(app);
 
   const r = resolver();
   if (!r) {
@@ -287,6 +336,11 @@ aoClicar(app, {
 addEventListener('hashchange', () => {
   scrollTo(0, 0);
   mostrarRota();
+});
+// Concluir tarefa, conferir intimação, responder contato: o número do menu
+// muda na hora, sem precisar trocar de tela.
+addEventListener('fhl:gravou', (e) => {
+  if (mudaContadores(e.detail.caminho)) atualizarAvisos(app);
 });
 
 aoMudarSessao((sessao) => {

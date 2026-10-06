@@ -116,6 +116,10 @@ export const nomeDoDia = (iso) => DIAS[diaDaSemana(iso)];
 export const dataExtensa = (iso) =>
   `${nomeDoDia(iso)}, ${Number(iso.slice(8, 10))} de ${MESES[Number(iso.slice(5, 7)) - 1]}`;
 
+/** Formato da data usado nos documentos do escritório, sem conversão de fuso. */
+export const dataPorExtenso = (iso) => iso
+  ? `${iso.slice(8, 10)} de ${MESES[Number(iso.slice(5, 7)) - 1]} de ${iso.slice(0, 4)}` : '';
+
 // ---------------------------------------------------------------------------
 // Instantes — timestamptz
 // ---------------------------------------------------------------------------
@@ -164,6 +168,41 @@ export const horaDoMinuto = (minuto) => `${dois(Math.floor(minuto / 60))}:${dois
 // ---------------------------------------------------------------------------
 
 export const soDigitos = (texto) => String(texto ?? '').replace(/\D/g, '');
+
+export const semAcento = (texto) => String(texto ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+export function numeroCnj(texto) {
+  const d = soDigitos(texto);
+  return d.length === 20 ? d.replace(/^(\d{7})(\d{2})(\d{4})(\d)(\d{2})(\d{4})$/, '$1-$2.$3.$4.$5.$6') : d;
+}
+
+/** Resolução CNJ 65/2008: os 20 dígitos excedem a precisão de Number. */
+export function numeroCnjValido(texto) {
+  const t = String(texto ?? '').trim();
+  if (!/^\d{20}$/.test(t) && !/^\d{7}-\d{2}\.\d{4}\.\d\.\d{2}\.\d{4}$/.test(t)) return false;
+  const d = soDigitos(t);
+  return BigInt(d.slice(0, 7) + d.slice(9) + d.slice(7, 9)) % 97n === 1n;
+}
+
+const UFS_CNJ = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS',
+  'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SE', 'SP', 'TO'];
+
+export function tribunalDoNumero(texto) {
+  const d = soDigitos(texto);
+  if (d.length !== 20) return '';
+  const j = d[13], tr = Number(d.slice(14, 16));
+  if (j === '8' && UFS_CNJ[tr - 1]) return `TJ${UFS_CNJ[tr - 1]}`;
+  if (j === '5' && tr >= 1 && tr <= 24) return `TRT${tr}`;
+  if (j === '4' && tr >= 1 && tr <= 6) return `TRF${tr}`;
+  if (j === '3' && tr === 0) return 'STJ';
+  return `${j}.${d.slice(14, 16)}`;
+}
+
+export function duracao(minutos) {
+  const n = Math.max(0, Math.round(Number(minutos) || 0));
+  if (n < 60) return `${n} min`;
+  return `${Math.floor(n / 60)} h${n % 60 ? ` ${dois(n % 60)} min` : ''}`;
+}
 
 /** CPF ou CNPJ — inclusive o alfanumérico — sem máscara, em maiúsculas. */
 export const limparDocumento = (texto) => String(texto ?? '').toUpperCase().replace(/[^0-9A-Z]/g, '');

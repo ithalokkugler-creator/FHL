@@ -69,3 +69,8 @@ export function arquivoMonograma(cor = '#EFF2EF') {
     `<!-- Gerado por npm run marca a partir de ${FONTE_MARCA}. Não editar à mão. -->\n` +
     `<path d="${F}"/>\n<path d="${HL}"/>\n</svg>\n`;
 }
+
+/** Mesmos caminhos da marca, com cor apropriada para o papel branco. */
+export function arquivoAssinatura(cor = '#0C1917') {
+  return fonte.replace(/fill="[^"]+"/, `fill="${cor}"`);
+}

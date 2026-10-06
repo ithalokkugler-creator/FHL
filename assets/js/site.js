@@ -429,6 +429,7 @@ window.IED = window.IED || {};
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
+      if (btn.disabled) return;
 
       var ok = true;
       form.querySelectorAll('.field__input').forEach(function (i) {
@@ -458,7 +459,7 @@ window.IED = window.IED || {};
       }
 
       var dados = Object.fromEntries(new FormData(form).entries());
-      delete dados.website;
+      dados.pagina = location.pathname;
 
       if (!endpoint) {
         // window.open é chamado ainda dentro do submit: fora do gesto do
@@ -478,16 +479,23 @@ window.IED = window.IED || {};
       fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(dados)
+        body: JSON.stringify(dados),
+        signal: AbortSignal.timeout(12000)
       })
-        .then(function (r) {
-          if (!r.ok) throw new Error('HTTP ' + r.status);
+        .then(async function (r) {
+          var resposta = await r.json();
+          if (!r.ok || resposta.ok !== true) throw new Error(resposta.erro || 'Não foi possível registrar agora.');
           setStatus('Mensagem enviada. Retornamos em até um dia útil.', 'ok');
           form.reset();
         })
-        .catch(function () {
-          setStatus('Não foi possível enviar agora. Fale com o escritório pelo ' +
-            'WhatsApp ou pelo telefone, logo acima.', 'erro');
+        .catch(function (erro) {
+          setStatus(erro.message && erro.name === 'Error' ? erro.message : 'Não foi possível enviar agora.', 'erro');
+          var alternativa = document.createElement('a');
+          alternativa.href = 'https://wa.me/' + whats + '?text=' + encodeURIComponent(mensagemWhats(dados));
+          alternativa.target = '_blank';
+          alternativa.rel = 'noopener';
+          alternativa.textContent = 'Enviar pelo WhatsApp';
+          status.append(document.createTextNode(' '), alternativa);
         })
         .then(function () { btn.disabled = false; });
     });

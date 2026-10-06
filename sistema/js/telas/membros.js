@@ -8,7 +8,7 @@
 import { avisar, avisarErro } from '../nucleo/avisos.js';
 import { abrirDialogo } from '../nucleo/dialogo.js';
 import {
-  carregarMembros, estado, iniciais, NIVEIS_AGENDA, NIVEIS_FINANCEIRO, NIVEIS_SITE, PAPEIS,
+  carregarMembros, estado, iniciais, NIVEIS_AGENDA, NIVEIS_FINANCEIRO, NIVEIS_SITE, NIVEIS_CLIENTES, NIVEIS_PRAZOS, PAPEIS,
 } from '../nucleo/estado.js';
 import { aoClicar, desenhar, html } from '../nucleo/html.js';
 import { db } from '../nucleo/supabase.js';
@@ -20,11 +20,28 @@ import { abrirHistorico } from './historico.js';
 // Site: quem escreve publicação e campanha assina conteúdo de publicidade de
 // escritório de advocacia (Provimento 205/2021). Por padrão, só sócio.
 const SUGESTOES = {
-  admin: { acesso_agenda: 'todas', acesso_financeiro: 'completo', acesso_site: 'editar' },
-  socio: { acesso_agenda: 'propria', acesso_financeiro: 'completo', acesso_site: 'editar' },
-  secretaria: { acesso_agenda: 'todas', acesso_financeiro: 'lancamentos', acesso_site: 'nenhum' },
-  associado: { acesso_agenda: 'propria', acesso_financeiro: 'nenhum', acesso_site: 'nenhum' },
+  admin: { acesso_agenda: 'todas', acesso_financeiro: 'completo', acesso_site: 'editar', acesso_clientes: 'editar', acesso_prazos: 'editar' },
+  socio: { acesso_agenda: 'propria', acesso_financeiro: 'completo', acesso_site: 'editar', acesso_clientes: 'editar', acesso_prazos: 'editar' },
+  secretaria: { acesso_agenda: 'todas', acesso_financeiro: 'lancamentos', acesso_site: 'nenhum', acesso_clientes: 'editar', acesso_prazos: 'nenhum' },
+  associado: { acesso_agenda: 'propria', acesso_financeiro: 'nenhum', acesso_site: 'nenhum', acesso_clientes: 'editar', acesso_prazos: 'nenhum' },
 };
+
+// Na tabela, a versão curta de cada nível; a descrição longa fica no
+// diálogo, junto da escolha, e no title da célula. Administrador tem sempre
+// o máximo, qualquer que seja o valor gravado.
+const NIVEIS = {
+  acesso_agenda: [NIVEIS_AGENDA, { nenhum: '—', propria: 'Própria', todas: 'Todas' }, 'todas'],
+  acesso_financeiro: [NIVEIS_FINANCEIRO, { nenhum: '—', lancamentos: 'Lançamentos', completo: 'Completo' }, 'completo'],
+  acesso_site: [NIVEIS_SITE, { nenhum: '—', editar: 'Publica' }, 'editar'],
+  acesso_clientes: [NIVEIS_CLIENTES, { nenhum: '—', editar: 'Edita' }, 'editar'],
+  acesso_prazos: [NIVEIS_PRAZOS, { nenhum: '—', editar: 'Edita' }, 'editar'],
+};
+
+function celulaNivel(m, campo) {
+  const [longos, curtos, maximo] = NIVEIS[campo];
+  const valor = m.papel === 'admin' ? maximo : m[campo];
+  return html`<td title="${longos[valor] ?? ''}">${curtos[valor] ?? '—'}</td>`;
+}
 
 export default async function telaMembros(ctx) {
   const mostrar = async () => {
@@ -68,7 +85,7 @@ function tela() {
       <div class="tabela-rolagem">
         <table class="tabela">
           <thead>
-            <tr><th>Membro</th><th>Perfil</th><th>E-mail de acesso</th><th>Agenda</th><th>Financeiro</th><th>Site</th><th>Situação</th><th class="acoes"><span class="sr-only">Ações</span></th></tr>
+            <tr><th>Membro</th><th>Perfil</th><th>E-mail de acesso</th><th>Agenda</th><th>Financeiro</th><th>Site</th><th>Clientes</th><th>Prazos</th><th>Situação</th><th class="acoes"><span class="sr-only">Ações</span></th></tr>
           </thead>
           <tbody>
             ${estado.membros.map((m) => html`
@@ -81,9 +98,7 @@ function tela() {
                 </td>
                 <td>${PAPEIS[m.papel]}</td>
                 <td>${m.email ?? html`<span class="sub">sem e-mail</span>`}${m.email ? html`<span class="sub">${m.user_id ? 'login vinculado' : 'aguardando o primeiro acesso'}</span>` : ''}</td>
-                <td>${m.papel === 'admin' ? 'Todas' : NIVEIS_AGENDA[m.acesso_agenda]}</td>
-                <td>${m.papel === 'admin' ? 'Completo' : NIVEIS_FINANCEIRO[m.acesso_financeiro]}</td>
-                <td>${m.papel === 'admin' ? 'Escreve e publica' : NIVEIS_SITE[m.acesso_site]}</td>
+                ${Object.keys(NIVEIS).map((campo) => celulaNivel(m, campo))}
                 <td>${m.ativo ? html`<span class="selo selo--ok">Ativo</span>` : html`<span class="selo">Desativado</span>`}</td>
                 <td class="acoes">
                   <button type="button" class="botao botao--pequeno" data-acao="editar" data-id="${m.id}">Editar</button>
@@ -124,15 +139,20 @@ function editarMembro(m) {
           <span class="campo__ajuda">É ele que libera o login.${m?.user_id ? ' Esta pessoa já entrou pelo menos uma vez.' : ''}</span>
         </label>
         <label class="campo campo--4"><span>OAB</span><input name="oab" value="${m?.oab ?? ''}" maxlength="40" placeholder="OAB/PR 000.000"></label>
-        <label class="campo campo--4">
+        <label class="campo campo--8">
           <span>Perfil</span>
           <select name="papel" ${souEu ? 'disabled' : ''}>${opcoes(Object.entries(PAPEIS), m?.papel ?? 'associado')}</select>
           ${souEu ? html`<span class="campo__ajuda">O próprio perfil não se muda.</span>` : ''}
         </label>
-        <label class="campo campo--4"><span>Agenda</span><select name="acesso_agenda">${opcoes(Object.entries(NIVEIS_AGENDA), m?.acesso_agenda ?? 'propria')}</select></label>
-        <label class="campo campo--4"><span>Financeiro</span><select name="acesso_financeiro">${opcoes(Object.entries(NIVEIS_FINANCEIRO), m?.acesso_financeiro ?? 'nenhum')}</select></label>
-        <label class="campo campo--4"><span>Site</span><select name="acesso_site">${opcoes(Object.entries(NIVEIS_SITE), m?.acesso_site ?? 'nenhum')}</select></label>
         <label class="campo campo--4"><span>Cor na agenda</span><input type="color" name="cor" value="${(m?.cor ?? '#2E615D').toLowerCase()}"></label>
+        <fieldset class="fieldset campos">
+          <legend>Acesso aos módulos</legend>
+          <label class="campo campo--4"><span>Agenda</span><select name="acesso_agenda">${opcoes(Object.entries(NIVEIS_AGENDA), m?.acesso_agenda ?? 'propria')}</select></label>
+          <label class="campo campo--4"><span>Financeiro</span><select name="acesso_financeiro">${opcoes(Object.entries(NIVEIS_FINANCEIRO), m?.acesso_financeiro ?? 'nenhum')}</select></label>
+          <label class="campo campo--4"><span>Site</span><select name="acesso_site">${opcoes(Object.entries(NIVEIS_SITE), m?.acesso_site ?? 'nenhum')}</select></label>
+          <label class="campo campo--6"><span>Clientes</span><select name="acesso_clientes">${opcoes(Object.entries(NIVEIS_CLIENTES), m?.acesso_clientes ?? 'editar')}</select></label>
+          <label class="campo campo--6"><span>Prazos</span><select name="acesso_prazos">${opcoes(Object.entries(NIVEIS_PRAZOS), m?.acesso_prazos ?? 'nenhum')}</select></label>
+        </fieldset>
       </div>
       <p class="nota nota--info secao" data-papel="admin" hidden>Administrador vê e altera tudo, qualquer que seja o nível escolhido acima.</p>`,
 
@@ -140,9 +160,7 @@ function editarMembro(m) {
       const atualizar = (sugerir) => {
         const papel = form.papel.value;
         if (sugerir && SUGESTOES[papel]) {
-          form.acesso_agenda.value = SUGESTOES[papel].acesso_agenda;
-          form.acesso_financeiro.value = SUGESTOES[papel].acesso_financeiro;
-          form.acesso_site.value = SUGESTOES[papel].acesso_site;
+          for (const [campo, valor] of Object.entries(SUGESTOES[papel])) form[campo].value = valor;
         }
         dialogo.querySelector('[data-papel="admin"]').hidden = papel !== 'admin';
       };
@@ -161,6 +179,8 @@ function editarMembro(m) {
         acesso_agenda: form.acesso_agenda.value,
         acesso_financeiro: form.acesso_financeiro.value,
         acesso_site: form.acesso_site.value,
+        acesso_clientes: form.acesso_clientes.value,
+        acesso_prazos: form.acesso_prazos.value,
       };
       if (novo) await db.inserir('membros', registro, 'id');
       else await db.alterar('membros', [['id', 'eq', m.id]], registro, 'id');

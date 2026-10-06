@@ -19,12 +19,14 @@ export const pode = {
   financeiro: () => ['lancamentos', 'completo'].includes(estado.membro?.acesso_financeiro),
   fechamento: () => estado.membro?.acesso_financeiro === 'completo',
   site: () => estado.membro?.acesso_site === 'editar',
+  clientes: () => estado.membro?.acesso_clientes === 'editar',
+  prazos: () => estado.membro?.acesso_prazos === 'editar',
   administrar: () => estado.membro?.papel === 'admin',
 };
 
 export async function carregarMembros() {
   estado.membros = await db.listar('membros', {
-    select: 'id,nome,nome_curto,papel,oab,cor,email,user_id,acesso_agenda,acesso_financeiro,acesso_site,ativo',
+    select: 'id,nome,nome_curto,papel,oab,cor,email,user_id,acesso_agenda,acesso_financeiro,acesso_site,acesso_clientes,acesso_prazos,ativo',
     ordem: 'nome_curto.asc',
   });
   estado.porId = new Map(estado.membros.map((m) => [m.id, m]));
@@ -57,6 +59,16 @@ export const NIVEIS_FINANCEIRO = {
 export const NIVEIS_SITE = {
   nenhum: 'Sem acesso',
   editar: 'Escreve e publica no site',
+};
+
+export const NIVEIS_CLIENTES = {
+  nenhum: 'Sem acesso',
+  editar: 'Clientes, contatos, atualizações e documentos',
+};
+
+export const NIVEIS_PRAZOS = {
+  nenhum: 'Sem acesso',
+  editar: 'Intimações, feriados e prazos processuais',
 };
 
 const LIGACOES = new Set(['de', 'da', 'do', 'das', 'dos', 'e']);

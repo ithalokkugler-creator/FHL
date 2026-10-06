@@ -8,6 +8,30 @@ Fonte: primeira reunião com o cliente, 11/09/2026, 47 min, Google Meet.
 Transcrição e 168 frames em `../Advocacia contexto/`. Marcações `[MM:SS]`
 referenciam o minuto do vídeo.
 
+**Entrega local de 05/10/2026:** iniciada a preparação de novas funções por
+E0 (acessos Clientes/Prazos), F1 (Contatos), F2 (Clientes e processos),
+F3 (Documentos) e F4 (Atualizações e cronômetro). Oito modelos permitem gerar,
+editar e imprimir; a ficha de atendimento recebe o relato da conversa. Tempo,
+participantes e relatório para o cliente estão prontos para teste fictício.
+F7 reúne avisos de Hoje, aniversários e lembretes com mensagens preparadas
+pela equipe, sem envio automático.
+F8 permite copiar compromissos para o Google por botão ou arquivo `.ics`,
+preparar lembrete no atendimento e ver feriados cadastrados na grade.
+A cópia exige salvar/importar na agenda usada pelo link de agendamento e
+conferir sua disponibilidade. Mudanças posteriores também precisam ser
+ajustadas no Google. Feriados nacionais automáticos continuam pendentes.
+F5/F6 ganharam tarefas, prazos informados manualmente, cadastro de feriados
+e conferência de intimações manuais com prazo/audiência ligados.
+Não houve commit, deploy ou migração remota. Estado técnico e roteiro:
+[TESTAR-NOVAS-FUNCOES.md](TESTAR-NOVAS-FUNCOES.md). Na mesma noite, revisão
+de bugs, visual e código: [REVISAO-NOVAS-FUNCOES.md](REVISAO-NOVAS-FUNCOES.md)
+— inclusive o aviso de que push na `main` publica na hora, e o frontend novo
+não abre sem as migrações aplicadas. Revisão dos textos jurídicos
+continua pendente (§7.8 da preparação). Contagem automática de prazos, datas
+móveis e busca/importação DJEN ficaram pendentes após bloqueio do filtro de
+conteúdo durante a geração dos módulos, sem motivo detalhado. A captura
+diária fica para depois da busca manual em uso, conforme §10.7.
+
 ---
 
 ## 1. Quem é quem

@@ -1,8 +1,8 @@
 // Cadastro mínimo de clientes (preparação 5.5).
 // ============================================
 //
-// Enquanto o módulo Clientes não existe, contrato e compromisso escolhem o
-// cliente por aqui — e cadastram na hora, sem sair do que estavam fazendo.
+// Contrato e compromisso usam este cadastro rápido sem precisar de acesso
+// aos dados completos, que ficam no módulo Clientes.
 
 import { abrirDialogo } from '../nucleo/dialogo.js';
 import { documento, documentoValido, limparDocumento, soDigitos, telefone } from '../nucleo/formato.js';
@@ -58,13 +58,15 @@ export function ligarCampoCliente(form, clientes, { aoMudar } = {}) {
     document.getElementById(texto.getAttribute('list'))
       .append(Object.assign(document.createElement('option'), { value: rotuloCliente(novo) }));
     texto.value = rotuloCliente(novo);
-    resolver();
+    oculto.value = novo.id;
+    texto.setCustomValidity('');
+    aoMudar?.(novo);
   });
 
   resolver();
 }
 
-export const cadastrarCliente = ({ nome = '' } = {}) => formularioCliente({ nome });
+export const cadastrarCliente = ({ nome = '', email = '', telefone = '' } = {}) => formularioCliente({ nome, email, telefone });
 
 /**
  * Corrigir o cadastro de quem já existe. Sem isto, um telefone digitado errado
@@ -106,7 +108,7 @@ function formularioCliente(c) {
         </label>
       </div>
       <p class="sub secao">${novo
-        ? 'Cadastro mínimo, até o módulo Clientes existir.'
+        ? 'Cadastro rápido para Agenda e Financeiro. Os dados completos podem ser preenchidos no módulo Clientes.'
         : 'Vale para todos os contratos deste cliente. O dado anterior fica no histórico.'}</p>`,
     aoEnviar: async (d) => {
       const doc = limparDocumento(d.documento);

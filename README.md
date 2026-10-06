@@ -9,6 +9,12 @@ Conteúdo em português do Brasil.
 
 ## Como rodar
 
+**Novas funções E0/F1–F4, F5/F6 manuais, F7 e recursos manuais de F8 (05/10/2026):** use `npm run testar:local` e abra
+<http://127.0.0.1:8125/__teste>. Essa prévia usa dados fictícios e não acessa a
+produção. Roteiro e estado das migrações: [TESTAR-NOVAS-FUNCOES.md](TESTAR-NOVAS-FUNCOES.md).
+As novas funções ainda não foram publicadas. `npm run dev` mantém a conexão
+com o Supabase configurado no projeto.
+
 Precisa de Node.js 20 ou mais novo. Não há dependências para instalar — o
 gerador usa só a biblioteca padrão, então não existe `node_modules`.
 
@@ -25,6 +31,7 @@ sozinho.
 |---|---|
 | `npm run dev` | Servidor local com rebuild automático e live reload |
 | `npm run dev -- 3000` | O mesmo, em outra porta |
+| `npm run testar:local` | Prévia isolada das novas funções, incluindo Agenda/Google/`.ics`, com perfis e dados fictícios, na porta 8125 |
 | `npm run build` | Gera o site completo em `dist/` |
 | `npm run preview` | Serve `dist/` como está, sem watch — confere o que vai ao ar |
 | `npm run check` | Valida links, âncoras, meta tags e SEO de todas as páginas |
@@ -154,8 +161,9 @@ simplesmente não reaparece.
 
 | Quero… | Mexo em… |
 |---|---|
-| Trocar telefone, e-mail, endereço, horário, OAB, CNPJ, domínio, redes | `src/data/site.mjs` |
-| Ligar o formulário a um backend | `FORM_ENDPOINT` em `src/data/site.mjs` — vazio, a mensagem abre no WhatsApp |
+| Trocar telefone, e-mail, endereço e horário | `sistema/js/escritorio.js`, identidade compartilhada com o site |
+| Trocar OAB da sociedade, CNPJ, domínio e redes | `src/data/site.mjs` |
+| Configurar o backend do formulário | `receber-contato` em `supabase/functions/`; `FORM_ENDPOINT` em `src/data/site.mjs`. Implementado localmente; migrações e função pendentes de publicação |
 | Pôr a foto de um advogado | `foto` em `src/data/equipe.mjs` — entra no lugar do retrato tipográfico |
 | Dizer em que áreas um advogado atende | `areas` em `src/data/equipe.mjs` — alimenta "Quem atende" da página da área |
 | Publicar um artigo novo | Área dos advogados → **Site → Publicações**. Índice, "continue lendo" e sitemap se atualizam sozinhos. Depois, `npm run og` para a imagem de compartilhamento |
@@ -176,7 +184,7 @@ simplesmente não reaparece.
 |---|---|---|
 | **Astro 5** | Gerador próprio em Node, sem dependências | A arquitetura da preparação está toda aqui — shell único, dados separados das páginas, uma função por página — só sem o framework e sem `node_modules`. Para um site de 16 páginas estáticas, Astro traria bundler, islands e atualizações de dependência que nada aqui usa. Se algum dia precisar de MDX, otimização de imagem ou componentes interativos, cada `page()` vira um `.astro` e o shell vira `src/layouts/Base.astro`. |
 | **Three.js**, imports seletivos, ≤ 60 KB gzip | **WebGL puro**, 5,3 KB gzip | O teto de 60 KB só é atingível com tree-shaking, que exige bundler. E a cena é *um plano com shader próprio* — sem scene graph, sem loader, sem sistema de materiais. Os shaders são exatamente os especificados: mesmo resultado visual, 1 draw call, zero dependência. |
-| Formulário via Astro Actions + Resend | Validação completa no cliente; sem backend, a mensagem **abre pronta no WhatsApp** do escritório | Precisa de backend. Antes o formulário exibia "Mensagem enviada" sem mandar nada — no ar, todo contato escrito ali se perderia. Com `FORM_ENDPOINT` preenchido em `src/data/site.mjs`, vira um POST com os campos em JSON (o `fetch` já está em `site.js`). |
+| Formulário via Astro Actions + Resend | Função Supabase `receber-contato` e módulo Contatos, implementados localmente em F1 | Mensagem, origem e consentimento ficam no sistema. Limites e chave de serviço no servidor; WhatsApp como alternativa de falha. Publicação ainda pendente. |
 
 Fora isso, a preparação foi seguida: paleta, escala tipográfica, grid, os quatro
 gestos de revelação nomeados, a cortina de dois painéis, os pins de Atuação (300vh) e Linguagem (150vh), a tradução ao vivo do
@@ -411,11 +419,12 @@ números. A seção Linguagem mostra o texto já traduzido.
    (`src/partials/equipe.mjs`). A foto entra pelo campo `foto` de
    `src/data/equipe.mjs`. Foto de banco de imagens derrubaria o site.
 6. **Política de Privacidade revisada pelo próprio escritório.**
-7. **Backend do formulário.** Enquanto `FORM_ENDPOINT` estiver vazio, a
-   mensagem validada abre pronta no WhatsApp do escritório — nada se perde,
-   mas o registro fica no celular de quem atende. O destino natural é o
-   módulo Contatos da área dos advogados. Nas campanhas, a mensagem já diz de
-   qual campanha veio.
+7. **Backend do formulário — implementado localmente (E0/F1, 05/10/2026).**
+   `receber-contato` grava no módulo Contatos com página, campanha e
+   consentimento. Falta aprovação do teste, aplicação das oito migrações (E0/F1–F4, F5/F6 manuais e F7),
+   configuração do segredo e publicação da função antes do frontend.
+   Ver [TESTAR-NOVAS-FUNCOES.md](TESTAR-NOVAS-FUNCOES.md). A produção atual
+   continua com o comportamento anterior até essa publicação.
 
 **Já resolvidos com os dados reais:** endereço (Rua Dr. Leocádio, 282 — Centro,
 Paranaguá/PR), telefone e WhatsApp, as quatro áreas de atuação, os nomes

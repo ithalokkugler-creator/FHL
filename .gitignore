@@ -14,3 +14,7 @@ Thumbs.db
 *.log
 .env
 .env.local
+
+# Prévia e validação locais (não vão ao ar)
+.local/
+supabase/.temp/

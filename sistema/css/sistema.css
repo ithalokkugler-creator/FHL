@@ -35,6 +35,7 @@
   --c-alerta: #8A5F22;  --c-alerta-fundo: #F3EBDD;
   --c-ok:     #2E615D;  --c-ok-fundo:     #E1ECE7;
   --c-neutro: #465953;  --c-neutro-fundo: #E6E6DF;
+  --c-feriado: #F8F3E9;
 
   /* Semânticos: os únicos que os componentes consomem */
   --c-fundo:       var(--c-bone);
@@ -195,6 +196,7 @@ img { max-width: 100%; display: block; }
   text-decoration: none;
 }
 .menu a:hover { background: var(--c-petrol-up); }
+.menu__contagem { float: right; margin-left: var(--s-2); padding: 0 0.45em; border-radius: 1em; background: var(--c-papel); color: var(--c-petrol); font-size: var(--t-pequeno); font-variant-numeric: tabular-nums; }
 .menu a[aria-current='page'] {
   border-left-color: var(--c-mint);
   background: var(--c-petrol-up);
@@ -227,6 +229,8 @@ img { max-width: 100%; display: block; }
   text-decoration: none;
 }
 .usuario small { display: block; font-size: 12px; color: var(--c-ink-claro-m); }
+/* A mesma peça na tabela de Membros, sobre o papel claro. */
+.tabela .usuario { min-width: 12rem; color: var(--c-texto); }
 
 .avatar {
   flex: 0 0 auto;
@@ -267,7 +271,10 @@ img { max-width: 100%; display: block; }
 .conteudo:focus { outline: none; }
 
 @media (max-width: 900px) {
-  .casca { grid-template-columns: minmax(0, 1fr); }
+  /* Duas linhas: o topo do tamanho dele e o conteúdo com o resto. Sem isso,
+     em tela curta a grade dividia a sobra entre as duas e abria um vão
+     enorme entre o topo e o título. */
+  .casca { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
 
   .topo-movel {
     position: sticky;
@@ -384,6 +391,8 @@ img { max-width: 100%; display: block; }
 .botao[disabled] { opacity: 0.55; cursor: not-allowed; }
 
 .grupo-botoes { display: inline-flex; flex-wrap: wrap; gap: var(--s-1); }
+/* Botões de um diálogo em fileiras: a ação principal em cima, o histórico embaixo. */
+.detalhe-acoes { display: grid; justify-items: start; gap: var(--s-2); }
 
 /* --------------------------------------------------------------------------
    FORMULÁRIOS
@@ -413,6 +422,10 @@ img { max-width: 100%; display: block; }
   border-radius: var(--r-none);
   background: #fff;
 }
+/* Altura fixa nos campos de uma linha: o de data do Chrome tem dois pixels a
+   mais por dentro e ficava desalinhado dos vizinhos na barra de filtros. */
+.campo input:not([type='checkbox']):not([type='radio']),
+.campo select { height: 38px; }
 .campo textarea { min-height: 84px; resize: vertical; line-height: 1.45; }
 .campo input:focus,
 .campo select:focus,
@@ -521,25 +534,30 @@ img { max-width: 100%; display: block; }
 .grade { display: grid; gap: var(--s-4); }
 .grade--2 { grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); }
 .grade--hoje { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
+.aviso-dia { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--s-2); padding: var(--s-3) var(--s-4); }
+.aviso-dia > span { min-width: 0; overflow-wrap: anywhere; }
+.grade--hoje .compromisso { grid-template-columns: 78px minmax(0, 1fr); }
+.grade--hoje .compromisso__acoes { grid-column: 1 / -1; justify-content: flex-start; }
+@media (max-width: 700px) { .grade--hoje .compromisso { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 1100px) { .grade--hoje { grid-template-columns: minmax(0, 1fr); } }
 
+/* Linha flexível em vez de grade: quem sobra numa linha incompleta estica até
+   o fim dela. Na grade, `grid-column-end: -1` jogava o último para a última
+   coluna e deixava o fundo cinza aparecendo ao lado (três números no celular). */
 .indicadores {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 1px;
   margin-bottom: var(--s-5);
   border: 1px solid var(--c-linha);
   background: var(--c-linha);
 }
+.indicadores > * { flex: 1 1 170px; min-width: 0; }
 .indicadores--embutido { margin: 0; border: 0; border-bottom: 1px solid var(--c-linha); }
-/* Seis números: duas linhas de três. Na grade automática, o sexto caía
-   sozinho numa linha e deixava o fundo cinza aparecendo ao lado. */
+/* Seis números: duas linhas de três. */
 @media (min-width: 720px) {
-  .indicadores--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .indicadores--3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
-/* Rede de segurança para qualquer quantidade: o último estica até o fim da
-   linha, em vez de deixar célula vazia. */
-.indicadores > :last-child { grid-column-end: -1; }
 .indicador { display: grid; align-content: start; gap: 2px; padding: var(--s-3) var(--s-4); background: var(--c-superficie); }
 .indicador__valor {
   font-size: 21px;
@@ -577,7 +595,10 @@ a.lista__item:hover { background: var(--c-realce); }
 /* --------------------------------------------------------------------------
    TABELAS
    -------------------------------------------------------------------------- */
-.tabela-rolagem { overflow-x: auto; }
+/* position: relative prende aqui dentro o que é absoluto (o .sr-only do
+   cabeçalho "Ações"): sem isso ele escapava da rolagem e alargava a página
+   inteira no celular. */
+.tabela-rolagem { position: relative; overflow-x: auto; }
 
 .tabela { width: 100%; border-collapse: collapse; font-size: var(--t-pequeno); }
 .tabela th {
@@ -594,7 +615,9 @@ a.lista__item:hover { background: var(--c-realce); }
 }
 .tabela td { padding: 9px 12px; border-bottom: 1px solid var(--c-linha); vertical-align: middle; }
 .tabela tbody tr:hover { background: var(--c-realce); }
-.tabela .num { text-align: right; }
+/* Só a célula alinha à direita; um número dentro de outra linha da célula
+   (o CNJ debaixo do título) continua à esquerda. */
+.tabela td.num, .tabela th.num { text-align: right; }
 .tabela .acoes { text-align: right; white-space: nowrap; }
 .tabela tfoot td { border-top: 1px solid var(--c-linha-forte); border-bottom: 0; font-weight: 700; }
 .tabela tr.apagada td { color: var(--c-texto-m); }
@@ -922,6 +945,19 @@ a.lista__item:hover { background: var(--c-realce); }
 .agenda__cabeca strong { display: block; font-size: 17px; line-height: 1.1; }
 .agenda__cabeca--hoje { box-shadow: inset 0 -3px 0 var(--c-teal); }
 .agenda__cabeca--hoje strong { color: var(--c-teal); }
+/* Feriado cadastrado: tom quente e leve — avisa sem parecer dia bloqueado,
+   porque o destaque não impede marcar. */
+.agenda__cabeca--feriado { background: var(--c-feriado); }
+.agenda__feriado { display: block; margin-top: 4px; color: var(--c-alerta); font-size: 11px; font-weight: 600; overflow-wrap: anywhere; }
+.agenda-lista__feriado {
+  margin-bottom: var(--s-2);
+  padding: 6px 10px;
+  border-left: 3px solid var(--c-alerta);
+  background: var(--c-feriado);
+  color: var(--c-alerta);
+  font-size: var(--t-pequeno);
+  font-weight: 600;
+}
 
 .agenda__dia-todo {
   display: grid;
@@ -966,6 +1002,7 @@ a.lista__item:hover { background: var(--c-realce); }
   cursor: copy;
 }
 .agenda__coluna--hoje { background-color: #F6F8F5; }
+.agenda__coluna--feriado { background-color: var(--c-feriado); }
 
 .agenda__agora {
   position: absolute;
@@ -1028,7 +1065,9 @@ a.lista__item:hover { background: var(--c-realce); }
   .agenda { display: none; }
   .agenda-lista { display: grid; gap: var(--s-4); }
 }
-.agenda-lista__dia h3 { margin-bottom: var(--s-2); font-size: var(--t-pequeno); text-transform: capitalize; }
+/* Só a primeira letra é maiúscula (capitalizar() no JS): text-transform
+   escrevia "5 De Outubro". */
+.agenda-lista__dia h3 { margin-bottom: var(--s-2); font-size: var(--t-pequeno); }
 
 /* --------------------------------------------------------------------------
    SITE — publicações e campanhas
@@ -1130,4 +1169,259 @@ a.lista__item:hover { background: var(--c-realce); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
+/* ==========================================================================
+   MÓDULOS DE CLIENTES, DOCUMENTOS, ATUALIZAÇÕES, TAREFAS E INTIMAÇÕES
+   ========================================================================== */
+
+/* Caixa de marcar em linha, para listas curtas: participantes, advogados. */
+.marcar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 var(--s-4) var(--s-1) 0;
+  font-size: var(--t-pequeno);
+}
+.marcar input { margin: 0; accent-color: var(--c-teal); }
+
+/* Grupo de campos com título — o cadastro completo, os participantes. */
+.cadastro-grupo { min-width: 0; margin: 0 0 var(--s-5); padding: 0; border: 0; }
+.cadastro-grupo:last-child { margin-bottom: 0; }
+.cadastro-grupo legend {
+  width: 100%;
+  margin-bottom: var(--s-3);
+  padding: 0 0 var(--s-2);
+  border-bottom: 1px solid var(--c-linha);
+  font-weight: 700;
+}
+
+/* Fileira de botões de um registro: abrir, editar, histórico. */
+.registro-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+
+/* Texto digitado por alguém, com as quebras de linha que a pessoa fez. */
+.texto-preservado { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* --------------------------------------------------------------------------
+   CONTATOS
+   -------------------------------------------------------------------------- */
+.contato-mensagem {
+  padding: var(--s-3) var(--s-4);
+  border-left: 3px solid var(--c-linha-forte);
+  background: var(--c-realce);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.filtros--contatos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.filtros--contatos .campo { min-width: 0; }
+@media (min-width: 1700px) { .filtros--contatos { grid-template-columns: 1fr 1fr 1fr 1.5fr 1fr 1fr; } }
+@media (max-width: 560px) { .filtros--contatos { grid-template-columns: minmax(0, 1fr); } }
+.contato-resumo { min-width: 9rem; max-width: 24rem; overflow-wrap: anywhere; }
+.tabela--contatos td:nth-child(3) { min-width: 7.5rem; }
+.tabela--contatos td:nth-child(3) .selo { white-space: normal; overflow-wrap: anywhere; }
+.tabela--contatos td.acoes { white-space: normal; }
+/* Fileiras fixas evitam que os cinco botões mudem de posição conforme o
+   espaço da tabela: abrir/responder; converter; arquivar/histórico. */
+.contato-acoes { display: grid; gap: 6px; width: 12rem; margin-left: auto; }
+.contato-acoes__linha { display: flex; gap: 6px; }
+.contato-acoes__linha > .botao { flex: 1; }
+
+/* --------------------------------------------------------------------------
+   CLIENTES E PROCESSOS
+   -------------------------------------------------------------------------- */
+.tabela--processos td:first-child { min-width: 210px; }
+.tabela--processos td:last-child { min-width: 155px; }
+
+.cliente-dados { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4); }
+.cliente-dados dt { font-size: var(--t-pequeno); color: var(--c-texto-m); }
+.cliente-dados dd { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+@media (max-width: 560px) { .cliente-dados { grid-template-columns: minmax(0, 1fr); } }
+
+.cliente-registros { display: grid; gap: var(--s-3); }
+.cliente-registros li { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2) var(--s-3); }
+.cliente-registros li span { font-size: var(--t-pequeno); }
+.cliente-subtitulo { margin-bottom: var(--s-2); font-size: var(--t-pequeno); font-weight: 700; }
+.cliente-totais { margin-bottom: var(--s-4); }
+
+/* --------------------------------------------------------------------------
+   DOCUMENTOS — folha A4 editável
+   A folha tem o tamanho do papel; em tela estreita ela encolhe por inteiro
+   (zoom, ver ajustarFolha em documentos/acoes.js) em vez de ser cortada.
+   -------------------------------------------------------------------------- */
+.documento-editor {
+  display: grid;
+  grid-template-columns: minmax(230px, 300px) minmax(0, 1fr);
+  gap: var(--s-5);
+  align-items: start;
+}
+@media (max-width: 1000px) { .documento-editor { grid-template-columns: minmax(0, 1fr); } }
+.documento-controles { min-width: 0; }
+
+.documento-modelos { min-width: 0; margin: 0; padding: 0; border: 0; }
+.documento-modelos legend { margin-bottom: var(--s-2); font-size: 12px; font-weight: 600; color: var(--c-texto-m); }
+.documento-modelo {
+  display: block;
+  width: 100%;
+  margin-bottom: 4px;
+  padding: 9px 12px;
+  border: 1px solid var(--c-linha);
+  border-left: 3px solid transparent;
+  background: var(--c-superficie);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.documento-modelo:hover { border-color: var(--c-linha-forte); }
+.documento-modelo span { display: block; margin-top: 2px; font-size: 12px; color: var(--c-texto-m); }
+.documento-modelo[aria-pressed='true'] { border-color: var(--c-acao); border-left-color: var(--c-acao); background: var(--c-ok-fundo); }
+.documento-pendencias { margin-top: var(--s-3); font-size: var(--t-pequeno); }
+
+.documento-visualizacao { min-width: 0; overflow-x: auto; padding: var(--s-3); background: var(--c-bone-dim); }
+.documento-folha {
+  box-sizing: border-box;
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 18mm;
+  background: #fff;
+  color: #111;
+  box-shadow: 0 1px 8px rgba(12, 25, 23, 0.14);
+  font: 12pt/1.45 'Times New Roman', Georgia, serif;
+  overflow-wrap: anywhere;
+  zoom: var(--escala, 1);
+}
+.documento-folha[contenteditable='true']:focus { outline: 2px solid var(--c-foco); outline-offset: -2px; }
+.documento-folha p { margin: 0 0 12pt; }
+.documento-folha h2 { margin: 18pt 0 10pt; font-size: 14pt; }
+.documento-folha ul, .documento-folha ol { margin: 0 0 12pt; padding-left: 18pt; list-style: disc; }
+.documento-folha li { margin-bottom: 2pt; }
+
+.doc-cabecalho { margin-bottom: 24pt; text-align: center; }
+.doc-cabecalho img { display: inline-block; width: 180px; height: auto; }
+.doc-titulo { margin: 0 0 22pt; font-size: 16pt; text-align: center; text-transform: uppercase; }
+.doc-data { margin-top: 22pt !important; text-align: right; }
+.doc-assinatura { margin-top: 30pt; text-align: center; break-inside: avoid; }
+.doc-assinatura p { margin-bottom: 2pt; }
+.doc-rodape { margin-top: 24pt; font-size: 8pt; text-align: center; color: #333; }
+.doc-nota { font-size: 10pt; color: #333; }
+.doc-num { white-space: nowrap; }
+.doc-falta { background: #FFF0D5; color: #A42317; }
+
+/* Tabelas da folha. `overflow-wrap: anywhere` da folha deixava a coluna
+   encolher no meio da palavra ("Duraçã/o"); aqui a quebra é só onde cabe. */
+.doc-tabela { width: 100%; margin-bottom: 12pt; border-collapse: collapse; font-size: 10pt; }
+.doc-tabela th, .doc-tabela td { padding: 6pt; border: 1px solid #AAA; vertical-align: top; overflow-wrap: break-word; }
+.doc-tabela th { background: #F4F4F4; }
+.doc-tabela td > p { margin: 0; }
+.doc-tabela td > p + p { margin-top: 3pt; }
+
+/* Ficha de atendimento: formulário com bordas, rótulo à esquerda e espaço
+   para o relato — é o papel que o cliente assina. */
+.doc-ficha { width: 100%; margin-bottom: 14pt; border-collapse: collapse; font-size: 11pt; }
+.doc-ficha th, .doc-ficha td { padding: 5pt 7pt; border: 1px solid #999; text-align: left; vertical-align: top; overflow-wrap: break-word; }
+.doc-ficha th { width: 18%; background: #F2F2F2; font-weight: 700; }
+.doc-ficha-relato { height: 45mm; white-space: pre-wrap; }
+
+.documento-impressao { display: none; }
+
+/* --------------------------------------------------------------------------
+   ATUALIZAÇÕES E CRONÔMETRO
+   -------------------------------------------------------------------------- */
+.atualizacoes-linha { display: grid; gap: var(--s-5); }
+.atualizacoes-dia > .cliente-subtitulo { padding-bottom: var(--s-1); border-bottom: 1px solid var(--c-linha-forte); }
+.atualizacao { padding: var(--s-4) 0; border-bottom: 1px solid var(--c-linha); overflow-wrap: anywhere; }
+.atualizacao:last-child { border-bottom: 0; }
+.atualizacao__topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2) var(--s-3); }
+.atualizacao__relato { margin: var(--s-2) 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.atualizacao--cancelada { opacity: 0.7; }
+
+/* O relógio que acompanha quem está atendendo: na lateral escura, no
+   computador, e dentro do topo, no celular. */
+.cronometro-global {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-bottom: var(--s-3);
+  padding: 8px 10px;
+  border: 1px solid var(--c-petrol-ln);
+  background: var(--c-petrol-up);
+  color: var(--c-ink-claro);
+  font-size: 12px;
+}
+.cronometro-global[hidden] { display: none; }
+.cronometro-global__nome { display: flex; flex: 1 1 100%; align-items: center; gap: 6px; min-width: 0; }
+.cronometro-global__nome [data-nome] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cronometro-global__ponto {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #E08A7C;
+  animation: cronometro-pulsa 1.6s ease-in-out infinite;
+}
+@keyframes cronometro-pulsa { 50% { opacity: 0.35; } }
+.cronometro-global__tempo { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+.cronometro-global .botao {
+  min-height: 26px;
+  margin-left: auto;
+  padding: 0 10px;
+  border-color: var(--c-petrol-ln);
+  background: transparent;
+  color: var(--c-ink-claro);
+}
+.cronometro-global .botao:hover { border-color: var(--c-mint); }
+
+/* No celular, o relógio cabe na própria linha do topo (que tem altura fixa):
+   o "Advocacia" da marca dá lugar a ele, e o nome do cliente encurta. */
+@media (max-width: 900px) {
+  .topo-movel .cronometro-global { flex-wrap: nowrap; order: 3; min-width: 0; margin: 0 0 0 auto; padding: 3px 3px 3px 8px; gap: 8px; }
+  .topo-movel .cronometro-global__nome { flex: 0 1 auto; max-width: 8.5em; }
+  .topo-movel .cronometro-global__tempo { font-size: 13px; }
+  .topo-movel:has(.cronometro-global:not([hidden])) .marca__nome { display: none; }
+}
+@media (max-width: 380px) {
+  .topo-movel .cronometro-global__nome { display: none; }
+}
+
+/* --------------------------------------------------------------------------
+   TAREFAS, PRAZOS E INTIMAÇÕES
+   -------------------------------------------------------------------------- */
+.tarefa-prazo { min-width: 0; margin: 0; padding: 0; border: 0; }
+.tabela--tarefas { min-width: 1060px; }
+.tabela--tarefas td { vertical-align: top; }
+.tabela--tarefas details { max-width: 340px; }
+.tarefa-responsavel { display: inline-flex; align-items: center; gap: 6px; }
+.tarefa-datas { display: grid; justify-items: start; gap: 2px; }
+
+.intimacao-teor { max-height: 340px; overflow: auto; padding: var(--s-4); border: 1px solid var(--c-linha); }
+.intimacoes-lista > li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-5);
+  border-bottom: 1px solid var(--c-linha);
+}
+.intimacoes-lista > li:last-child { border-bottom: 0; }
+.intimacoes-lista > li > div:first-child { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.intimacoes-lista .registro-acoes { flex: none; }
+@media (max-width: 680px) { .intimacoes-lista > li { flex-direction: column; } }
+
+/* --------------------------------------------------------------------------
+   IMPRESSÃO DE DOCUMENTOS E DO RESUMO DE PRAZOS
+   -------------------------------------------------------------------------- */
+@media print {
+  @page documento { size: A4; margin: 18mm 18mm 25mm; }
+  body.imprimindo-documento > :not(.documento-impressao) { display: none !important; }
+  body.imprimindo-documento .documento-impressao { display: block; }
+  .documento-impressao .documento-folha { page: documento; width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; zoom: 1; }
+  .documento-impressao .doc-rodape { position: fixed; bottom: 0; left: 0; right: 0; margin: 0; }
+  .documento-impressao--rodape-margem .doc-rodape { display: none; }
+  .documento-impressao thead { display: table-header-group; }
+  .documento-impressao tr { break-inside: avoid; }
+  .documento-impressao h1, .documento-impressao h2 { break-after: avoid; }
+
+  .tabela--tarefas { min-width: 0; font-size: 9px; }
+  .tabela--tarefas td { overflow-wrap: anywhere; }
 }
