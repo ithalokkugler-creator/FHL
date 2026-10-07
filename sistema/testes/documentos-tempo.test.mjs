@@ -2,7 +2,7 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MODELOS, TITULOS_MODELO } from '../js/documentos/modelos.js';
+import { MODELOS, TITULOS_MODELO, validarComplementos } from '../js/documentos/modelos.js';
 import { qualificacao } from '../js/documentos/partes.js';
 import { montarRelatorio } from '../js/documentos/relatorio.js';
 import { filtrarAtualizacoes, minutosDe, prepararAtualizacao, totais } from '../js/dominio/tempo.js';
@@ -53,10 +53,52 @@ test('Contrato mantém cláusulas da preparação e honorários em reais', () =>
   assert.match(s, /multa compensatória de 10%/);
 });
 
-test('Contrato com êxito apagado mostra a pendência em vez de "% sobre"', () => {
-  assert.match(montar('contrato_honorarios', { exito: '' }), /\[ÊXITO\]<\/span>% sobre o proveito/);
-  assert.match(montar('contrato_honorarios', { exito: 0 }), / 0% sobre o proveito/);
-  assert.match(montar('contrato_honorarios'), / 30% sobre o proveito/);
+test('Contrato respeita modalidade fixa e sinaliza êxito pendente na modalidade escolhida', () => {
+  assert.match(montar('contrato_honorarios', { modalidade: 'exito', exito: '' }), /\[ÊXITO\]<\/span>% sobre o proveito/);
+  assert.match(montar('contrato_honorarios', { exito: 0 }), /Não foram pactuados honorários de êxito/);
+  assert.doesNotMatch(montar('contrato_honorarios'), /30%/);
+});
+
+test('Contrato discrimina entrada, filtra cláusulas por área e usa percentual escolhido', () => {
+  const s = montar('contrato_honorarios', { modalidade: 'misto', area: 'trabalhista', entrada: '500', valor_total: '2000', parcelas: 3, valor_parcela: '500', dia_vencimento: 20, exito: 15 });
+  assert.match(s, /entrada de R\$\s*500,00/);
+  assert.match(s, /honorários de êxito de 15%/);
+  assert.doesNotMatch(s, /30%|Nas ações criminais|Nas ações previdenciárias/);
+  assert.doesNotMatch(montar('contrato_honorarios', { area: 'trabalhista', modalidade: 'fixo', exito: 0 }), /3\.3\./);
+  assert.doesNotMatch(montar('contrato_honorarios', { modalidade: 'exito', exito: 20 }), /\[PARCELA\]|\[DIA\]|\[VALOR\]/);
+});
+
+test('Complementos recusam valores contraditórios e permitem entrada integral sem parcelas', () => {
+  assert.throws(() => validarComplementos('contrato_honorarios', { valor_total: '900', entrada: '1000' }), /entrada não pode/);
+  assert.throws(() => validarComplementos('contrato_honorarios', { valor_total: '900', entrada: '0', parcelas: 3, valor_parcela: '400' }), /entrada mais as parcelas/);
+  assert.throws(() => validarComplementos('contrato_honorarios', { modalidade: 'exito', exito: 0 }), /maior que zero/);
+  assert.throws(() => validarComplementos('prestacao_contas', { valor_repassado: '-1' }), /maior que zero/);
+  assert.doesNotThrow(() => validarComplementos('contrato_honorarios', { valor_total: '900', entrada: '900' }));
+  const s = montar('contrato_honorarios', { valor_total: '900', entrada: '900' });
+  assert.match(s, /à vista/); assert.doesNotMatch(s, /\[PARCELA\]|\[DIA\]|\[N.º\]/);
+});
+
+test('Contrato vinculado mostra datas/valores reais, inclusive parcelas diferentes e critério próprio', () => {
+  const s = montar('contrato_honorarios', { modalidade: 'fixo', valor_total: '1000', financeiro: {
+    criterio: { multa_pct: 2, juros_mes_pct: 0.5, correcao: 'nenhuma', carencia_dias: 5 },
+    parcelas: [{ numero: 0, valor: 200, vencimento: '2026-10-01' }, { numero: 1, valor: 350, vencimento: '2026-10-20' }, { numero: 2, valor: 450, vencimento: '2026-11-20' }],
+  } });
+  assert.match(s, /Entrada/); assert.match(s, /350,00/); assert.match(s, /450,00/);
+  assert.match(s, /20\/11\/2026/); assert.match(s, /multa de 2%/); assert.match(s, /juros simples de 0,5%/);
+  assert.match(s, /sem correção monetária/); assert.match(s, /carência de 5/);
+});
+
+test('Prestação distingue saldo principal de recebimentos com encargos e não declara quitação geral', () => {
+  const d = { valor_total: '900', total_pago: '150', financeiro: { parcelas: [
+    { id: 'p', numero: 1, valor: 300, saldo: 200, vencimento: '2026-10-01' },
+    { id: 'q', numero: 2, valor: 600, saldo: 600, vencimento: '2026-11-01' },
+    { id: 'x', valor: 500, saldo: 500, situacao: 'renegociada' },
+  ], recebimentos: [{ parcela_id: 'p', valor: 150, valor_principal: 100, valor_encargos: 50, data: '2026-10-06' }] } };
+  const s = montar('prestacao_contas', d);
+  assert.match(s, /Saldo de principal em aberto:<\/strong> R\$\s*800,00/);
+  assert.match(s, /não constitui quitação geral/);
+  assert.doesNotMatch(s, /declaram nada mais ter a reclamar|750,00/);
+  assert.match(montar('prestacao_contas', { financeiro: { contrato: { tipo_honorario: 'exito', situacao: 'a_apurar' } } }), /ainda estão a apurar/);
 });
 
 test('Prestação usa pagamentos válidos e exclui estorno e parcela cancelada', () => {

@@ -21,7 +21,7 @@ export async function confirmarPendencias(elemento, acao) {
   if (!n) return true;
   return Boolean(await abrirDialogo({
     titulo: 'Dados pendentes no documento',
-    rotuloOk: acao === 'word' ? 'Baixar assim mesmo' : 'Imprimir assim mesmo',
+    rotuloOk: acao === 'word' ? 'Baixar assim mesmo' : acao === 'salvar' ? 'Salvar com pendências' : 'Imprimir assim mesmo',
     corpo: html`<p>${n === 1 ? 'Falta 1 dado' : `Faltam ${n} dados`}. Confira os trechos entre colchetes na folha e complete o cadastro ou edite o texto antes de entregar.</p>`,
   }));
 }

@@ -1,7 +1,7 @@
 // Os oito modelos de documento (preparação, Apêndice A).
 // ======================================================
 //
-// A redação é a do protótipo do Vinícius, transcrita sem mudança: cada
+// A redação parte do protótipo do Vinícius: cada
 // parágrafo fica numa linha só, para o texto jurídico não se misturar com o
 // código. Mudar redação é decisão do escritório (§7.8 da preparação) — os
 // pontos de revisão continuam pendentes.
@@ -10,8 +10,9 @@
 // e devolve a folha inteira (partes.js → folha). `complementos` são os campos
 // que a tela "Gerar documento" pede além do cadastro.
 
-import { centavos, data, documento, lerMoeda, moeda, numeroCnj, telefone } from '../nucleo/formato.js';
+import { centavos, data, documento, lerMoeda, moeda, numeroCnj, percentual, telefone } from '../nucleo/formato.js';
 import { html } from '../nucleo/html.js';
+import { ErroCampo } from '../nucleo/formularios.js';
 import { advogados, dado, endereco, estadoCivil, folha, qualificacao } from './partes.js';
 
 const campo = (nome, rotulo, tipo = 'text', extra = {}) => ({ nome, rotulo, tipo, ...extra });
@@ -58,6 +59,66 @@ const GARANTIAS = { nenhuma: 'Nenhuma', fianca: 'Fiança', penhor: 'Penhor', hip
 const FORMAS_RENUNCIA = { com_comunicacao: 'Com comunicação e prazo de 10 dias', outro_procurador: 'Parte segue com outro procurador' };
 const campoProcesso = campo('processo', 'Número dos autos / referência');
 
+const numeroValido = (v) => v !== '' && v != null && Number.isFinite(Number(v));
+const modalidade = (d) => d.modalidade || (Number(d.exito) > 0 ? 'misto' : 'fixo');
+const parcelasValidas = (d) => (d.financeiro?.parcelas ?? []).filter((p) => !['cancelada', 'renegociada'].includes(p.situacao));
+
+/** Pendências podem ser guardadas com aviso; valores contraditórios precisam de correção. */
+export function validarComplementos(modeloId, d) {
+  const monetarios = modeloId === 'contrato_honorarios'
+    ? ['valor_total', 'entrada', 'valor_parcela'] : modeloId === 'prestacao_contas'
+      ? ['valor_total', 'total_pago', 'valor_repassado'] : [];
+  for (const nome of monetarios) {
+    const v = lerMoeda(d[nome]);
+    if (v !== null && (!Number.isFinite(v) || v < 0)) throw new ErroCampo(nome, 'Informe um valor monetário válido, igual ou maior que zero.');
+  }
+  if (modeloId !== 'contrato_honorarios') return;
+  if (modalidade(d) !== 'fixo' && d.exito !== '' && d.exito != null && (!numeroValido(d.exito) || Number(d.exito) <= 0 || Number(d.exito) > 100)) {
+    throw new ErroCampo('exito', 'Para honorários de êxito, informe um percentual maior que zero e até 100%, ou escolha Valor fixo.');
+  }
+  if (d.financeiro || modalidade(d) === 'exito') return;
+  const total = lerMoeda(d.valor_total);
+  const entrada = lerMoeda(d.entrada) ?? 0;
+  const parcela = lerMoeda(d.valor_parcela);
+  if (total != null && entrada > total) throw new ErroCampo('entrada', 'A entrada não pode ser maior que o valor total.');
+  if (total > entrada && parcela != null && numeroValido(d.parcelas) && entrada + parcela * Number(d.parcelas) !== total) {
+    throw new ErroCampo('valor_parcela', 'A entrada mais as parcelas deve corresponder ao valor total. Confira os valores e a quantidade de parcelas.');
+  }
+}
+
+function pagamentoContrato(d) {
+  const tipo = modalidade(d);
+  const exito = dado(d.exito, 'ÊXITO');
+  const parcelas = parcelasValidas(d);
+  const fixo = tipo !== 'exito';
+  const entrada = lerMoeda(d.entrada);
+  const aVista = entrada > 0 && entrada === lerMoeda(d.valor_total);
+  const condicoes = parcelas.length ? ', conforme as parcelas abaixo'
+    : aVista ? ', à vista, integralmente como entrada'
+      : html`${entrada > 0 ? html`, com entrada de ${dinheiro(d.entrada, 'ENTRADA')} e saldo` : ', parcelado'} em ${dado(d.parcelas, 'N.º')} vez(es) de ${dinheiro(d.valor_parcela, 'PARCELA')}, com vencimento todo dia ${dado(d.dia_vencimento, 'DIA')}`;
+  return html`${fixo ? html`O contratante pagará aos contratados ${dinheiro(d.valor_total, 'VALOR')}${condicoes}.
+    ${parcelas.length ? html`<table class="doc-tabela"><thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor</th></tr></thead><tbody>${parcelas.map((p) => html`<tr><td>${p.numero === 0 ? 'Entrada' : `Parcela ${p.numero}`}</td><td>${data(p.vencimento)}</td><td>${moeda(centavos(p.valor))}</td></tr>`)}</tbody></table>` : ''}` : ''}
+    ${tipo !== 'fixo' ? html`${fixo ? 'Além dos honorários fixos, serão devidos' : 'Os honorários serão de'} ${exito}% sobre o proveito econômico, condicionados à apuração do resultado.${tipo === 'exito' ? ' Não há cobrança fixa adicional nesta modalidade.' : ''}` : 'Não foram pactuados honorários de êxito.'}
+    Observam-se o art. 22 do Estatuto da OAB e o art. 85, §14, do CPC.`;
+}
+
+function saldoPrestacao(d) {
+  const parcelas = parcelasValidas(d);
+  const fonte = d.financeiro?.contrato;
+  if (d.financeiro) {
+    if (fonte?.tipo_honorario === 'exito' && fonte.situacao === 'a_apurar') return html`<p>Os honorários de êxito ainda estão a apurar. Este demonstrativo não declara quitação.</p>`;
+    if (parcelas.every((p) => p.saldo != null) && parcelas.length) {
+      const saldo = parcelas.reduce((s, p) => s + Math.max(0, centavos(p.saldo)), 0);
+      return html`<p><strong>Saldo de principal em aberto:</strong> ${moeda(saldo)}${saldo > 0 ? ', sem os encargos de atraso ainda não recebidos' : ''}.</p>`;
+    }
+    return html`<p>Este demonstrativo registra os lançamentos disponíveis; não declara quitação do contrato.</p>`;
+  }
+  const total = lerMoeda(d.valor_total);
+  const pago = lerMoeda(d.total_pago);
+  return total != null && pago != null && Number.isFinite(total) && Number.isFinite(pago)
+    ? html`<p><strong>Diferença entre total contratado e total pago informado:</strong> ${moeda(Math.max(0, total - pago))}. Sem vínculo financeiro, confira separadamente principal e encargos.</p>` : '';
+}
+
 // ---------------------------------------------------------------------------
 // 1. Procuração
 // ---------------------------------------------------------------------------
@@ -87,12 +148,13 @@ const contratoHonorarios = modelo({
     campo('objeto', 'Objeto', 'textarea'),
     campo('area', 'Área jurídica', 'area'),
     campo('garantia', 'Garantia', 'select', { opcoes: GARANTIAS, padrao: 'nenhuma' }),
+    campo('modalidade', 'Modalidade dos honorários', 'select', { opcoes: { fixo: 'Valor fixo', exito: 'Somente êxito', misto: 'Valor fixo e êxito' }, padrao: 'fixo' }),
     campo('valor_total', 'Valor total (R$)'),
     campo('entrada', 'Entrada (R$)'),
     campo('parcelas', 'Número de parcelas', 'number', { min: 1 }),
     campo('valor_parcela', 'Valor da parcela (R$)'),
     campo('dia_vencimento', 'Dia do vencimento', 'number', { min: 1, max: 31 }),
-    campo('exito', 'Êxito (%)', 'number', { min: 0, max: 100, padrao: 30 }),
+    campo('exito', 'Êxito (%)', 'number', { min: 0, max: 100, padrao: 0 }),
   ],
   assinaturas: [['Contratante(s)'], ['Contratado(a)(s)']],
   corpo: (ctx) => {
@@ -100,18 +162,19 @@ const contratoHonorarios = modelo({
     const objeto = d.objeto || `promover a defesa de seus direitos${numero(ctx) ? ` nos autos de n.º ${numero(ctx)}` : ''}`;
     const garantia = ({ fianca: 'fiança', penhor: 'penhor', hipoteca: 'hipoteca', anticrese: 'anticrese' })[d.garantia] || 'nenhuma';
     // Campo apagado na tela vira pendência visível, não "% sobre o proveito".
-    const exito = dado(d.exito ?? 30, 'ÊXITO');
+    const exito = dado(d.exito, 'ÊXITO');
+    const criterio = d.financeiro?.criterio || d.financeiro?.parcelas?.[0];
     return html`
     <p><strong>Contratante(s):</strong> ${q(ctx)}.</p>
     <p><strong>Contratado(s):</strong> ${a(ctx)}</p>
     <p><strong>Termos:</strong> As partes, expressando suas vontades, com fundamento no art. 593 e seguintes do Código Civil c/c Lei n.º 8.906/1994, decidem por <strong>CONTRATAR</strong>, nos seguintes termos:</p>
     <p><strong>1. Objeto</strong> — 1.1. O presente acordo tem como objeto ajustar o binômio dos honorários advocatícios e da contratação de serviços jurídico-profissionais a serem prestados, em especial para ${objeto}.</p>
     <p><strong>2. Vigência</strong> — 2.1. A duração deste pacto é indeterminada e está ligada à obrigação do contratante e à duração do processo/procedimento objeto, encerrando-se com decisão final, sentença, acórdão, portaria/resolução ou ato equivalente.</p>
-    <p><strong>3. Honorários advocatícios</strong> — 3.1. O contratante pagará aos contratados ${dinheiro(d.valor_total, 'VALOR')}, parcelado em ${dado(d.parcelas, 'N.º')} vez(es) de ${dinheiro(d.valor_parcela, 'PARCELA')}, todo dia ${dado(d.dia_vencimento, 'DIA')} de cada mês subsequente à assinatura deste instrumento, e ${exito}% sobre o proveito econômico do processo, cumprindo o art. 22 do Estatuto da OAB e respeitando o art. 85, §14, do CPC.</p>
-    <p>3.2. Nas ações criminais, em sendo arbitrada fiança, ao final, se absolvido ou arquivado o processo, poderá o contratado levantar a fiança e retê-la para deduzir/compensar valores devidos.</p>
-    <p>3.3. Nas ações trabalhistas, em caso de pagamento por parcelamento, o contratante autoriza que os contratados adiantem 30% dos honorários em parcela única na primeira prestação, ou procedam à dedução necessária para saldar os honorários.</p>
-    <p>3.4. Nas ações previdenciárias, se os valores retroativos forem suficientes, os honorários serão pagos em parcela única; sendo insuficientes, proceder-se-á ao desconto máximo viável, permanecendo saldo remanescente em pagamento mensal.</p>
-    <p>3.5. O atraso no pagamento ensejará vencimento antecipado das demais parcelas, cobrança integral, correção monetária, juros de 1% ao mês e multa compensatória de 10%.</p>
+    <div><strong>3. Honorários advocatícios</strong> — 3.1. ${pagamentoContrato(d)}</div>
+    ${d.area === 'criminal' ? html`<p>3.2. Nas ações criminais, em sendo arbitrada fiança, ao final, se absolvido ou arquivado o processo, poderá o contratado levantar a fiança e retê-la para deduzir/compensar valores devidos.</p>` : ''}
+    ${d.area === 'trabalhista' && modalidade(d) !== 'fixo' && numeroValido(d.exito) && Number(d.exito) > 0 ? html`<p>3.3. Nas ações trabalhistas, em caso de pagamento por parcelamento, o contratante autoriza que os contratados adiantem os honorários de êxito de ${exito}% em parcela única na primeira prestação, ou procedam à dedução necessária para saldar os honorários.</p>` : ''}
+    ${d.area === 'previdenciario' ? html`<p>3.4. Nas ações previdenciárias, se os valores retroativos forem suficientes, os honorários serão pagos em parcela única; sendo insuficientes, proceder-se-á ao desconto máximo viável, permanecendo saldo remanescente em pagamento mensal.</p>` : ''}
+    <p>3.5. O atraso no pagamento ensejará vencimento antecipado das demais parcelas e cobrança do saldo devido${criterio ? html`, multa de ${percentual(criterio.multa_pct)}, juros simples de ${percentual(criterio.juros_mes_pct)} ao mês proporcionais aos dias de atraso (divisor 30), ${criterio.correcao === 'nenhuma' ? 'sem correção monetária' : `correção pelo ${({ ipca: 'IPCA', inpc: 'INPC', igpm: 'IGP-M' })[criterio.correcao] || '[ÍNDICE]'}`}, com carência de ${criterio.carencia_dias} dia(s)` : ', correção monetária, juros de 1% ao mês e multa compensatória de 10%' }.</p>
     <p>3.6. Os honorários de sucumbência não excluem os honorários aqui pactuados, por possuírem natureza distinta.</p>
     <p><strong>4. Garantia</strong> — 4.1. Garantia selecionada: <strong>${garantia}</strong>. Salvo detalhamento específico, o contrato não possui outras garantias pessoais/fidejussórias ou reais.</p>
     <p><strong>5. Obrigações</strong> — 5.1. O contratante compromete-se a prestar informações, documentos, indicar testemunhas e manter seus dados atualizados. Declara ciência de que a advocacia não assegura certeza de sucesso, constituindo meio de acesso à justiça, não promessa de resultado.</p>
@@ -254,7 +317,7 @@ const prestacaoContas = modelo({
   assinaturas: [['Contratante(s)'], ['Contratado(a)(s)']],
   corpo: (ctx) => {
     // Vindo do contrato (Financeiro): parcelas válidas e recebimentos não estornados.
-    const parcelas = (ctx.dados.financeiro?.parcelas ?? []).filter((p) => !['cancelada', 'renegociada'].includes(p.situacao));
+    const parcelas = parcelasValidas(ctx.dados);
     const recebimentos = (ctx.dados.financeiro?.recebimentos ?? []).filter((r) => !r.estornado_em);
     const linhas = parcelas.length
       ? parcelas.map((p) => html`<tr><td>${data(p.vencimento)} - ${moeda(centavos(p.valor))}</td><td>${recebimentos.filter((r) => r.parcela_id === p.id).map((r) => html`<p>${data(r.data)} - ${moeda(centavos(r.valor))}</p>`)}</td></tr>`)
@@ -268,9 +331,10 @@ const prestacaoContas = modelo({
       ${linhas}
       <tr><td><strong>Total contratado:</strong> ${dinheiro(ctx.dados.valor_total, 'VALOR')}</td><td><strong>Total pago:</strong> ${dinheiro(ctx.dados.total_pago, 'VALOR PAGO')}</td></tr>
     </tbody></table>
+    ${saldoPrestacao(ctx.dados)}
     <p><em>Demonstrativo de valor pago ao(à) contratante, na data de assinatura deste termo:</em></p>
     <p><strong>${dinheiro(ctx.dados.valor_repassado, 'VALOR REPASSADO')}</strong></p>
-    <p>Ambas as partes, de comum acordo com todas as quantias acima descritas, declaram nada mais ter a reclamar uma da outra, assinando este instrumento, dando-o valor de recibo e de renúncia ao recebimento e/ou cobrança de quaisquer outros valores referentes a estes autos.</p>`;
+    <p>As partes registram os valores discriminados neste demonstrativo. O recibo limita-se aos pagamentos e repasses efetivamente indicados; não constitui quitação geral, renúncia à cobrança de saldo remanescente ou de valores ainda a apurar.</p>`;
   },
 });
 

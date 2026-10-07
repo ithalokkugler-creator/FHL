@@ -18,7 +18,7 @@ import { COLUNAS_CLIENTE, COLUNAS_DETALHES, COLUNAS_PROCESSO } from '../../domin
 import { COLUNAS_ATUALIZACAO } from '../../dominio/tempo.js';
 import { ajustarFolha, baixarWord, confirmarPendencias, imprimirDocumento, salvarDocumento } from '../../documentos/acoes.js';
 import { ErroCampo, mostrarErroFormulario, validarFormulario } from '../../nucleo/formularios.js';
-import { MODELOS } from '../../documentos/modelos.js';
+import { MODELOS, validarComplementos } from '../../documentos/modelos.js';
 import { AREAS_JURIDICAS, cabecalho, opcoes } from '../comum.js';
 import { campoCliente, ligarCampoCliente } from '../clientes.js';
 import { formularioCompleto } from '../clientes/formulario.js';
@@ -33,10 +33,11 @@ const carregarCadastro = () => Promise.all([
 
 /** Valores do contrato do Financeiro para o contrato de honorários e a prestação de contas. */
 async function dadosDoContrato(id) {
-  const [c, parcelasTodas, recebimentos] = await Promise.all([
+  const [c, parcelasTodas, recebimentos, config] = await Promise.all([
     db.um('v_contratos', { select: '*', filtros: [['id', 'eq', id]] }),
     db.todos('v_parcelas', { select: '*', filtros: [['contrato_id', 'eq', id]], ordem: 'numero.asc,id.asc' }),
     db.todos('v_recebimentos', { select: '*', filtros: [['contrato_id', 'eq', id]], ordem: 'data.asc,id.asc' }),
+    db.um('config_financeiro', { select: 'multa_pct,juros_mes_pct,correcao,carencia_dias' }),
   ]);
   if (!c) throw new Error('Contrato não encontrado ou sem acesso.');
 
@@ -54,10 +55,12 @@ async function dadosDoContrato(id) {
       parcelas: String(normais.length || ''),
       valor_parcela: normais[0] ? decimal(centavos(normais[0].valor)) : '',
       dia_vencimento: normais[0]?.vencimento.slice(8) || '',
-      exito: c.exito_pct ?? 30,
+      modalidade: c.tipo_honorario,
+      exito: c.exito_pct ?? 0,
       data_contrato: hoje(new Date(c.criado_em)),
       total_pago: decimal(pago),
-      financeiro: { parcelas, recebimentos },
+      financeiro: { parcelas, recebimentos, contrato: c, criterio: Object.fromEntries(
+        ['multa_pct', 'juros_mes_pct', 'correcao', 'carencia_dias'].map((k) => [k, c[k] ?? config?.[k]])) },
     },
   };
 }
@@ -76,6 +79,7 @@ export default async function telaNovoDocumento(ctx) {
   let dados = { data_emissao: hoje(), advogados_ids: advogados.map((m) => m.id) };
   let fontes = {};
   let sujo = false; // a folha foi editada à mão
+  let desatualizado = false;
   let alterando = false;
   let ocupado = false;
 
@@ -134,7 +138,8 @@ export default async function telaNovoDocumento(ctx) {
           <button type="button" class="botao" data-acao="salvar">Salvar sem imprimir</button>
           <button type="button" class="botao botao--discreto" data-acao="refazer">Refazer texto</button>
         </div>
-        <p class="sub secao">Os modelos seguem a preparação e aguardam revisão do escritório (§7.8). Confira o texto antes de entregar.</p>
+        <p class="sub secao">A prévia acompanha os campos automaticamente. Se editar a folha à mão, suas alterações serão preservadas e você poderá escolher como atualizar o texto.</p>
+        <p class="sub secao">Confira o texto antes de entregar. Os modelos aguardam revisão do escritório.</p>
       </aside>
       <div class="documento-visualizacao">
         <article class="documento-folha" contenteditable="true" role="textbox" aria-label="Prévia editável do documento" aria-multiline="true" spellcheck="true"></article>
@@ -147,17 +152,19 @@ export default async function telaNovoDocumento(ctx) {
 
   const campo = (c) => {
     const valor = dados[c.nome] ?? c.padrao ?? '';
+    const vinculado = Boolean(fontes.contrato_id && ['modalidade', 'valor_total', 'entrada', 'parcelas', 'valor_parcela', 'dia_vencimento', 'exito', 'total_pago', 'data_contrato'].includes(c.nome));
     if (['select', 'area', 'advogado'].includes(c.tipo)) {
       const lista = c.tipo === 'area' ? Object.entries(AREAS_JURIDICAS)
         : c.tipo === 'advogado' ? advogados.map((m) => [m.id, `${m.nome_curto} · ${m.oab}`])
           : Object.entries(c.opcoes);
       const vazio = c.tipo === 'advogado' ? 'Escolha o advogado' : c.tipo === 'area' ? 'Escolha a área' : null;
-      return html`<label class="campo"><span>${c.rotulo}</span><select name="${c.nome}">${opcoes(lista, valor, { vazio })}</select></label>`;
+      return html`<label class="campo"><span>${c.rotulo}</span><select name="${c.nome}" ${vinculado ? 'disabled' : ''}>${opcoes(lista, valor, { vazio })}</select></label>`;
     }
     if (c.tipo === 'textarea') {
       return html`<label class="campo"><span>${c.rotulo}</span><textarea name="${c.nome}" rows="3" maxlength="20000">${valor}</textarea></label>`;
     }
     return html`<label class="campo"><span>${c.rotulo}</span><input name="${c.nome}" type="${c.tipo}" value="${valor}"
+      ${vinculado ? 'readonly' : ''}
       ${c.min != null ? html`min="${c.min}"` : ''} ${c.max != null ? html`max="${c.max}"` : ''} ${c.tipo === 'text' ? html`maxlength="500"` : ''}></label>`;
   };
 
@@ -186,7 +193,7 @@ export default async function telaNovoDocumento(ctx) {
           </fieldset>` : ''}
       </div>
       ${modelo === 'renuncia' ? html`<p class="nota secao">ATENÇÃO: ANTES DE ENVIAR O DOCUMENTO, PEDIR DOCUMENTO DE IDENTIDADE COM FOTO, CONFORME IN 73/2021 CGJ/TJPR.</p>` : ''}
-      ${modelo === 'contrato_honorarios' ? html`<p class="sub secao">A entrada é guardada nos complementos. O texto original da cláusula 3.1 não a discrimina; revisão pendente.</p>` : ''}`);
+      ${fontes.contrato_id ? html`<p class="sub secao">As parcelas e o saldo vêm do contrato financeiro vinculado. Para alterar esses lançamentos, use o Financeiro.</p>` : ''}`);
     ligarCampoCliente(form, clientes);
   };
 
@@ -194,6 +201,9 @@ export default async function telaNovoDocumento(ctx) {
     const n = folha.querySelectorAll('.doc-falta').length;
     const texto = n ? `${n === 1 ? 'Falta 1 dado destacado' : `Faltam ${n} dados destacados`} entre colchetes` : 'Nenhum campo destacado pendente';
     desenhar($('[data-pendencias]', ctx.raiz), html`
+      ${desatualizado ? html`<p><strong>Os campos mudaram, mas suas edições na folha foram preservadas.</strong> Antes de salvar, imprimir ou baixar, escolha:
+        <button class="botao-link" type="button" data-acao="refazer">Atualizar texto pelos campos</button> ou
+        <button class="botao-link" type="button" data-acao="manter">Manter texto editado</button>.</p>` : ''}
       <p>${texto}${clienteId ? html` <button class="botao-link" type="button" data-acao="completar">Completar o cadastro</button>` : '.'}</p>`);
   };
 
@@ -208,6 +218,7 @@ export default async function telaNovoDocumento(ctx) {
     };
     desenhar(folha, cru(higienizar(String(MODELOS[modelo].montar(contexto)))));
     sujo = false;
+    desatualizado = false;
     pendencias();
   };
 
@@ -236,6 +247,7 @@ export default async function telaNovoDocumento(ctx) {
         corpo: html`<p>As edições feitas diretamente na folha serão substituídas pelos dados dos campos.</p>`,
       })) {
         desenharControles(); // volta os campos para o que está na folha
+        pendencias();
         return;
       }
       if (!ctx.ativa()) return;
@@ -276,7 +288,23 @@ export default async function telaNovoDocumento(ctx) {
   desenharControles();
   montar();
   form.addEventListener('submit', (e) => e.preventDefault());
-  form.addEventListener('change', () => refazer());
+  // Complementos atualizam só a folha: redesenhar o formulário a cada tecla
+  // perderia o foco e a posição do cursor. Seleções de cliente/caso têm outro fluxo.
+  const atualizarComplementos = (e) => {
+    if (!e.target.name || ['cliente_texto', 'cliente_id', 'processo_id'].includes(e.target.name)) return;
+    dados = { ...dados, ...ler() };
+    delete dados.cliente_id;
+    delete dados.processo_id;
+    if (sujo) {
+      desatualizado = true;
+      pendencias();
+    } else montar();
+  };
+  form.addEventListener('input', atualizarComplementos);
+  form.addEventListener('change', (e) => {
+    if (['cliente_id', 'processo_id'].includes(e.target.name)) refazer();
+    else atualizarComplementos(e);
+  });
   form.addEventListener('click', (e) => {
     const botao = e.target.closest('[data-modelo]');
     if (botao && botao.dataset.modelo !== modelo) refazer(botao.dataset.modelo);
@@ -292,15 +320,22 @@ export default async function telaNovoDocumento(ctx) {
   const executar = async (acao) => {
     if (ocupado || alterando) return;
     if (!validarFormulario(form)) return;
+    if (desatualizado) {
+      avisar('Escolha atualizar pelos campos ou manter o texto editado antes de continuar.');
+      $('[data-pendencias]', ctx.raiz).scrollIntoView({ behavior: 'smooth', block: 'center' });
+      $('[data-acao="refazer"]', $('[data-pendencias]', ctx.raiz)).focus();
+      return;
+    }
     ocupado = true;
     const botoes = ctx.raiz.querySelectorAll('[data-acao]');
     botoes.forEach((b) => { b.disabled = true; });
     try {
       const v = ler();
+      validarComplementos(modelo, { ...dados, ...v });
       if (v.cliente_id !== clienteId || v.processo_id !== processoId) {
         throw new Error('Confirme a seleção de cliente e processo antes de salvar.');
       }
-      if ((acao !== 'salvar' && !await confirmarPendencias(folha, acao)) || !ctx.ativa()) return;
+      if (!await confirmarPendencias(folha, acao) || !ctx.ativa()) return;
       const salvo = await salvarDocumento({
         modelo,
         titulo: MODELOS[modelo].nome,
@@ -327,11 +362,20 @@ export default async function telaNovoDocumento(ctx) {
     imprimir: () => executar('imprimir'),
     word: () => executar('word'),
     refazer: () => refazer(),
+    manter: async () => {
+      if (ocupado || alterando || !desatualizado) return;
+      if (await abrirDialogo({ titulo: 'Manter o texto editado?', rotuloOk: 'Manter texto editado',
+        corpo: html`<p>As mudanças dos campos não serão aplicadas à folha. Confira se o texto editado contém os valores e condições que deseja guardar.</p>` }) && ctx.ativa()) {
+        desatualizado = false;
+        pendencias();
+      }
+    },
     completar: async () => {
       try {
         if (!clienteId) return;
         if (await formularioCompleto(clienteId) && ctx.ativa()) {
           [clientes, detalhes] = await carregarCadastro();
+          if (sujo) desatualizado = true;
           if (ctx.ativa()) await refazer();
         }
       } catch (erro) {
