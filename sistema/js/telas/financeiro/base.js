@@ -5,13 +5,16 @@
 // índice buscado uma vez por tela — e os diálogos que aparecem em mais de um
 // lugar: receber, cobrar e renegociar.
 
-import { atualizar, memoriaParaGravar } from '../../dominio/atraso.js';
+import { atualizar, componentesDosEncargos, memoriaParaGravar } from '../../dominio/atraso.js';
 import { mensagemDeCobranca } from '../../dominio/cobranca.js';
 import { fatorDoPeriodo, INDICES, temMesParaCorrigir, variacoes } from '../../dominio/indices.js';
 import { gerarParcelas, nomeDaParcela, somaDasParcelas } from '../../dominio/parcelas.js';
 import { avisar } from '../../nucleo/avisos.js';
 import { abrirDialogo } from '../../nucleo/dialogo.js';
-import { estado } from '../../nucleo/estado.js';
+import { estado, pode } from '../../nucleo/estado.js';
+import { navegar } from '../../nucleo/rotas.js';
+import { montarRecibo, saldoDepoisDe } from '../../documentos/recibo.js';
+import { salvarDocumento } from '../../documentos/acoes.js';
 import {
   centavos, data, decimal, entre, hoje, lerMoeda, lerNumero, linkWhatsApp, moeda, paraReais, percentual, somarMeses,
 } from '../../nucleo/formato.js';
@@ -25,14 +28,15 @@ import { CANAIS, opcoes } from '../comum.js';
 
 let apoioEmCache = null;
 
-/** Configuração, categorias e formas de pagamento. */
+/** Configuração, categorias, formas de pagamento e contas financeiras. */
 export function apoio() {
   apoioEmCache ??= Promise.all([
     db.um('config_financeiro', { select: '*' }),
     db.listar('categorias', { select: 'id,nome,ordem,ativo', ordem: 'ordem.asc,nome.asc' }),
     db.listar('formas_pagamento', { select: 'id,nome,ordem,ativo', ordem: 'ordem.asc,nome.asc' }),
+    db.listar('contas_financeiras', { select: 'id,nome,tipo,padrao,ativo', ordem: 'padrao.desc,nome.asc' }),
   ])
-    .then(([config, categorias, formas]) => ({ config, categorias, formas }))
+    .then(([config, categorias, formas, contasFinanceiras]) => ({ config, categorias, formas, contasFinanceiras }))
     .catch((erro) => {
       apoioEmCache = null;
       throw erro;
@@ -56,6 +60,8 @@ export const rotuloParcela = (p) => nomeDaParcela(p.numero);
 const mesesGerados = new Set();
 
 export async function garantirContasDoMes(mes, { forcar = false } = {}) {
+  // Consulta só lê: a geração é uma gravação (a previsão vem de previsao_recorrentes).
+  if (!pode.lancar()) return;
   if (!forcar && mesesGerados.has(mes)) return;
   try {
     await db.rpc('gerar_contas_do_mes', { p_competencia: mes });
@@ -66,6 +72,15 @@ export async function garantirContasDoMes(mes, { forcar = false } = {}) {
 }
 
 export { opcoes };
+
+/** <option> das contas financeiras ativas, com a padrão já escolhida. */
+export const opcoesContasFinanceiras = (contas, atual) => opcoes(
+  contas.filter((c) => c.ativo || c.id === atual).map((c) => [c.id, `${c.nome}${c.padrao ? ' (padrão)' : ''}`]),
+  atual ?? contas.find((c) => c.padrao)?.id ?? '',
+);
+
+/** Nome da conta financeira de um movimento — antigo, sem conta: "origem legada". */
+export const nomeContaFinanceira = (nome) => nome ?? 'Origem legada não informada';
 
 // ---------------------------------------------------------------------------
 // Critério de atraso — no contrato novo, na edição do contrato e nas
@@ -197,7 +212,7 @@ export function memoriaGravada(m) {
 
 /** Diálogo de recebimento de uma linha de v_parcelas. Devolve true se gravou. */
 export async function receberParcela(p) {
-  const [{ formas }, [{ calculo: inicial }]] = await Promise.all([apoio(), atualizarParcelas([p])]);
+  const [{ formas, contasFinanceiras }, [{ calculo: inicial }]] = await Promise.all([apoio(), atualizarParcelas([p])]);
   let calculo = inicial;
   let recalculo = Promise.resolve();
   let valorDigitado = false;
@@ -221,10 +236,15 @@ export async function receberParcela(p) {
           <span>Forma</span>
           <select name="forma_id">${opcoes(formas.filter((f) => f.ativo).map((f) => [f.id, f.nome]), '', { vazio: 'Não informada' })}</select>
         </label>
-        <label class="campo">
+        <label class="campo campo--6">
+          <span>Entrou na conta</span>
+          <select name="conta_financeira_id" required>${opcoesContasFinanceiras(contasFinanceiras)}</select>
+        </label>
+        <label class="campo campo--6">
           <span>Observação</span>
           <input name="observacao" maxlength="500">
         </label>
+        <label class="opcao campo"><input type="checkbox" name="recibo"> Emitir o recibo deste recebimento ao salvar</label>
       </div>
       <div class="secao" data-papel="memoria"></div>
       <p class="nota nota--info" data-papel="efeito"></p>`,
@@ -279,17 +299,89 @@ export async function receberParcela(p) {
       if (dados.data > hoje()) throw new Error('A data do pagamento não pode estar no futuro.');
 
       const principal = Math.min(valor, calculo.saldo);
-      await db.inserir('recebimentos', {
+      // O que passou do saldo, discriminado na proporção do cálculo do dia.
+      const k = componentesDosEncargos(calculo, valor - principal);
+      const salvo = await db.inserir('recebimentos', {
         parcela_id: p.id,
         data: dados.data,
         valor: paraReais(valor),
         valor_principal: paraReais(principal),
         valor_encargos: paraReais(valor - principal),
+        valor_correcao: paraReais(k.correcao),
+        valor_multa: paraReais(k.multa),
+        valor_juros: paraReais(k.juros),
+        valor_acrescimo: paraReais(k.acrescimo),
         forma_id: dados.forma_id || null,
+        conta_financeira_id: dados.conta_financeira_id || null,
         observacao: dados.observacao || null,
         memoria_calculo: memoriaParaGravar(calculo),
       }, 'id');
       avisar(valor < calculo.saldo ? 'Pagamento parcial registrado.' : 'Recebimento registrado.');
+      if (dados.recibo) await emitirRecibo(salvo.id).catch((erro) => avisar(`Recebimento salvo, mas o recibo não: ${erro.message}`, 'erro', 8000));
+      return true;
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Recibo de um recebimento (T07) — gravado em Documentos, abre para imprimir
+// ---------------------------------------------------------------------------
+
+export async function emitirRecibo(recebimentoId) {
+  const r = await db.um('v_recebimentos', { select: '*', filtros: [['id', 'eq', recebimentoId]] });
+  if (!r) throw new Error('Recebimento não encontrado.');
+  if (r.estornado_em) throw new Error('Recebimento estornado não pode gerar um novo recibo.');
+  if (!r.cliente_id) throw new Error('Entrada avulsa sem cliente não tem recibo: informe o cliente na entrada.');
+  const [cliente, parcela, contrato, daParcela] = await Promise.all([
+    db.um('clientes', { select: 'id,nome,documento', filtros: [['id', 'eq', r.cliente_id]] }),
+    r.parcela_id ? db.um('v_parcelas', { select: '*', filtros: [['id', 'eq', r.parcela_id]] }) : null,
+    r.contrato_id ? db.um('v_contratos', { select: 'id,codigo,descricao', filtros: [['id', 'eq', r.contrato_id]] }) : null,
+    r.parcela_id ? db.todos('v_recebimentos', { select: 'id,data,criado_em,valor_principal,estornado_em', filtros: [['parcela_id', 'eq', r.parcela_id]] }) : [],
+  ]);
+  const ajustes = parcela ? await db.todos('ajustes_financeiros', { select: 'tipo,valor,criado_em,estornado_em', filtros: [['parcela_id', 'eq', r.parcela_id]] }) : [];
+  const saldoDepois = parcela ? saldoDepoisDe(r, daParcela, centavos(parcela.valor), ajustes) : null;
+  const conteudo = String(montarRecibo({ recebimento: r, parcela, contrato, cliente, saldoDepois, emitente: estado.membro.nome, dia: hoje() }));
+  const doc = await salvarDocumento({
+    modelo: 'recibo',
+    titulo: `Recibo — ${cliente.nome}`,
+    cliente_id: r.cliente_id,
+    contrato_id: r.contrato_id ?? null,
+    recebimento_id: r.id,
+    dados: { valor: r.valor, saldo_depois: saldoDepois == null ? null : paraReais(saldoDepois) },
+    conteudo,
+  });
+  avisar('Recibo emitido e guardado em Documentos.');
+  navegar(`/documentos/${doc.id}`);
+  return doc;
+}
+
+// ---------------------------------------------------------------------------
+// Desconto, abatimento e acréscimo (T03) — só o Financeiro completo
+// ---------------------------------------------------------------------------
+
+const TIPOS_AJUSTE = [['desconto', 'Desconto'], ['abatimento', 'Abatimento'], ['acrescimo', 'Acréscimo']];
+
+export function concederAjuste(p) {
+  const dia = hoje();
+  return abrirDialogo({
+    titulo: `Ajuste — ${rotuloParcela(p)}`,
+    rotuloOk: 'Conceder',
+    corpo: html`
+      <p class="dialogo__texto">${p.cliente_nome} · ${p.contrato_descricao} · vence ${data(p.vencimento)} · saldo ${moeda(centavos(p.saldo))}</p>
+      <div class="campos">
+        <label class="campo campo--4"><span>Tipo</span><select name="tipo">${opcoes(TIPOS_AJUSTE, 'desconto')}</select></label>
+        <label class="campo campo--4"><span>Valor</span><input name="valor" class="num" inputmode="decimal" required autofocus></label>
+        <label class="campo campo--4"><span>Data</span><input type="date" name="data" value="${dia}" max="${dia}" required></label>
+        <label class="campo"><span>Motivo</span><textarea name="motivo" rows="2" required placeholder="Ex.: desconto combinado para pagamento à vista"></textarea></label>
+      </div>
+      <p class="nota nota--info">Desconto e abatimento reduzem o que a parcela exige; não são dinheiro recebido.
+        Acréscimo aumenta. Fica registrado quem concedeu, com o motivo, e pode ser estornado.</p>`,
+    aoEnviar: async (d) => {
+      const valor = lerMoeda(d.valor);
+      if (!(valor > 0)) throw new Error('Informe o valor.');
+      if (d.tipo !== 'acrescimo' && valor > centavos(p.saldo)) throw new Error(`Passa do saldo da parcela (${moeda(centavos(p.saldo))}).`);
+      await db.rpc('conceder_ajuste', { p: { parcela_id: p.id, tipo: d.tipo, valor: paraReais(valor), data: d.data, motivo: d.motivo } });
+      avisar('Ajuste registrado.');
       return true;
     },
   });
@@ -301,7 +393,17 @@ export async function receberParcela(p) {
 
 /** grupo: { cliente_id, cliente_nome, cliente_telefone, itens: [{ parcela, calculo }] } */
 export async function prepararCobranca(grupo) {
-  const { config } = await apoio();
+  const [{ config }, contatos] = await Promise.all([
+    apoio(),
+    // Respeita o destinatário marcado no cadastro. A migração cria o contato
+    // legado; desmarcar cobrança não pode reativar o telefone antigo.
+    db.listar('clientes_contatos', {
+      select: 'id,nome,tipo,telefone,principal,whatsapp',
+      filtros: [['cliente_id', 'eq', grupo.cliente_id], ['recebe_cobranca', 'is', true], ['ativo', 'is', true], ['telefone', 'not.is', null]],
+      ordem: 'principal.desc,nome.asc',
+    }),
+  ]);
+  const destinos = contatos.filter((c) => c.whatsapp).map((c) => [c.telefone, `${c.nome} — ${c.telefone}`]);
   const total = grupo.itens.reduce((s, i) => s + i.calculo.total, 0);
   const texto = mensagemDeCobranca({
     modelo: config.mensagem_cobranca,
@@ -327,11 +429,13 @@ export async function prepararCobranca(grupo) {
         <span>Mensagem</span>
         <textarea name="texto" rows="10">${texto}</textarea>
       </label>
+      ${destinos.length > 1 ? html`
+        <label class="campo"><span>Enviar para</span><select name="destino">${opcoes(destinos, destinos[0][0])}</select></label>` : ''}
       <p class="grupo-botoes secao">
         <button type="button" class="botao" data-papel="copiar">Copiar texto</button>
-        ${grupo.cliente_telefone
-          ? html`<a class="botao" data-papel="whatsapp" target="_blank" rel="noopener" href="${linkWhatsApp(grupo.cliente_telefone, texto)}">Abrir no WhatsApp</a>`
-          : html`<span class="sub">Cliente sem telefone cadastrado.</span>`}
+        ${destinos.length
+          ? html`<a class="botao" data-papel="whatsapp" target="_blank" rel="noopener" href="${linkWhatsApp(destinos[0][0], texto)}">Abrir no WhatsApp</a>`
+          : html`<span class="sub">Cliente sem telefone de cobrança cadastrado.</span>`}
       </p>
       <fieldset class="fieldset campos secao">
         <legend>Registrar que cobrou</legend>
@@ -347,9 +451,11 @@ export async function prepararCobranca(grupo) {
 
     aoAbrir: (dialogo, form) => {
       const whatsapp = $('[data-papel="whatsapp"]', dialogo);
-      form.texto.addEventListener('input', () => {
-        if (whatsapp) whatsapp.href = linkWhatsApp(grupo.cliente_telefone, form.texto.value);
-      });
+      const atualizarLink = () => {
+        if (whatsapp) whatsapp.href = linkWhatsApp(form.destino?.value ?? destinos[0][0], form.texto.value);
+      };
+      form.texto.addEventListener('input', atualizarLink);
+      form.destino?.addEventListener('change', atualizarLink);
       $('[data-papel="copiar"]', dialogo).addEventListener('click', async (e) => {
         try {
           await navigator.clipboard.writeText(form.texto.value);

@@ -1,10 +1,10 @@
 /* ==========================================================================
-   FHL ADVOCACIA — ÁREA DOS ADVOGADOS
+   FONSECA LISBOA ADVOCACIA — ÁREA DOS ADVOGADOS
    Um arquivo só: tokens, base, casca, componentes e telas.
    ========================================================================== */
 
-/* A identidade é a do site (assets/css/tokens.css): o monograma FHL em tinta
-   clara sobre o verde-petróleo, os acentos menta e teal e o raio de canto
+/* A identidade é a do site (assets/css/tokens.css): o monograma FL em tinta
+   clara sobre o verde-petróleo (o peixinho, a marca antiga, só na entrada), os acentos menta e teal e o raio de canto
    binário — 0 em tudo, pílula só no botão principal. O que muda é o uso.
    Isto é tela de trabalho: clara, densa, feita para tabela e número.
 
@@ -36,6 +36,12 @@
   --c-ok:     #2E615D;  --c-ok-fundo:     #E1ECE7;
   --c-neutro: #465953;  --c-neutro-fundo: #E6E6DF;
   --c-feriado: #F8F3E9;
+
+  /* Urgência das tarefas: amarelo a uma semana, vermelho a dois dias. Mais
+     vivos que alerta/perigo de propósito — a cor tem de chamar o olho. */
+  --c-urg-amarelo:        #E2B007;  --c-urg-amarelo-fundo: #FBE9A6;
+  --c-urg-amarelo-texto:  #5A4300;  --c-urg-amarelo-linha: #FFF9E3;
+  --c-urg-vermelho:       #C2372B;  --c-urg-vermelho-linha: #FDEFEC;
 
   /* Semânticos: os únicos que os componentes consomem */
   --c-fundo:       var(--c-bone);
@@ -163,9 +169,9 @@ img { max-width: 100%; display: block; }
   color: var(--c-ink-claro);
   text-decoration: none;
 }
-/* Monograma da logomarca (img/monograma.svg, cópia de assets/img — ver
-   `npm run marca`) e "Advocacia" depois de um filete, como no site. */
-.marca__monograma { display: block; width: auto; height: 26px; }
+/* Monograma FL da logomarca (img/monograma.svg, gerado por `npm run marca`)
+   e "Advocacia" depois de um filete. */
+.marca__monograma { display: block; width: auto; height: 30px; }
 .marca__nome {
   padding-left: 10px;
   border-left: 1px solid var(--c-petrol-ln);
@@ -570,7 +576,9 @@ input, select, textarea, .erro-formulario { scroll-margin-block: 80px; }
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 .indicador__nota { font-size: 12px; color: var(--c-texto-m); }
 .indicador--perigo .indicador__valor { color: var(--c-perigo); }
@@ -662,6 +670,7 @@ a.lista__item:hover { background: var(--c-realce); }
   margin-bottom: var(--s-4);
 }
 .filtros .campo { grid-column: auto; min-width: 160px; }
+.filtros .campo--data { min-width: 180px; }
 .filtros .campo--busca { flex: 1 1 220px; }
 
 .seletor-mes {
@@ -851,6 +860,8 @@ a.lista__item:hover { background: var(--c-realce); }
   min-height: 100vh;
 }
 .entrada__marca {
+  position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -859,7 +870,21 @@ a.lista__item:hover { background: var(--c-realce); }
   background: var(--c-petrol);
   color: var(--c-ink-claro);
 }
-.entrada__assinatura { display: block; width: min(300px, 100%); height: auto; }
+.entrada__marca > * { position: relative; }
+/* O peixinho — a marca antiga — tom sobre tom, recortado pela borda direita,
+   como as marcas d'água do site. Nunca nos documentos. */
+.entrada__marca > .entrada__peixe {
+  position: absolute;
+  top: 50%;
+  right: -14%;
+  width: auto;
+  height: 118%;
+  transform: translateY(-50%);
+  opacity: 0.05;
+  pointer-events: none;
+  user-select: none;
+}
+.entrada__assinatura { display: block; width: min(280px, 100%); height: auto; }
 .entrada__frase {
   max-width: 18ch;
   margin-top: var(--s-3);
@@ -882,6 +907,7 @@ a.lista__item:hover { background: var(--c-realce); }
 @media (max-width: 800px) {
   .entrada { grid-template-columns: minmax(0, 1fr); }
   .entrada__marca { gap: var(--s-4); }
+  .entrada__assinatura { width: 170px; }
   .entrada__frase { font-size: 26px; }
   .entrada__rodape { display: none; }
 }
@@ -1306,8 +1332,24 @@ a.lista__item:hover { background: var(--c-realce); }
 .documento-folha[contenteditable='true']:focus { outline: 2px solid var(--c-foco); outline-offset: -2px; }
 .documento-folha p { margin: 0 0 12pt; }
 .documento-folha h2 { margin: 18pt 0 10pt; font-size: 14pt; }
+.documento-folha h3 { margin: 14pt 0 8pt; font-size: 12pt; }
 .documento-folha ul, .documento-folha ol { margin: 0 0 12pt; padding-left: 18pt; list-style: disc; }
+.documento-folha ol { list-style: decimal; }
+.documento-folha li > ul, .documento-folha li > ol { margin-bottom: 0; }
+.documento-folha ul ul { list-style: circle; }
+.documento-folha ol ol { list-style: lower-alpha; }
 .documento-folha li { margin-bottom: 2pt; }
+
+/* Celular: a folha A4 encolhida ficava ilegível e ainda pedia rolagem
+   lateral. Na tela ela vira modo de leitura, na largura disponível; a
+   impressão e o Word usam outra cópia, sempre em A4. */
+.so-celular { display: none; }
+@media screen and (max-width: 640px) {
+  .documento-visualizacao { padding: var(--s-2); overflow-x: visible; }
+  .documento-folha { width: auto; min-height: 0; padding: 20px 16px; font-size: 11pt; zoom: 1; }
+  .documento-folha .doc-cabecalho img { width: 140px; }
+  .so-celular { display: block; }
+}
 
 .doc-cabecalho { margin-bottom: 24pt; text-align: center; }
 .doc-cabecalho img { display: inline-block; width: 180px; height: auto; }
@@ -1334,6 +1376,151 @@ a.lista__item:hover { background: var(--c-realce); }
 .doc-ficha th, .doc-ficha td { padding: 5pt 7pt; border: 1px solid #999; text-align: left; vertical-align: top; overflow-wrap: break-word; }
 .doc-ficha th { width: 18%; background: #F2F2F2; font-weight: 700; }
 .doc-ficha-relato { height: 45mm; white-space: pre-wrap; }
+
+/* Formatação feita na barra do editor (documentos/editor.js). Gerado de
+   cssFormatacao('.documento-folha ') em documentos/formatacao.js — não editar
+   à mão: mude lá e copie; o teste documentos-tempo confere. O escopo
+   .documento-folha ganha das regras da própria folha (título centralizado,
+   margem do parágrafo). */
+/* formatacao:inicio */
+.documento-folha .doc-fonte-times { font-family: 'Times New Roman', Times, serif; }
+.documento-folha .doc-fonte-arial { font-family: Arial, Helvetica, sans-serif; }
+.documento-folha .doc-fonte-calibri { font-family: Calibri, Carlito, Arial, sans-serif; }
+.documento-folha .doc-fonte-garamond { font-family: Garamond, 'EB Garamond', 'Times New Roman', serif; }
+.documento-folha .doc-fonte-georgia { font-family: Georgia, serif; }
+.documento-folha .doc-fonte-courier { font-family: 'Courier New', Courier, monospace; }
+.documento-folha .doc-tam-8 { font-size: 8pt; }
+.documento-folha .doc-tam-9 { font-size: 9pt; }
+.documento-folha .doc-tam-10 { font-size: 10pt; }
+.documento-folha .doc-tam-11 { font-size: 11pt; }
+.documento-folha .doc-tam-12 { font-size: 12pt; }
+.documento-folha .doc-tam-14 { font-size: 14pt; }
+.documento-folha .doc-tam-16 { font-size: 16pt; }
+.documento-folha .doc-tam-18 { font-size: 18pt; }
+.documento-folha .doc-tam-20 { font-size: 20pt; }
+.documento-folha .doc-tam-24 { font-size: 24pt; }
+.documento-folha .doc-tam-28 { font-size: 28pt; }
+.documento-folha .doc-cor-cinza { color: #595959; }
+.documento-folha .doc-cor-vermelho { color: #C00000; }
+.documento-folha .doc-cor-laranja { color: #C55A11; }
+.documento-folha .doc-cor-verde { color: #38761D; }
+.documento-folha .doc-cor-azul { color: #1F4E79; }
+.documento-folha .doc-cor-azul-claro { color: #2E75B6; }
+.documento-folha .doc-cor-roxo { color: #7030A0; }
+.documento-folha .doc-cor-petroleo { color: #2E615D; }
+.documento-folha .doc-cor-vinho { color: #6E5551; }
+.documento-folha .doc-realce-amarelo { background-color: #FFF176; }
+.documento-folha .doc-realce-verde { background-color: #C8E6C9; }
+.documento-folha .doc-realce-azul { background-color: #BBDEFB; }
+.documento-folha .doc-realce-rosa { background-color: #F8BBD0; }
+.documento-folha .doc-realce-laranja { background-color: #FFE0B2; }
+.documento-folha .doc-realce-cinza { background-color: #E0E0E0; }
+.documento-folha .doc-alinhar-esquerda { text-align: left; }
+.documento-folha .doc-alinhar-centro { text-align: center; }
+.documento-folha .doc-alinhar-direita { text-align: right; }
+.documento-folha .doc-alinhar-justificar { text-align: justify; }
+.documento-folha .doc-recuo-1 { margin-left: 1.25cm; }
+.documento-folha .doc-recuo-2 { margin-left: 2.50cm; }
+.documento-folha .doc-recuo-3 { margin-left: 3.75cm; }
+.documento-folha .doc-recuo-4 { margin-left: 5.00cm; }
+.documento-folha .doc-sem-negrito { font-weight: normal; }
+.documento-folha .doc-sem-italico { font-style: normal; }
+/* formatacao:fim */
+
+/* --------------------------------------------------------------------------
+   EDITOR — a barra de formatação acima da folha (um Word simplificado)
+   -------------------------------------------------------------------------- */
+.documento-area { min-width: 0; }
+.editor-barra {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px var(--s-2);
+  border: 1px solid var(--c-linha);
+  background: var(--c-superficie);
+}
+.editor-grupo { display: flex; align-items: center; gap: 2px; padding-right: 6px; border-right: 1px solid var(--c-linha); }
+.editor-grupo:last-child { padding-right: 0; border-right: 0; }
+
+.editor-botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 5px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--c-texto);
+  font: 15px/1 'Times New Roman', Georgia, serif;
+}
+.editor-botao:hover { background: var(--c-realce); border-color: var(--c-linha); }
+.editor-botao:focus-visible { outline-offset: -2px; }
+.editor-botao[aria-pressed='true'] { background: var(--c-ok-fundo); border-color: var(--c-acao); color: var(--c-acao); }
+.editor-botao s { font-size: 13px; }
+
+.editor-lista {
+  height: 30px;
+  padding: 0 4px 0 8px;
+  border: 1px solid var(--c-linha-forte);
+  background-color: #FFF;
+  font-size: 13px;
+}
+.editor-lista--estilo { width: 8.4rem; }
+.editor-lista--fonte { width: 9.6rem; }
+.editor-lista--tamanho { width: 4rem; }
+
+/* Cor e realce: botão com a faixa da última cor usada e a paleta embaixo. */
+.editor-paleta-caixa { position: relative; }
+.editor-botao--paleta { flex-direction: column; gap: 2px; }
+.editor-letra-cor { font-weight: 700; font-size: 15px; line-height: 1; }
+.editor-faixa { display: block; width: 18px; height: 4px; background: var(--amostra, #111); box-shadow: inset 0 0 0 1px rgba(12, 25, 23, 0.18); }
+.editor-botao--paleta svg { width: 16px; height: 16px; }
+.editor-paleta {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 30;
+  width: 13.5rem;
+  padding: var(--s-2);
+  border: 1px solid var(--c-linha-forte);
+  background: var(--c-superficie);
+  box-shadow: 0 6px 18px rgba(12, 25, 23, 0.18);
+}
+.editor-paleta__sem {
+  width: 100%;
+  margin-bottom: var(--s-2);
+  padding: 6px 8px;
+  border: 1px solid var(--c-linha);
+  background: #FFF;
+  font-size: 12px;
+  text-align: left;
+}
+.editor-paleta__sem:hover { border-color: var(--c-linha-forte); }
+.editor-paleta__amostras { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.editor-amostra {
+  aspect-ratio: 1;
+  border: 1px solid rgba(12, 25, 23, 0.25);
+  background: var(--amostra);
+}
+.editor-amostra:hover { outline: 2px solid var(--c-texto); outline-offset: 1px; }
+
+.documento-area .documento-visualizacao { border: 1px solid var(--c-linha); border-top: 0; }
+
+@media (max-width: 900px) {
+  .editor-barra { top: var(--topo-movel-a); }
+}
+/* Celular: as três listas numa linha só, no alto; os botões correm embaixo. */
+@media (max-width: 560px) {
+  .editor-grupo { padding-right: 4px; }
+  .editor-grupo--listas { order: -1; width: 100%; padding-right: 0; border-right: 0; }
+  .editor-grupo--listas .editor-lista { flex: 1 1 0; min-width: 0; width: auto; }
+  .editor-lista--tamanho { flex-grow: 0.5; }
+}
 
 .documento-impressao { display: none; }
 
@@ -1401,11 +1588,97 @@ a.lista__item:hover { background: var(--c-realce); }
    TAREFAS, PRAZOS E INTIMAÇÕES
    -------------------------------------------------------------------------- */
 .tarefa-prazo { min-width: 0; margin: 0; padding: 0; border: 0; }
-.tabela--tarefas { min-width: 1060px; }
-.tabela--tarefas td { vertical-align: top; }
-.tabela--tarefas details { max-width: 340px; }
-.tarefa-responsavel { display: inline-flex; align-items: center; gap: 6px; }
-.tarefa-datas { display: grid; justify-items: start; gap: 2px; }
+
+/* A tabela: o título tem a coluna larga e as ações cabem em duas fileiras
+   fixas, para nenhuma célula ficar com sobra de altura vazia. */
+.tabela--tarefas { min-width: 860px; }
+.tabela--tarefas th, .tabela--tarefas td { padding-left: 10px; padding-right: 10px; }
+.tabela--tarefas td { padding-top: 12px; padding-bottom: 12px; vertical-align: top; }
+.tabela--tarefas th:first-child, .tabela--tarefas td:first-child { padding-left: 16px; }
+.tabela--tarefas th:last-child, .tabela--tarefas td:last-child { padding-right: 16px; }
+.tarefa-celula-titulo { min-width: 240px; }
+.tarefa-celula-datas { width: 1%; white-space: nowrap; }
+.tarefa-celula-cliente { min-width: 160px; }
+.tarefa-celula-responsavel { width: 1%; min-width: 150px; }
+.tarefa-celula-acoes { width: 1%; }
+.tarefa-titulo { display: block; font-size: var(--t-corpo); line-height: 1.35; }
+.tarefa-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 5px; }
+.tarefa-meta__texto { font-size: 12px; color: var(--c-texto-m); }
+.tarefa-celula-titulo .sub { margin-top: 3px; }
+.tarefa-descricao { max-width: 420px; margin-top: 4px; font-size: 12px; }
+.tarefa-descricao summary { color: var(--c-texto-m); cursor: pointer; }
+.tarefa-descricao p { margin-top: 4px; font-size: var(--t-pequeno); }
+.tarefa-responsavel { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.tarefa-responsavel + .sub { margin-top: 3px; }
+
+.tarefa-datas { display: grid; justify-items: start; gap: 3px; }
+.tarefa-data { display: flex; align-items: baseline; gap: 6px; }
+.tarefa-data__rotulo {
+  min-width: 4.6em;
+  font-size: var(--t-rotulo);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-texto-m);
+}
+.tarefa-quando { margin-top: 2px; }
+.tarefa-quando--amarelo { background: var(--c-urg-amarelo-fundo); color: var(--c-urg-amarelo-texto); }
+.tarefa-quando--vermelho { background: var(--c-urg-vermelho); color: #FFF; }
+
+.tarefa-acoes { display: grid; gap: 4px; width: 11rem; margin-left: auto; }
+.tarefa-acoes__botoes { display: flex; gap: 6px; }
+.tarefa-acoes__botoes > .botao { flex: 1; }
+.tarefa-acoes__textos { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px 14px; }
+.acao-texto {
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--c-acao);
+  font-size: 12px;
+  font-weight: 600;
+}
+.acao-texto:hover { text-decoration: underline; text-underline-offset: 2px; }
+.acao-texto[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+/* A cor da linha acompanha a data (urgenciaTarefa): faixa à esquerda e um
+   fundo leve, além da etiqueta de quanto falta. */
+.tarefa-linha--amarelo > td { background: var(--c-urg-amarelo-linha); }
+.tarefa-linha--vermelho > td { background: var(--c-urg-vermelho-linha); }
+.tarefa-linha--amarelo > td:first-child { box-shadow: inset 4px 0 0 var(--c-urg-amarelo); }
+.tarefa-linha--vermelho > td:first-child { box-shadow: inset 4px 0 0 var(--c-urg-vermelho); }
+.tabela tbody tr.tarefa-linha--amarelo:hover > td { background: #FFF4CC; }
+.tabela tbody tr.tarefa-linha--vermelho:hover > td { background: #FBE3DF; }
+
+/* Em Hoje, a mesma faixa de cor ao lado de cada tarefa. */
+.tarefa-aviso--amarelo { box-shadow: inset 4px 0 0 var(--c-urg-amarelo); }
+.tarefa-aviso--vermelho { box-shadow: inset 4px 0 0 var(--c-urg-vermelho); }
+
+/* Celular: cada tarefa vira um cartão, sem rolar a tabela para o lado. */
+@media screen and (max-width: 760px) {
+  .tabela--tarefas { min-width: 0; }
+  .tabela--tarefas thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .tabela--tarefas, .tabela--tarefas tbody, .tabela--tarefas td { display: block; width: auto; }
+  .tabela--tarefas tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px var(--s-3);
+    padding: var(--s-3) var(--s-4);
+    border-bottom: 1px solid var(--c-linha);
+  }
+  .tabela--tarefas td,
+  .tabela--tarefas td:first-child,
+  .tabela--tarefas td:last-child { min-width: 0; padding: 0; border: 0; background: none !important; white-space: normal; }
+  /* Título; data e responsável lado a lado; cliente; ações. A ordem vale
+     também para Prazos, onde a data vem primeiro na tabela. */
+  .tarefa-celula-titulo { order: 1; grid-column: 1 / -1; }
+  .tarefa-celula-datas { order: 2; }
+  .tarefa-celula-responsavel { order: 3; justify-self: end; text-align: right; }
+  .tarefa-celula-cliente { order: 4; grid-column: 1 / -1; }
+  .tarefa-celula-acoes { order: 5; grid-column: 1 / -1; }
+  .tarefa-acoes { width: auto; grid-template-columns: auto 1fr; align-items: center; gap: var(--s-3); margin: 2px 0 0; }
+  .tarefa-linha--amarelo { background: var(--c-urg-amarelo-linha); box-shadow: inset 4px 0 0 var(--c-urg-amarelo); }
+  .tarefa-linha--vermelho { background: var(--c-urg-vermelho-linha); box-shadow: inset 4px 0 0 var(--c-urg-vermelho); }
+  .tarefa-linha > td:first-child { box-shadow: none; }
+}
 
 .intimacao-teor { max-height: 340px; overflow: auto; padding: var(--s-4); border: 1px solid var(--c-linha); }
 .intimacoes-lista > li {
@@ -1437,4 +1710,75 @@ a.lista__item:hover { background: var(--c-realce); }
 
   .tabela--tarefas { min-width: 0; font-size: 9px; }
   .tabela--tarefas td { overflow-wrap: anywhere; }
+}
+
+/* ==========================================================================
+   FINANCEIRO (DOCX), OPERAÇÃO, CLIENTES E DJEN — entrega de 08/10/2026
+   ========================================================================== */
+.campo--estreito { flex: 0 1 140px; }
+.campo__linha { display: flex; gap: var(--s-2); align-items: center; }
+.campo__linha > input { flex: 1 1 auto; min-width: 0; }
+
+/* Quatro números por linha no desktop (Alertas, Importação, Operação). */
+@media (min-width: 900px) {
+  .indicadores--4 > * { flex: 1 1 calc(25% - 1px); }
+}
+
+.paginacao { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: var(--s-3); }
+.paginacao > .sub { margin-right: auto; }
+
+.lista-simples { display: grid; gap: var(--s-1); padding-left: 1.2em; list-style: disc; }
+.lista-simples code { font-size: 12px; }
+
+.lista__item--novo { box-shadow: inset 3px 0 0 var(--c-alerta); background: var(--c-alerta-fundo); }
+.alertas-grupos { display: grid; gap: var(--s-2); }
+.alertas-grupos > details > summary { cursor: pointer; padding: var(--s-2) 0; }
+
+.etiquetas { display: flex; flex-wrap: wrap; gap: var(--s-1); margin-top: 2px; }
+.etiqueta {
+  padding: 0 6px;
+  border: 1px solid var(--c-linha-forte);
+  font-size: 11px;
+  color: var(--c-texto-m);
+  white-space: nowrap;
+}
+
+/* Anexos: lista dentro do diálogo. */
+.anexos { display: grid; }
+.anexos > li { display: grid; gap: 2px; padding: var(--s-3) 0; border-bottom: 1px solid var(--c-linha); }
+.anexos > li:last-child { border-bottom: 0; }
+.anexos .registro-acoes { margin-top: var(--s-1); }
+
+/* Gráfico do painel: a cor de cada série vem de data-vars (--cor). */
+rect.grafico__barra { fill: var(--cor, var(--c-teal)); }
+.legenda--escolha label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.legenda--escolha label::before { content: ''; width: 10px; height: 10px; background: var(--cor); }
+
+/* Relatórios: cabeçalho só na impressão, tabela mais densa. */
+.relatorio-cabecalho { margin-bottom: var(--s-4); }
+.tabela--relatorio td, .tabela--relatorio th { padding-top: 6px; padding-bottom: 6px; }
+.tabela--relatorio tfoot td { font-weight: 700; border-top: 2px solid var(--c-linha-forte); }
+
+/* Aviso de saída por inatividade: acima de tudo, no canto. */
+.aviso-inatividade {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 1100;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+  width: min(520px, calc(100vw - 32px));
+  padding: var(--s-3) var(--s-4);
+  transform: translateX(-50%);
+  border-left: 3px solid var(--c-alerta);
+  background: var(--c-petrol);
+  color: var(--c-ink-claro);
+  box-shadow: 0 8px 24px rgba(7, 13, 12, 0.3);
+}
+.aviso-inatividade p { flex: 1 1 240px; margin: 0; }
+
+@media print {
+  .aviso-inatividade, .paginacao { display: none !important; }
 }

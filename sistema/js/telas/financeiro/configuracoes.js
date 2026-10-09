@@ -2,8 +2,9 @@
 // =============================================
 //
 // Critério de atraso, dados da cobrança, regra de divisão entre sócios,
-// categorias e formas de pagamento. Todos os níveis do Financeiro leem; só o
-// administrador muda (o banco garante).
+// código dos contratos, categorias, formas de pagamento e centros de custo.
+// Todos os níveis do Financeiro leem; só o administrador muda (o banco
+// garante).
 
 import { ErroCampo, mostrarErroFormulario } from '../../nucleo/formularios.js';
 import { atualizar } from '../../dominio/atraso.js';
@@ -22,13 +23,14 @@ import { apoio, camposCriterio, esquecerApoio, lerCriterio, memoria, numeroBR, o
 export default async function telaConfiguracoes(ctx) {
   const mostrar = async () => {
     esquecerApoio();
-    const [{ config, categorias, formas }, cotas] = await Promise.all([
+    const [{ config, categorias, formas }, cotas, centros] = await Promise.all([
       apoio(),
       pode.fechamento() ? db.listar('divisao_cotas', { select: '*' }) : [],
+      db.listar('centros_custo', { select: 'id,nome,ativo', ordem: 'nome.asc' }),
     ]);
     if (!ctx.ativa()) return;
     const admin = pode.administrar();
-    desenhar(ctx.raiz, tela({ config, categorias, formas, cotas, admin }));
+    desenhar(ctx.raiz, tela({ config, categorias, formas, cotas, centros, admin }));
     if (admin) ligar(ctx.raiz, { config, cotas, recarregar: mostrar });
     atualizarExemplo(ctx.raiz, config);
   };
@@ -38,9 +40,12 @@ export default async function telaConfiguracoes(ctx) {
     historico: () => mostrarHistoricoConfig(),
     'nova-categoria': () => editarItem('categorias', null).then((ok) => ok && mostrar()).catch(avisarErro),
     'nova-forma': () => editarItem('formas_pagamento', null).then((ok) => ok && mostrar()).catch(avisarErro),
+    'novo-centro': () => editarItem('centros_custo', null).then((ok) => ok && mostrar()).catch(avisarErro),
     'editar-item': async (el) => {
       const lista = el.dataset.tabela;
-      const item = (await apoio())[lista === 'categorias' ? 'categorias' : 'formas'].find((i) => i.id === el.dataset.id);
+      const item = lista === 'centros_custo'
+        ? await db.um('centros_custo', { select: 'id,nome,ativo', filtros: [['id', 'eq', el.dataset.id]] })
+        : (await apoio())[lista === 'categorias' ? 'categorias' : 'formas'].find((i) => i.id === el.dataset.id);
       if (await editarItem(lista, item)) await mostrar();
     },
   });
@@ -52,7 +57,7 @@ async function mostrarHistoricoConfig() {
   abrirHistorico({ titulo: 'configurações do Financeiro', registros: [config.id, ...cotas.map((c) => c.id)] });
 }
 
-function tela({ config, categorias, formas, cotas, admin }) {
+function tela({ config, categorias, formas, cotas, centros, admin }) {
   const trava = admin ? '' : 'disabled';
   const socios = estado.membros.filter((m) => ['admin', 'socio'].includes(m.papel) || cotas.some((c) => c.membro_id === m.id));
 
@@ -127,9 +132,28 @@ function tela({ config, categorias, formas, cotas, admin }) {
         ${admin ? html`<footer class="painel__rodape"><button class="botao botao--primario" type="submit">Salvar divisão</button></footer>` : ''}
       </form>` : ''}
 
+    <form class="painel secao" data-papel="codigo" novalidate>
+      <header class="painel__topo"><h2 class="painel__titulo">Código dos contratos</h2></header>
+      <div class="painel__corpo campos">
+        <label class="campo campo--4"><span>Prefixo</span><input name="codigo_prefixo" value="${config.codigo_prefixo ?? 'C'}" maxlength="4" required ${trava}>
+          <span class="campo__ajuda">Próximo do ano: ${config.codigo_prefixo ?? 'C'}001/${hoje().slice(0, 4)} em diante.</span></label>
+        <p class="campo campo--8 sub">O banco dá o código quando o contrato é criado, pelo ano da formalização, e ele nunca muda.
+          Trocar o prefixo vale só para os próximos. Contratos importados da planilha antiga guardam o código de lá. (Prefixo a confirmar com o escritório.)</p>
+      </div>
+      ${admin ? html`<footer class="painel__rodape"><button class="botao botao--primario" type="submit">Salvar prefixo</button></footer>` : ''}
+    </form>
+
     <div class="grade grade--2 secao">
       ${listaSimples('Categorias de despesa', 'categorias', categorias, admin, 'nova-categoria')}
       ${listaSimples('Formas de pagamento', 'formas_pagamento', formas, admin, 'nova-forma')}
+      ${listaSimples('Centros de custo', 'centros_custo', centros, admin, 'novo-centro')}
+      <section class="painel">
+        <header class="painel__topo"><h2 class="painel__titulo">Contas e fornecedores</h2></header>
+        <ul class="lista">
+          <li><a class="lista__item" href="#/financeiro/contas-financeiras"><span>Contas financeiras<span class="sub">Caixa, bancos, saldos e transferências</span></span></a></li>
+          <li><a class="lista__item" href="#/financeiro/contas?aba=fornecedores"><span>Fornecedores<span class="sub">Quem recebe as despesas do escritório</span></span></a></li>
+        </ul>
+      </section>
     </div>`;
 }
 
@@ -229,6 +253,17 @@ function ligar(raiz, { config, cotas, recarregar }) {
     salvarConfig(cobranca, { pix_chave: d.pix_chave || null, pix_titular: d.pix_titular || null, mensagem_cobranca: d.mensagem_cobranca }, 'Dados da cobrança salvos.');
   });
 
+  const codigo = $('[data-papel="codigo"]', raiz);
+  codigo.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const prefixo = (lerFormulario(codigo).codigo_prefixo ?? '').toUpperCase();
+    if (!/^[A-Z]{1,4}$/.test(prefixo)) {
+      mostrarErroFormulario(codigo, new ErroCampo('codigo_prefixo', 'Use de 1 a 4 letras, sem acento.'));
+      return;
+    }
+    salvarConfig(codigo, { codigo_prefixo: prefixo }, 'Prefixo salvo. Vale para os próximos contratos.');
+  });
+
   const divisao = $('[data-papel="divisao"]', raiz);
   if (!divisao) return;
 
@@ -287,19 +322,26 @@ function ligar(raiz, { config, cotas, recarregar }) {
 }
 
 function editarItem(tabela, item) {
-  const nomes = { categorias: 'categoria', formas_pagamento: 'forma de pagamento' };
+  const nomes = { categorias: 'categoria', formas_pagamento: 'forma de pagamento', centros_custo: 'centro de custo' };
+  // Centro de custo não tem ordem: a lista sai em ordem alfabética.
+  const comOrdem = tabela !== 'centros_custo';
   return abrirDialogo({
-    titulo: item ? `Editar ${nomes[tabela]}` : `Nova ${nomes[tabela]}`,
+    titulo: item ? `Editar ${nomes[tabela]}` : `${comOrdem ? 'Nova' : 'Novo'} ${nomes[tabela]}`,
     corpo: html`
       <div class="campos">
-        <label class="campo campo--8"><span>Nome</span><input name="nome" value="${item?.nome ?? ''}" required maxlength="80" autofocus></label>
-        <label class="campo campo--4"><span>Ordem</span><input type="number" name="ordem" value="${item?.ordem ?? 50}" min="0" max="999"></label>
-        ${item ? html`<label class="opcao"><input type="checkbox" name="ativo" ${item.ativo ? 'checked' : ''}> Ativa — desativada, some das listas mas continua nos lançamentos antigos</label>` : ''}
+        <label class="campo ${comOrdem ? 'campo--8' : ''}"><span>Nome</span><input name="nome" value="${item?.nome ?? ''}" required maxlength="80" autofocus></label>
+        ${comOrdem ? html`<label class="campo campo--4"><span>Ordem</span><input type="number" name="ordem" value="${item?.ordem ?? 50}" min="0" max="999"></label>` : ''}
+        ${item ? html`<label class="opcao"><input type="checkbox" name="ativo" ${item.ativo ? 'checked' : ''}> Ativo — desativado, some das listas mas continua nos lançamentos antigos</label>` : ''}
       </div>`,
     aoEnviar: async (d) => {
-      const registro = { nome: d.nome, ordem: Number(d.ordem || 0) };
-      if (item) await db.alterar(tabela, [['id', 'eq', item.id]], { ...registro, ativo: d.ativo }, 'id');
-      else await db.inserir(tabela, registro, 'id');
+      const registro = comOrdem ? { nome: d.nome, ordem: Number(d.ordem || 0) } : { nome: d.nome };
+      try {
+        if (item) await db.alterar(tabela, [['id', 'eq', item.id]], { ...registro, ativo: d.ativo }, 'id');
+        else await db.inserir(tabela, registro, 'id');
+      } catch (erro) {
+        if (erro.codigo === '23505') throw new Error(`Já existe ${comOrdem ? 'uma' : 'um'} ${nomes[tabela]} com esse nome. Edite ${comOrdem ? 'a' : 'o'} que já existe.`);
+        throw erro;
+      }
       esquecerApoio();
       avisar('Salvo.');
       return true;

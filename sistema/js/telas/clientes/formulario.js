@@ -1,10 +1,14 @@
 // Cadastro completo do cliente (F2): pessoa física ou jurídica, contato,
 // endereço, recados, representante, banco e responsável. Grava o mínimo e o
 // detalhe juntos, numa transação só (salvar_cliente).
+//
+// O CEP preenche o endereço pelo ViaCEP (gratuito, sem chave). Só o CEP sai
+// do navegador; se o serviço não responder, o endereço se digita à mão.
 
+import { CEP_URL } from '../../config.js';
 import { abrirDialogo } from '../../nucleo/dialogo.js';
 import { estado, membrosAtivos } from '../../nucleo/estado.js';
-import { documento, telefone } from '../../nucleo/formato.js';
+import { documento, hoje, soDigitos, telefone } from '../../nucleo/formato.js';
 import { html } from '../../nucleo/html.js';
 import { db } from '../../nucleo/supabase.js';
 import { COLUNAS_CLIENTE, COLUNAS_DETALHES, ESTADOS_CIVIS, prepararCliente, TIPOS_PESSOA } from '../../dominio/clientes.js';
@@ -26,9 +30,9 @@ const ROTULOS = {
   juridica: { documento: 'CNPJ', rg: 'Inscrição estadual', nascimento: 'Constituição' },
 };
 
-const campo = (c, nome, rotulo, { tipo = 'text', classe = 'campo--6', max = 200, obrigatorio = false, marcador = '' } = {}) => html`
+const campo = (c, nome, rotulo, { tipo = 'text', classe = 'campo--6', max = 200, ate = '', obrigatorio = false, marcador = '' } = {}) => html`
   <label class="campo ${classe}"><span ${marcador ? html`data-rotulo="${marcador}"` : ''}>${rotulo}</span>
-    <input type="${tipo}" name="${nome}" value="${c[nome] ?? ''}" ${tipo === 'date' ? '' : html`maxlength="${max}"`} ${obrigatorio ? 'required' : ''}></label>`;
+    <input type="${tipo}" name="${nome}" value="${c[nome] ?? ''}" ${tipo === 'date' ? (ate ? html`max="${ate}"` : '') : html`maxlength="${max}"`} ${obrigatorio ? 'required' : ''}></label>`;
 
 const longo = (c, nome, rotulo, max = 1000) => html`
   <label class="campo"><span>${rotulo}</span><textarea name="${nome}" rows="2" maxlength="${max}">${c[nome] ?? ''}</textarea></label>`;
@@ -41,11 +45,12 @@ function corpo(c) {
   return html`
     ${grupo('Identificação', html`
       ${campo(c, 'nome', 'Nome completo / razão social', { classe: '', obrigatorio: true })}
+      ${campo(c, 'nome_fantasia', 'Nome fantasia / como é conhecido', { classe: '' })}
       <label class="campo campo--6"><span>Tipo de pessoa</span><select name="tipo_pessoa">${opcoes(Object.entries(TIPOS_PESSOA), c.tipo_pessoa)}</select></label>
       <label class="campo campo--6"><span>Concordância nos documentos</span><select name="flexao">${opcoes([['', 'Neutra (a)'], ['m', 'O cliente'], ['f', 'A cliente']], c.flexao)}</select></label>
       ${campo(c, 'documento', rotulos.documento, { max: 18, marcador: 'documento' })}
       ${campo(c, 'rg', rotulos.rg, { max: 30, marcador: 'rg' })}
-      ${campo(c, 'nascimento', rotulos.nascimento, { tipo: 'date', marcador: 'nascimento' })}
+      ${campo(c, 'nascimento', rotulos.nascimento, { tipo: 'date', ate: hoje(), marcador: 'nascimento' })}
       ${campo(c, 'nacionalidade', 'Nacionalidade')}
       <label class="campo campo--6"><span>Estado civil</span><select name="estado_civil">${opcoes(Object.entries(ESTADOS_CIVIS), c.estado_civil, { vazio: 'Não informado' })}</select></label>
       ${campo(c, 'profissao', 'Profissão')}
@@ -54,7 +59,10 @@ function corpo(c) {
       ${campo(c, 'telefone', 'Telefone / WhatsApp', { tipo: 'tel', max: 20 })}
       ${campo(c, 'email', 'E-mail', { tipo: 'email' })}`)}
     ${grupo('Endereço', html`
-      ${campo(c, 'cep', 'CEP', { max: 9, classe: 'campo--4' })}
+      <label class="campo campo--4"><span>CEP</span>
+        <span class="campo__linha"><input name="cep" value="${c.cep ?? ''}" maxlength="9" inputmode="numeric">
+          <button type="button" class="botao botao--pequeno" data-cep>Buscar</button></span>
+        <span class="campo__ajuda" data-cep-aviso aria-live="polite"></span></label>
       ${campo(c, 'logradouro', 'Logradouro', { classe: 'campo--8' })}
       ${campo(c, 'numero', 'Número', { max: 30, classe: 'campo--4' })}
       ${campo(c, 'complemento', 'Complemento', { classe: 'campo--8' })}
@@ -80,7 +88,40 @@ function corpo(c) {
       ${campo(c, 'pix', 'Chave Pix')}`)}
     ${grupo('Organização', html`
       <label class="campo"><span>Responsável interno</span><select name="responsavel_id">${opcoesResponsaveis(c.responsavel_id)}</select></label>
+      <label class="campo"><span>Etiquetas</span><input name="etiquetas" value="${(c.etiquetas ?? []).join(', ')}" maxlength="900" placeholder="Ex.: inss, indicação, urgente">
+        <span class="campo__ajuda">Separe por vírgula. Servem para filtrar a lista de clientes.</span></label>
       ${longo(c, 'observacoes', 'Observações', 5000)}`)}`;
+}
+
+/** Busca o endereço do CEP. Ao sair do campo, só preenche o que está vazio; o botão substitui. */
+function ligarCep(form) {
+  const aviso = form.querySelector('[data-cep-aviso]');
+  const buscar = async (substituir) => {
+    const cep = soDigitos(form.cep.value);
+    if (cep.length !== 8) {
+      if (substituir) aviso.textContent = 'O CEP tem 8 dígitos.';
+      return;
+    }
+    aviso.textContent = 'Buscando…';
+    try {
+      const r = await fetch(`${CEP_URL}/${cep}/json/`, { signal: AbortSignal.timeout(8000) });
+      const e = r.ok ? await r.json() : null;
+      if (!e || e.erro) {
+        aviso.textContent = 'CEP não encontrado. Preencha o endereço à mão.';
+        return;
+      }
+      const campos = { logradouro: e.logradouro, bairro: e.bairro, cidade: e.localidade, uf: e.uf };
+      for (const [nome, valor] of Object.entries(campos)) {
+        if (valor && (substituir || !form[nome].value.trim())) form[nome].value = valor;
+      }
+      aviso.textContent = 'Endereço preenchido. Confira e informe o número.';
+      if (!form.numero.value) form.numero.focus();
+    } catch {
+      aviso.textContent = 'O serviço de CEP não respondeu. Preencha à mão.';
+    }
+  };
+  form.querySelector('[data-cep]').addEventListener('click', () => buscar(true));
+  form.cep.addEventListener('change', () => buscar(false));
 }
 
 /**
@@ -120,6 +161,7 @@ export async function formularioCompleto(clienteId = null, iniciais = {}) {
         for (const [nome, rotulo] of Object.entries(rotulos)) dialogo.querySelector(`[data-rotulo="${nome}"]`).textContent = rotulo;
       };
       form.tipo_pessoa.addEventListener('change', atualizarRotulos);
+      ligarCep(form);
       form.nome.focus();
     },
     aoEnviar: async (d) => {

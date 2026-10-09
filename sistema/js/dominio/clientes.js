@@ -5,7 +5,7 @@
 // confere de novo o que importa (CPF/CNPJ, CNJ, UF, CEP); aqui a mensagem
 // sai antes, em português, sem perder o que foi digitado.
 
-import { documentoValido, limparDocumento, numeroCnjValido, semAcento, soDigitos } from '../nucleo/formato.js';
+import { documentoValido, hoje, limparDocumento, numeroCnjValido, semAcento, soDigitos } from '../nucleo/formato.js';
 import { proximoAniversario } from './aniversarios.js';
 
 export const COLUNAS_CLIENTE = 'id,nome,documento,telefone,email,observacoes,ativo,criado_em,alterado_em';
@@ -14,9 +14,20 @@ export const CAMPOS_DETALHES = [
   'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf',
   'recado_nome', 'recado_relacao', 'recado_telefone', 'recado_observacao',
   'representante_nome', 'representante_documento', 'representante_relacao', 'representante_qualificacao',
-  'banco', 'agencia', 'conta', 'pix', 'responsavel_id',
+  'banco', 'agencia', 'conta', 'pix', 'responsavel_id', 'nome_fantasia',
 ];
-export const COLUNAS_DETALHES = ['id', 'cliente_id', ...CAMPOS_DETALHES, 'criado_em', 'alterado_em'].join(',');
+export const COLUNAS_DETALHES = ['id', 'cliente_id', ...CAMPOS_DETALHES, 'etiquetas', 'criado_em', 'alterado_em'].join(',');
+
+/** "inss, urgente; Indicação" → ['inss', 'urgente', 'indicação'] — o banco normaliza de novo. */
+export function lerEtiquetas(v) {
+  const lista = (Array.isArray(v) ? v : String(v ?? '').split(/[,;\n]/))
+    .map((e) => String(e).trim().toLocaleLowerCase('pt-BR'))
+    .filter(Boolean);
+  const unicas = [...new Set(lista)];
+  if (unicas.some((e) => e.length > 40)) throw new Error('Cada etiqueta pode ter até 40 caracteres.');
+  if (unicas.length > 20) throw new Error('Use no máximo 20 etiquetas por cliente.');
+  return unicas.sort();
+}
 export const COLUNAS_PROCESSO = 'id,cliente_id,numero,referencia,titulo,area,tribunal,orgao,responsavel_id,situacao,observacoes,criado_em,alterado_em';
 
 export const ESTADOS_CIVIS = {
@@ -63,9 +74,11 @@ export function prepararCliente(d, id = null) {
 
   const detalhes = Object.fromEntries(CAMPOS_DETALHES.map((c) => [c, texto(d[c]) || null]));
   detalhes.tipo_pessoa = tipo;
+  detalhes.etiquetas = lerEtiquetas(d.etiquetas);
   if (detalhes.flexao && !['m', 'f'].includes(detalhes.flexao)) throw new Error('Confira a concordância nos documentos.');
   if (detalhes.estado_civil && !ESTADOS_CIVIS[detalhes.estado_civil]) throw new Error('Confira o estado civil.');
   if (detalhes.nascimento && !dataValida(detalhes.nascimento)) throw new Error('Confira a data de nascimento ou constituição.');
+  if (detalhes.nascimento && detalhes.nascimento > hoje()) throw new Error('A data de nascimento ou constituição não pode ser posterior a hoje.');
 
   detalhes.cep = soDigitos(d.cep) || null;
   if (texto(d.cep) && (!/^[\d\s-]+$/.test(d.cep) || detalhes.cep?.length !== 8)) throw new Error('CEP precisa de 8 dígitos.');
@@ -145,7 +158,8 @@ export function filtrarClientes(clientes, detalhes, processos, f) {
     if (f.responsavel && d?.responsavel_id !== f.responsavel && !casos.some((p) => p.responsavel_id === f.responsavel)) return false;
     // Área e situação precisam pertencer ao mesmo caso, não a dois processos distintos.
     if ((f.area || f.situacao) && !casos.some((p) => (!f.area || p.area === f.area) && (!f.situacao || p.situacao === f.situacao))) return false;
-    return !busca || corresponde(busca, [c.nome, c.documento, c.telefone, c.email, ...casos.map((p) => p.numero)]);
+    if (f.etiqueta && !(d?.etiquetas ?? []).includes(f.etiqueta)) return false;
+    return !busca || corresponde(busca, [c.nome, d?.nome_fantasia, c.documento, c.telefone, c.email, ...(d?.etiquetas ?? []), ...casos.map((p) => p.numero)]);
   });
 }
 

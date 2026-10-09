@@ -1,4 +1,4 @@
-// Área dos advogados — FHL Advocacia.
+// Área dos advogados — Fonseca Lisboa Advocacia.
 // ===================================
 //
 // Ponto de entrada. Decide entre três telas: a de entrada (sem sessão), a de
@@ -12,8 +12,11 @@ import { aoMudarSessao, db, emailDaSessao, sair, sessaoAtual, sessaoDoLink } fro
 import { atualizarAvisos, mudaContadores } from './nucleo/avisos-do-dia.js';
 import { ligarCronometro } from './telas/atualizacoes/cronometro.js';
 import { ligarValidacaoFormularios } from './nucleo/formularios.js';
+import { ligarInatividade } from './nucleo/inatividade.js';
+import { ligarRegistroDeErros } from './nucleo/erros.js';
 
 ligarValidacaoFormularios();
+ligarRegistroDeErros();
 
 const app = document.getElementById('app');
 
@@ -31,20 +34,25 @@ rota('/clientes/:id', () => import('./telas/clientes/cliente.js'), { titulo: 'Fi
 rota('/processos', () => import('./telas/processos.js'), { titulo: 'Processos', permitido: pode.clientes });
 rota('/documentos', () => import('./telas/documentos/lista.js'), { titulo: 'Documentos', permitido: pode.clientes });
 rota('/documentos/novo', () => import('./telas/documentos/novo.js'), { titulo: 'Gerar documento', permitido: pode.clientes });
-rota('/documentos/:id', () => import('./telas/documentos/documento.js'), { titulo: 'Documento', permitido: pode.clientes });
+// O recibo (Financeiro) também abre aqui para quem não tem Clientes; o banco
+// só entrega a essa pessoa os documentos do tipo recibo.
+rota('/documentos/:id', () => import('./telas/documentos/documento.js'), { titulo: 'Documento', permitido: () => pode.clientes() || pode.financeiro() });
 rota('/atualizacoes', () => import('./telas/atualizacoes/lista.js'), { titulo: 'Atualizações', permitido: pode.clientes });
 rota('/atualizacoes/relatorio', () => import('./telas/atualizacoes/relatorio.js'), { titulo: 'Relatório de atividades', permitido: pode.clientes });
 rota('/tarefas', () => import('./telas/tarefas/lista.js'), { titulo: 'Tarefas' });
 rota('/prazos', () => import('./telas/tarefas/prazos.js'), { titulo: 'Prazos' });
-rota('/feriados', () => import('./telas/feriados.js'), { titulo: 'Feriados', permitido: pode.prazos });
+rota('/feriados', () => import('./telas/feriados.js'), { titulo: 'Feriados e prazos', permitido: pode.prazos });
 rota('/intimacoes', () => import('./telas/intimacoes.js'), { titulo: 'Intimações', permitido: pode.prazos });
 rota('/financeiro', () => import('./telas/financeiro/painel.js'), { titulo: 'Financeiro', ...doFinanceiro });
 rota('/financeiro/recebiveis', () => import('./telas/financeiro/recebiveis.js'), { titulo: 'Recebíveis', ...doFinanceiro });
 rota('/financeiro/atraso', () => import('./telas/financeiro/em-atraso.js'), { titulo: 'Em atraso', ...doFinanceiro });
 rota('/financeiro/contratos', () => import('./telas/financeiro/contratos.js'), { titulo: 'Contratos', ...doFinanceiro });
-rota('/financeiro/contratos/novo', () => import('./telas/financeiro/contrato-novo.js'), { titulo: 'Novo contrato', ...doFinanceiro });
+rota('/financeiro/contratos/novo', () => import('./telas/financeiro/contrato-novo.js'), { titulo: 'Novo contrato', permitido: pode.lancar });
 rota('/financeiro/contratos/:id', () => import('./telas/financeiro/contrato.js'), { titulo: 'Contrato', ...doFinanceiro });
 rota('/financeiro/contas', () => import('./telas/financeiro/contas.js'), { titulo: 'Contas do escritório', ...doFinanceiro });
+rota('/financeiro/contas-financeiras', () => import('./telas/financeiro/contas-financeiras.js'), { titulo: 'Contas financeiras', ...doFinanceiro });
+rota('/financeiro/alertas', () => import('./telas/financeiro/alertas.js'), { titulo: 'Alertas do Financeiro', ...doFinanceiro });
+rota('/financeiro/importacao', () => import('./telas/financeiro/importacao.js'), { titulo: 'Importar planilha', permitido: pode.lancar });
 rota('/financeiro/fechamento', () => import('./telas/financeiro/fechamento.js'), { titulo: 'Fechamento', permitido: pode.fechamento });
 rota('/financeiro/relatorios', () => import('./telas/financeiro/relatorios.js'), { titulo: 'Relatórios', ...doFinanceiro });
 rota('/financeiro/configuracoes', () => import('./telas/financeiro/configuracoes.js'), { titulo: 'Configurações do Financeiro', ...doFinanceiro });
@@ -58,7 +66,8 @@ rota('/site/campanhas', () => import('./telas/site/campanhas.js'), { titulo: 'Ca
 rota('/site/campanhas/:id', () => import('./telas/site/campanha.js'), { titulo: 'Campanha', ...doSite });
 rota('/site/publicar', () => import('./telas/site/publicar.js'), { titulo: 'Publicar o site', ...doSite });
 rota('/membros', () => import('./telas/membros.js'), { titulo: 'Membros', permitido: pode.administrar });
-rota('/historico', () => import('./telas/historico.js'), { titulo: 'Histórico', permitido: pode.administrar });
+rota('/historico', () => import('./telas/historico.js'), { titulo: 'Histórico', permitido: pode.auditoria });
+rota('/operacao', () => import('./telas/operacao.js'), { titulo: 'Operação e LGPD', permitido: pode.auditoria });
 rota('/conta', () => import('./telas/conta.js'), { titulo: 'Minha conta' });
 
 const MENU = [
@@ -86,7 +95,7 @@ const MENU = [
       { caminho: '/tarefas', rotulo: 'Tarefas', contagem: true },
       { caminho: '/prazos', rotulo: 'Prazos' },
       { caminho: '/intimacoes', rotulo: 'Intimações', permitido: pode.prazos, contagem: true },
-      { caminho: '/feriados', rotulo: 'Feriados', permitido: pode.prazos },
+      { caminho: '/feriados', rotulo: 'Feriados e prazos', permitido: pode.prazos },
     ],
   },
   {
@@ -94,12 +103,15 @@ const MENU = [
     permitido: pode.financeiro,
     itens: [
       { caminho: '/financeiro', rotulo: 'Painel' },
+      { caminho: '/financeiro/alertas', rotulo: 'Alertas', contagem: true },
       { caminho: '/financeiro/recebiveis', rotulo: 'Recebíveis' },
       { caminho: '/financeiro/atraso', rotulo: 'Em atraso' },
       { caminho: '/financeiro/contratos', rotulo: 'Contratos' },
       { caminho: '/financeiro/contas', rotulo: 'Contas do escritório' },
+      { caminho: '/financeiro/contas-financeiras', rotulo: 'Contas financeiras' },
       { caminho: '/financeiro/fechamento', rotulo: 'Fechamento', permitido: pode.fechamento },
       { caminho: '/financeiro/relatorios', rotulo: 'Relatórios' },
+      { caminho: '/financeiro/importacao', rotulo: 'Importar planilha', permitido: pode.lancar },
       { caminho: '/financeiro/configuracoes', rotulo: 'Configurações' },
     ],
   },
@@ -114,10 +126,11 @@ const MENU = [
   },
   {
     titulo: 'Escritório',
-    permitido: pode.administrar,
+    permitido: () => pode.administrar() || pode.auditoria(),
     itens: [
-      { caminho: '/membros', rotulo: 'Membros' },
-      { caminho: '/historico', rotulo: 'Histórico' },
+      { caminho: '/membros', rotulo: 'Membros', permitido: pode.administrar },
+      { caminho: '/historico', rotulo: 'Histórico', permitido: pode.auditoria },
+      { caminho: '/operacao', rotulo: 'Operação e LGPD', permitido: pode.auditoria },
     ],
   },
 ];
@@ -126,7 +139,7 @@ const liberado = (item) => !item.permitido || item.permitido();
 
 const marca = () => html`
   <a class="marca" href="#/inicio">
-    <img class="marca__monograma" src="/sistema/img/monograma.svg" alt="FHL" width="43" height="26">
+    <img class="marca__monograma" src="/sistema/img/monograma.svg" alt="FL — Fonseca Lisboa Advocacia" width="31" height="26">
     <span class="marca__nome">Advocacia</span>
   </a>`;
 
@@ -136,12 +149,14 @@ const marca = () => html`
 
 let saindo = false;
 let desligarCronometro = () => {};
+let desligarInatividade = () => {};
 
 async function mostrarEntrada(opcoes) {
   ++geracao;
   limparTela?.();
   limparTela = null;
   desligarCronometro();
+  desligarInatividade();
   estado.membro = null;
   const { default: telaEntrada } = await import('./telas/entrar.js');
   telaEntrada(app, opcoes);
@@ -158,7 +173,7 @@ function mostrarMensagem(titulo, texto, { tentar = false } = {}) {
       <section class="entrada__marca">
         ${marca()}
         <p class="entrada__frase">Área dos advogados</p>
-        <p class="entrada__rodape">Fonseca Hespanha Lisboa · Paranaguá — PR</p>
+        <p class="entrada__rodape">Fonseca Lisboa · Paranaguá — PR</p>
       </section>
       <section class="entrada__painel">
         <div class="entrada__form">
@@ -205,6 +220,8 @@ function desenharCasca() {
       <main class="conteudo" id="conteudo" tabindex="-1"></main>
     </div>`);
   desligarCronometro = ligarCronometro(app);
+  desligarInatividade();
+  desligarInatividade = ligarInatividade();
   atualizarAvisos(app);
 }
 
@@ -239,6 +256,10 @@ function abrirSistema({ novaSenha = false } = {}) {
     if (novaSenha) history.replaceState(null, '', '#/conta?nova=1');
     else if (!resolver()) history.replaceState(null, '', '#/inicio');
     mostrarRota();
+    // Captura diária do DJEN: depois da primeira tela, para não disputar com ela.
+    if (pode.prazos()) {
+      setTimeout(() => import('./telas/djen.js').then((m) => m.capturarDoDia()).catch(() => {}), 4000);
+    }
   })().finally(() => {
     abrindo = null;
   });
@@ -280,7 +301,7 @@ async function mostrarRota() {
   const raiz = document.createElement('div');
   raiz.className = 'tela';
   $('#conteudo', app).replaceChildren(raiz);
-  document.title = `${r.titulo ?? 'Área dos advogados'} — FHL`;
+  document.title = `${r.titulo ?? 'Área dos advogados'} — FL`;
 
   if (r.permitido && !r.permitido()) {
     desenhar(raiz, html`

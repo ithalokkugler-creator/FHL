@@ -91,7 +91,7 @@ export const assinatura = (rotulo, nome = '') =>
 /** A folha inteira: logomarca, título, corpo, local e data, assinaturas e rodapé. */
 export function folha(titulo, corpo, dia, assinaturas = []) {
   return html`
-    <div class="doc-cabecalho"><img src="/sistema/img/logo-documento.svg" alt="FHL Advocacia"></div>
+    <div class="doc-cabecalho"><img src="/sistema/img/logo-documento.svg" alt="Fonseca Lisboa Advocacia"></div>
     <h1 class="doc-titulo">${titulo}</h1>
     ${corpo}
     <p class="doc-data">${localEData(dia)}</p>

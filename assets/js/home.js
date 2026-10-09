@@ -1,5 +1,5 @@
 /* ==========================================================================
-   FHL ADVOCACIA — HOME
+   FONSECA LISBOA ADVOCACIA — HOME
    A narrativa do scroll. Preparação, seção 6.
    Todas as durações e easings vêm de motion.js — nada literal aqui.
    ========================================================================== */

@@ -1,6 +1,6 @@
 // Seções institucionais compartilhadas pela home e por escritorio.html.
 //
-// Eram duas cópias. A da home foi atualizada para a FHL; a de
+// Eram duas cópias. A da home foi atualizada para o escritório; a de
 // escritorio.html ficou com o texto do projeto anterior (18 anos de atuação,
 // 40+ artigos, "áreas do direito civil") — e apareceu na tela durante a
 // reunião com o cliente. Com um lugar só, as páginas não divergem mais.

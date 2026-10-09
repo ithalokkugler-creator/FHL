@@ -22,8 +22,8 @@ ${contatoAside()}
 
   return page({
     path: 'contato.html',
-    title: 'Contato — FHL Advocacia',
-    desc: 'Fale com a FHL Advocacia, em Paranaguá: WhatsApp, telefone, e-mail ou ' +
+    title: 'Contato — Fonseca Lisboa Advocacia',
+    desc: 'Fale com a Fonseca Lisboa Advocacia, em Paranaguá: WhatsApp, telefone, e-mail ou ' +
       'formulário. Respondemos em até um dia útil.',
     body,
   });

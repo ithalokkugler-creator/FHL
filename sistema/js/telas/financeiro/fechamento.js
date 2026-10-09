@@ -18,8 +18,16 @@ import { db } from '../../nucleo/supabase.js';
 import { cabecalho, cabecalhoImpressao, capitalizar, indicador, mesDaConsulta, plural, seletorMes, vazio } from '../comum.js';
 import { abrirHistorico } from '../historico.js';
 import { garantirContasDoMes } from './base.js';
+import { telaFechamentoAnual } from './fechamento-anual.js';
+
+const abas = (atual, mes) => html`
+  <nav class="abas nao-imprimir" aria-label="Fechamento">
+    <a href="#/financeiro/fechamento${mes ? `?mes=${mes}` : ''}" ${atual === 'mensal' ? html`aria-current="page"` : ''}>Mensal</a>
+    <a href="#/financeiro/fechamento?aba=anual" ${atual === 'anual' ? html`aria-current="page"` : ''}>Anual (exercício)</a>
+  </nav>`;
 
 export default async function telaFechamento(ctx) {
+  if (ctx.consulta.aba === 'anual') return telaFechamentoAnual(ctx, abas('anual'));
   // Por padrão, o mês que acabou de passar: é esse que se fecha.
   let mes = mesDaConsulta(ctx.consulta.mes, somarMeses(inicioDoMes(hoje()), -1));
   let dados;
@@ -121,6 +129,7 @@ function tela(mes, { registro, foto, lista }) {
       ${registro ? html`<button type="button" class="botao" data-acao="historico">Histórico</button>` : ''}
       ${admin && fechado ? html`<button type="button" class="botao botao--discreto" data-acao="reabrir">Reabrir</button>` : ''}
       ${admin && !fechado && !futuro ? html`<button type="button" class="botao botao--primario" data-acao="fechar">Fechar o mês</button>` : ''}`)}
+    ${abas('mensal', mes)}
 
     ${fechado
       ? html`<p class="nota nota--info">Mês fechado: lançamentos de ${nomeDoMes(mes)} só mudam se o administrador reabrir.</p>`
@@ -128,7 +137,7 @@ function tela(mes, { registro, foto, lista }) {
 
     <div class="indicadores">
       ${indicador('Entradas', moeda(centavos(t.entradas)), plural(Number(t.recebimentos), 'recebimento', 'recebimentos'), { tom: 'ok' })}
-      ${indicador('Saídas', moeda(centavos(t.saidas)), 'contas pagas no mês')}
+      ${indicador('Saídas', moeda(centavos(t.saidas)), t.pagamentos != null ? plural(Number(t.pagamentos), 'pagamento de despesa', 'pagamentos de despesas') : 'contas pagas no mês')}
       ${indicador('Resultado', moeda(centavos(t.resultado)), 'entradas − saídas', { tom: Number(t.resultado) < 0 ? 'perigo' : '' })}
     </div>
 
@@ -192,7 +201,7 @@ function tela(mes, { registro, foto, lista }) {
           <span class="num${p.parcelas_vencidas ? ' perigo' : ''}">${p.parcelas_vencidas} · ${moeda(centavos(p.parcelas_vencidas_saldo))}</span>
         </a></li>
         <li><a class="lista__item" href="#/financeiro/contas?mes=${mes}">
-          <span>Contas do mês sem pagamento</span>
+          <span>Contas do mês com saldo a pagar${p.contas_pagas_em_parte ? ` (${p.contas_pagas_em_parte} paga(s) em parte)` : ''}</span>
           <span class="num${p.contas_sem_baixa ? ' perigo' : ''}">${p.contas_sem_baixa} · ${moeda(centavos(p.contas_sem_baixa_valor))}</span>
         </a></li>
       </ul>

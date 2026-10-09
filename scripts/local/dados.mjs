@@ -32,7 +32,7 @@ export function criarDados() {
   const clientes_detalhes = [
     { id:id(402),cliente_id:id(202),tipo_pessoa:'fisica',nascimento:'1990'+somarDias(hoje(),2).slice(4),rg:'RG FICTÍCIO',nacionalidade:'Brasileira',estado_civil:'solteiro',profissao:'Profissão fictícia',filiacao:'Filiação de demonstração',cep:'83203000',logradouro:'Rua Fictícia',numero:'100',bairro:'Centro',cidade:'Paranaguá',uf:'PR',recado_nome:'Parente Fictício',recado_relacao:'Mãe',recado_telefone:'41900000004',recado_observacao:'Pode receber recados.',representante_nome:'Representante Fictícia',representante_documento:'98765432100',representante_relacao:'Responsável legal',representante_qualificacao:'Qualificação fictícia',banco:'Banco de Demonstração',agencia:'0000',conta:'00000-0',pix:'jose@example.test',responsavel_id:membros[1].id },
     { id:id(403),cliente_id:id(203),tipo_pessoa:'juridica',responsavel_id:membros[0].id },
-  ].map((d)=>({...Object.fromEntries(CAMPOS_DETALHES.map((c)=>[c,null])),...d,criado_em:agora(),alterado_em:null}));
+  ].map((d)=>({...Object.fromEntries(CAMPOS_DETALHES.map((c)=>[c,null])),etiquetas:[],...d,criado_em:agora(),alterado_em:null}));
   const processos = [
     { id:id(501),cliente_id:id(202),numero:'00012342220258160001',titulo:'Ação Fictícia de Demonstração',area:'civel',tribunal:'TJPR',orgao:'Vara fictícia',responsavel_id:membros[1].id,situacao:'em_andamento' },
     { id:id(502),cliente_id:id(201),numero:'00012342220258160001',titulo:'Mesmo processo — outro cliente fictício',area:'civel',tribunal:'TJPR',responsavel_id:membros[0].id,situacao:'em_analise' },

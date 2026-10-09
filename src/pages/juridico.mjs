@@ -82,8 +82,8 @@ export function buildPrivacidade() {
 
   return page({
     path: 'politica-de-privacidade.html',
-    title: 'Política de Privacidade — FHL Advocacia',
-    desc: 'Como a FHL Advocacia trata os dados pessoais coletados no site, nos termos da LGPD.',
+    title: 'Política de Privacidade — Fonseca Lisboa Advocacia',
+    desc: 'Como a Fonseca Lisboa Advocacia trata os dados pessoais coletados no site, nos termos da LGPD.',
     body,
   });
 }
@@ -129,8 +129,8 @@ export function buildTermos() {
 
   return page({
     path: 'termos-de-uso.html',
-    title: 'Termos de Uso — FHL Advocacia',
-    desc: 'Condições de uso do site da FHL Advocacia.',
+    title: 'Termos de Uso — Fonseca Lisboa Advocacia',
+    desc: 'Condições de uso do site da Fonseca Lisboa Advocacia.',
     body,
   });
 }
@@ -143,7 +143,7 @@ export function build404() {
   // existe, inclusive dentro de /atuacao/ ou /publicacoes/, onde os relativos
   // do resto do site apontariam para o lugar errado.
   const body = `  <section class="notfound">
-    <img class="watermark watermark--right" src="/assets/img/monograma.svg" alt="" aria-hidden="true">
+    <img class="watermark watermark--right" src="/assets/img/marca-dagua.svg" alt="" aria-hidden="true">
     <div class="wrap notfound__inner">
       <p class="label" data-reveal="rise">Erro 404</p>
       <h1 class="display notfound__title r-mask" data-reveal="mask">Página não encontrada</h1>
@@ -163,7 +163,7 @@ export function build404() {
 
   return page({
     path: '404.html',
-    title: 'Página não encontrada — FHL Advocacia',
+    title: 'Página não encontrada — Fonseca Lisboa Advocacia',
     desc: 'O endereço que você acessou não existe mais.',
     body,
     noindex: true,

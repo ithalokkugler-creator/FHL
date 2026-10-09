@@ -25,8 +25,8 @@ ${cards}
 
   return page({
     path: 'equipe.html',
-    title: 'Quem somos — FHL Advocacia',
-    desc: 'Os três advogados da FHL Advocacia, em Paranaguá: áreas de atuação, ' +
+    title: 'Quem somos — Fonseca Lisboa Advocacia',
+    desc: 'Os três advogados da Fonseca Lisboa Advocacia, em Paranaguá: áreas de atuação, ' +
       'perfil e inscrição na OAB/PR de cada um.',
     body,
   });

@@ -13,6 +13,11 @@ export function complementarPrazos(d) {
  d.tarefas=[
   {id:id(901),titulo:'Conferir documentos fictícios',tipo:'tarefa',responsavel_id:id(4),entrega:hoje(),cliente_id:id(202),processo_id:id(501)},
   {id:id(902),titulo:'Manifestação fictícia — prazo em horas',tipo:'prazo',responsavel_id:id(1),contagem:'horas',quantidade:48,base_em:instante(hoje(),'09:00'),fatal_em:new Date(Date.now()+48*3600000).toISOString(),entrega:hoje(),cliente_id:id(202),processo_id:id(501)},
+  // As cores da lista (08/10): dois dias = vermelho, uma semana = amarelo, além disso sem cor.
+  // Delegadas à Sócia, para não mudar o "Para hoje" do admin que os roteiros conferem.
+  {id:id(903),titulo:'Revisar minuta fictícia do contrato',tipo:'tarefa',ato:'Manifestação',responsavel_id:id(2),prioridade:'alta',entrega:somarDias(hoje(),2),cliente_id:id(202)},
+  {id:id(904),titulo:'Recurso fictício — prazo em dias úteis',tipo:'prazo',ato:'Recurso',responsavel_id:id(2),situacao:'em_andamento',contagem:'uteis',quantidade:15,base_em:instante(somarDias(hoje(),-15),'00:00'),fatal_em:instante(somarDias(hoje(),6),'23:59'),entrega:somarDias(hoje(),4),cliente_id:id(202),processo_id:id(501)},
+  {id:id(905),titulo:'Organizar pasta fictícia do cliente',tipo:'tarefa',responsavel_id:id(1),prioridade:'baixa',entrega:somarDias(hoje(),15),descricao:null},
  ].map(t=>({ato:null,descricao:'Demonstração: datas informadas manualmente.',cliente_id:null,processo_id:null,prioridade:'normal',situacao:'pendente',entrega:null,fatal_em:null,contagem:null,base_em:null,quantidade:null,recesso:true,memoria_prazo:null,concluida_em:null,concluida_por:null,motivo_reabertura:null,compromisso_id:null,intimacao_id:null,cancelado_em:null,motivo_cancelamento:null,criado_em:agora(),criado_por:id(1),alterado_em:null,...t}));
  d.intimacoes=[{id:id(951),fonte:'manual',disponibilizada_em:somarDias(hoje(),-2),publicada_em:hoje(),tribunal:'TJPR',orgao:'Vara fictícia',tipo_comunicacao:'Intimação fictícia',numero_processo:d.processos[0].numero,texto:'Comunicação fictícia para testar a conferência humana. Informe manualmente as datas antes de salvar um prazo.',destinatarios:[],advogados:[],membro_id:id(2),cliente_id:id(202),processo_id:id(501),situacao:'pendente',conferida_em:null,conferida_por:null,compromisso_id:null,observacoes:null,criado_em:agora(),criado_por:id(1)}];
  return d;

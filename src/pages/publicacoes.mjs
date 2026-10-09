@@ -156,8 +156,8 @@ ${items}
 
   return page({
     path: 'publicacoes.html',
-    title: 'Publicações — FHL Advocacia',
-    desc: 'Artigos da FHL Advocacia sobre direito trabalhista, previdenciário, do consumidor e cível.',
+    title: 'Publicações — Fonseca Lisboa Advocacia',
+    desc: 'Artigos da Fonseca Lisboa Advocacia sobre direito trabalhista, previdenciário, do consumidor e cível.',
     body,
   });
 }
@@ -226,7 +226,7 @@ ${compartilhar(post, path)}
 
   return page({
     path,
-    title: `${post.titulo} — FHL Advocacia`,
+    title: `${post.titulo} — Fonseca Lisboa Advocacia`,
     desc: post.resumo,
     body,
     depth: 1,

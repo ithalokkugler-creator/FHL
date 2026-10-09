@@ -1,5 +1,5 @@
 /* ==========================================================================
-   FHL ADVOCACIA — TOKENS
+   FONSECA LISBOA ADVOCACIA — TOKENS
    Sistema de design. Preparação, seções 4.1 a 4.3 e 7.2.
    Nenhum valor literal de cor, espaço ou duração deve existir fora deste arquivo.
    ========================================================================== */
@@ -56,9 +56,12 @@
   /* ------------------------------------------------------------------------
      PALETA — verde-petróleo com três acentos:
        teal  #2E615D · vinho #6E5551 · menta #A2CBB8.
-     A logomarca (monograma FHL, assets/img/logo.svg) é monocromática: entra
-     em tinta clara sobre o petróleo e em petróleo sobre o claro. As cores
-     são do site, não da marca. Não existe dourado na identidade.
+     São as três pétalas do peixinho (assets/img/peixinho.svg), a marca
+     antiga, que voltou na abertura, nas marcas d'água e no favicon.
+     A logomarca FL (assets/img/logo.svg) entra em tinta clara sobre o
+     petróleo e em petróleo sobre o claro; só as faixas do traço têm cor
+     própria, terra #4B3D37 e verde #435B54 (src/lib/marca.mjs, COR_FL).
+     Não existe dourado na identidade.
      ------------------------------------------------------------------------ */
 
   /* Superfícies escuras */

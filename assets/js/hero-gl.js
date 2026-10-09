@@ -1,5 +1,5 @@
 /* ==========================================================================
-   FHL ADVOCACIA — "O DOCUMENTO"
+   FONSECA LISBOA ADVOCACIA — "O DOCUMENTO"
    A única cena WebGL do site inteiro. Preparação, seção 8.
 
    Um plano que se comporta como uma folha de papel pesado. A amplitude do

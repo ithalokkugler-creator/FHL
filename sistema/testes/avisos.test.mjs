@@ -25,7 +25,7 @@ test('Lista de aniversários exclui PJ e inativos, inclui dia 7 e ordena por pro
 });
 test('Mensagem de aniversário usa primeiro nome e o remetente escolhido', () => {
   assert.equal(mensagemAniversario({cliente:{nome:'  José Fictício  '},remetente:'Ithalo'}),
-    'Olá, José! Aqui é Ithalo, da FHL Advocacia. Passando para desejar um feliz aniversário — muita saúde, muita sorte, e que Deus te abençoe! Precisando de alguma coisa, estamos à disposição.');
+    'Olá, José! Aqui é Ithalo, da Fonseca Lisboa Advocacia. Passando para desejar um feliz aniversário — muita saúde, muita sorte, e que Deus te abençoe! Precisando de alguma coisa, estamos à disposição.');
 });
 test('Lembrete usa data e hora de Brasília, endereço único e local/link informado', () => {
   const compromisso={cliente_nome:'José Silva',inicio:'2026-10-06T01:30:00Z',modalidade:'presencial'};

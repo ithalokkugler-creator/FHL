@@ -1,7 +1,7 @@
-# FHL Advocacia — área dos advogados
+# Fonseca Lisboa Advocacia — área dos advogados
 
 Sistema interno do escritório: **Agenda**, **Financeiro** e o **Site** — as
-publicações e campanhas que aparecem em fhladvocacia.com.br —, com login
+publicações e campanhas que aparecem no site público —, com login
 individual, permissão por módulo e histórico de tudo. É o piloto da fase 2
 descrita em [`preparacao-area-dos-advogados.md`](../preparacao-area-dos-advogados.md)
 — ainda não contratado, rodando nos planos gratuitos do Supabase e da Vercel.
@@ -10,7 +10,7 @@ A área **vai ao ar junto com o site**, em `/sistema`, no mesmo deploy e no mesm
 repositório. O site tem um link discreto para ela no rodapé; ela tem "Ver o
 site" na lateral e "Voltar ao site" na tela de entrada.
 
-**05/10/2026 · E0/F1–F4 implementados e testados localmente:** níveis de acesso
+**Histórico de 05/10/2026 · estado daquela entrega:** E0/F1–F4 implementados e testados localmente: níveis de acesso
 Clientes/Prazos, Contatos, cadastro completo, processos, documentos e atualizações.
 F5/F6 estão parcialmente implementadas com tarefas, prazos manuais, feriados
 cadastrados e intimações manuais. Contagem automática, datas móveis e
@@ -27,6 +27,38 @@ sem gravar na produção: `npm run testar:local` →
 novo reescrito no estilo do projeto e migrações novas reformatadas, sem mudar
 regra nem texto jurídico. Detalhes em
 [REVISAO-NOVAS-FUNCOES.md](../REVISAO-NOVAS-FUNCOES.md).
+
+**08–09/10/2026 · Financeiro do DOCX (T01–T17) e DJEN, só local:**
+- **Financeiro:** pagamentos de despesa separados (parcial, estorno, reembolso),
+  contas financeiras e transferências, descontos e acréscimos autorizados,
+  encargos discriminados e código de contrato C001/AAAA.
+- **Contratos e fechamento:** formalização a confirmar, arquivamento,
+  redistribuição de parcelas, fechamento anual com versões e
+  `resumo_financeiro`.
+- **Relatórios e importação:** nove relatórios com exportação em XLSX/CSV, recibo
+  com valor por extenso, central de alertas e importação da planilha antiga com
+  área de conferência.
+- **Arquivos:** anexos privados com verificação no servidor.
+- **Acesso e operação:** perfis Consulta e Auditoria, convite por e-mail,
+  saída por inatividade, tela Operação e LGPD e registro de erros.
+- **Clientes:** vários contatos, nome fantasia, etiquetas e CEP.
+- **Intimações:** busca no DJEN pelo navegador, captura diária, contagem
+  automática de prazos sugerida e feriados nacionais na Agenda.
+- **Sem 2FA**, por decisão do Ithalo.
+
+Doze migrações (`20261008120000`–`20261008121100`) e duas funções de borda
+(`finalizar-anexo`, `administrar-usuarios`) estão **sem aplicar e sem
+publicar**. Estado, ordem de publicação e decisões a confirmar:
+[HANDOFF-FINANCEIRO-DJEN.md](../HANDOFF-FINANCEIRO-DJEN.md).
+
+**09/10/2026 · revisão de código, banco e visual:** correções de permissões,
+captura DJEN, filtros e previsões financeiras, recibos históricos, importação,
+anexos, indisponibilidade dos serviços e seleção de cliente no editor.
+**150/150 testes JavaScript, 440/440 verificações SQL e 17 páginas do site.**
+Correções do QA de 09/10 (444/444 SQL): [HANDOFF §9](../HANDOFF-FINANCEIRO-DJEN.md#9-correções-do-qa-de-09102026).
+Telas conferidas no navegador em computador e celular, com dados fictícios e
+PostgreSQL isolado. Resultados, limites da validação e preparação da publicação:
+[REVISAO-FINANCEIRO-DJEN.md](../REVISAO-FINANCEIRO-DJEN.md).
 
 ---
 
@@ -47,12 +79,14 @@ evita a classe de erro que só aparece em produção.
 |---|---|
 | `npm run dev` | Serve o site em `/` e a área dos advogados em `/sistema`, com live reload |
 | `npm run dev -- 3000` | O mesmo, em outra porta |
-| `npm run testar:local` | Novas funções, incluindo Agenda/Google/`.ics`, com API simulada, perfis fictícios e handler HTTP real; porta 8125 |
-| `npm run sistema:test` | Testes dos cálculos: atraso, parcelas, índices, cobrança, agenda, formatos |
+| `npm run testar:local` | Prévia com **banco de verdade em memória** (PGlite: todas as migrações, RLS e gatilhos), perfis fictícios, DJEN e CEP fictícios; porta 8125. `-- --simulado` volta à API simulada antiga |
+| `npm run sistema:test` | Testes dos cálculos: atraso, parcelas, índices, cobrança, agenda, formatos, prazos, DJEN, XLSX, importação |
+| `npm run banco:test` | Testes SQL das permissões e do Financeiro no PGlite, mais o ensaio da migração sobre dados antigos (`npm run banco:test -- financeiro-docx` filtra) |
 
 Com `npm run dev`, o sistema fala com o projeto Supabase **fhl-advocacia**,
 região São Paulo. Para a entrega nova, use `testar:local`: os dados ficam em
-memória e o frontend sai em `.local/previa/`, separado de `dist/`.
+memória e o frontend sai em `.local/previa/`, separado de `dist/`. O PGlite
+fica em `.local/ferramentas/` (não vai para o repositório nem para a Vercel).
 
 ### Primeiro acesso
 
@@ -84,7 +118,9 @@ Para liberar os sócios, o administrador põe o e-mail de cada um na tela
 sistema/
   index.html · vercel.json · .vercelignore
   css/sistema.css            Tokens da marca, casca, componentes e telas
-  img/                       Logomarca, monograma e favicon (cópias de assets/img, `npm run marca`)
+  img/                       Logo FL completa (entrada), monograma FL (menu), assinatura FL dos
+                             documentos, peixinho de marca d'água (entrada) e favicon — `npm run marca`.
+                             O peixinho nunca entra nos documentos gerados.
   js/
     app.js                   Rotas, menu por permissão, sessão
     config.js                URL e chave publicável do Supabase
@@ -171,6 +207,12 @@ Sugestão ao escolher o perfil em **Membros**, ajustável por pessoa:
 O Site nasce fechado para quem não é sócio: o texto que sai dali é publicidade
 de escritório de advocacia, e quem escreve assina.
 
+**Financeiro `consulta`** (08/10): lê tudo o que o completo lê — inclusive
+fechamento e relatórios — e não grava nada. Serve para contador ou conferente.
+**Histórico (auditoria) `ver`**: lê o histórico de todos os módulos e a tela
+Operação e LGPD, sem alterar. Em Membros, "Preencher com um modelo" oferece
+Financeiro, Consulta e Auditoria; só preenche os níveis.
+
 ---
 
 ## Financeiro
@@ -217,12 +259,83 @@ total     = corrigido + multa + juros
 Tudo configurável em **Financeiro → Configurações**, para o escritório e por
 contrato.
 
+### O que entrou com o DOCX (08/10)
+
+- **Despesa ≠ pagamento.** O valor da conta é a obrigação; cada pagamento
+  fica em `pagamentos_despesa` (parcial, estorno com motivo, reembolso ao
+  sócio, chave de idempotência). A conta "paga" é a que o pago cobre.
+- **Contas financeiras.** Caixa e bancos, com saldo inicial; cada recebimento
+  e pagamento cai numa conta (a padrão, se ninguém escolher). Transferência
+  entre contas e estorno. Nada disso fala com banco: é controle manual.
+- **Contrato.** Código `C001/2026` dado pelo banco pelo ano da formalização,
+  nunca muda (prefixo em Configurações). Sem data informada fica "a
+  confirmar". Arquivar/desarquivar com motivo; redistribuir parcelas mantendo
+  o total; vencimento passado só com confirmação e motivo.
+- **Desconto e acréscimo** são ajustes com motivo e quem autorizou
+  (`conceder_ajuste`), estornáveis. Encargos do recebimento ficam
+  discriminados em multa, juros, correção e acréscimo.
+- **Fechamento anual** só com os 12 meses fechados e o ano terminado; cada
+  fechamento grava uma versão imutável. Reabrir o ano pede motivo.
+- **Painel e relatórios** leem `resumo_financeiro` (uma regra só para os
+  números). Exportação em XLSX (sem biblioteca) e CSV, com registro em
+  `exportacoes`.
+- **Recibo** sai do recebimento, com valor por extenso e saldo depois.
+- **Anexos** vão para o balde privado `anexos`: reserva no banco → envio →
+  `finalizar-anexo` confere tipo real e calcula o hash. Download por link
+  assinado de 1 minuto.
+- **Alertas**: pendências calculadas na hora e eventos registrados
+  (fechamento, estorno, mudança de acesso), com lido/resolvido/silenciado por
+  pessoa. Avisa, não envia.
+- **Importar planilha**: modelo próprio (CSV/XLSX) → área de conferência →
+  carga numa transação só. A planilha oficial do escritório ainda não chegou.
+
 ### Divisão entre sócios (6.6)
 
 Padrão até o escritório definir: **partes iguais entre os quatro sócios, depois
 das despesas.** Alternativa pronta: cota por sócio. O fechamento mostra, por
 sócio, o valor e o reembolso pendente de conta paga do próprio bolso. A
 diferença de centavos fica com o último da lista.
+
+---
+
+## Intimações, prazos e DJEN (08/10)
+
+- **Busca no DJEN** (API pública do CNJ, `DJEN_URL` em `config.js`): sai do
+  **navegador**, porque a API só responde a pedidos do Brasil. Uma OAB por
+  vez (as dos membros ativos, lidas do campo OAB), com pausa, parando no
+  limite do CNJ (429 / `x-ratelimit-remaining`). A mesma comunicação para
+  dois advogados entra uma vez. Cada consulta fica registrada — completa,
+  parcial ou falhou.
+- **Captura diária**: com a busca automática ligada (Feriados e prazos), a
+  primeira pessoa com acesso a Prazos que abre o sistema num dia útil busca
+  desde a última consulta completa. Não há servidor buscando sozinho.
+- **Publicação** = primeiro dia útil depois da disponibilização (Lei
+  11.419/2006, art. 4º, §3º), com os feriados do tribunal da comunicação.
+- **Contagem automática** (`dominio/prazos.js`): dias úteis, corridos
+  (criminal) ou horas, recesso de 20/12 a 20/01, feriados nacionais fixos e
+  os cadastrados. É **sugestão**: mostra a memória dia a dia, a data fatal
+  continua editável e "Conferi" é obrigatório. A memória vai para
+  `memoria_prazo`, dizendo se o advogado mudou a data.
+- **Datas móveis** (Carnaval, Sexta-feira Santa, Corpus Christi) são
+  sugeridas por ano em Feriados e prazos; só contam depois de cadastradas.
+- Prazo e audiência vêm sugeridos a partir do teor ("15 (quinze) dias",
+  "audiência … 12/11/2026, às 14h30"); quem confirma é a pessoa.
+
+## Operação, segurança e LGPD (08/10)
+
+- **Saída por inatividade**: minutos em Operação e LGPD (padrão 30), com
+  aviso um minuto antes.
+- **Convite** (Membros → Enviar convite): `administrar-usuarios` confere com
+  o token de quem pede que é o administrador e manda o convite pelo Auth. A
+  pessoa cria a própria senha. Depende de SMTP configurado no Supabase.
+- **Acessos**: lidos dos registros do Auth (`acessos_recentes`), só para
+  administrador e auditoria.
+- **Erros das telas** vão para `erros_cliente` sem conteúdo de formulário
+  (e-mails e números longos apagados), com limite por pessoa.
+- **Pedidos de titulares** (LGPD art. 18), com prazo, responsável e decisão.
+- **Cópias de segurança**: cada execução registrada em `backups_execucoes`.
+  A rotina está descrita em
+  [docs/operacao/backup-restauracao.md](../docs/operacao/backup-restauracao.md).
 
 ---
 
@@ -259,7 +372,7 @@ conta Google ainda precisa de teste humano.
 
 ## Site
 
-O que o escritório publica em fhladvocacia.com.br sem precisar de ninguém que
+O que o escritório publica no site público sem precisar de ninguém que
 mexa em código: **Publicações** (os artigos de `publicacoes.html`) e
 **Campanhas** (as páginas de campanha). É o pedido do CLAUDE.md §4 e §5.3 —
 conteúdo jurídico para tráfego orgânico, e landing page de campanha sem site à
@@ -437,6 +550,14 @@ cancelamento exige motivo. Modelos permanecem sujeitos à revisão do §7.8.
 Contrato/prestação de contas e comparecimento consultam Financeiro/Agenda
 somente com os níveis correspondentes. Relato de atualização preenche a FAA.
 
+**Barra de formatação (08/10/2026).** Acima da folha de "Gerar documento" há
+um Word simplificado: desfazer/refazer, estilo do parágrafo, fonte, tamanho,
+negrito, itálico, sublinhado, riscado, cor, realce, alinhamento, listas, recuo
+e limpar (`documentos/editor.js`). Toda formatação é classe `doc-*` — nunca
+`style=""`, que a CSP bloqueia e a lista branca descarta —, então a tela, a
+impressão e o `.doc` mostram o mesmo. As opções e suas regras moram em
+`documentos/formatacao.js`.
+
 `iniciar_cronometro` e `parar_cronometro` usam relógio do servidor, trava e uma
 atividade aberta por membro. `meu_cronometro` sincroniza hora e cliente; a UI
 consulta a cada 15 segundos, interpola com `performance.now()` e sincroniza
@@ -469,6 +590,11 @@ Com o endereço definido:
 Para E0/F1–F4, seguir a ordem de publicação em
 [TESTAR-NOVAS-FUNCOES.md](../TESTAR-NOVAS-FUNCOES.md): banco, segredo,
 função pública e então frontend. Nenhuma dessas ações remotas foi feita.
+
+Para a entrega de 08/10, a ordem está em
+[HANDOFF-FINANCEIRO-DJEN.md](../HANDOFF-FINANCEIRO-DJEN.md): migrações
+`20261008*` → funções `finalizar-anexo` e `administrar-usuarios` → push. O
+frontend novo **não abre** sem as migrações (colunas e funções novas).
 
 1. Supabase → **Authentication → URL Configuration** → pôr `https://<domínio>/sistema`
    em *Site URL* e *Redirect URLs*, para o link de "Esqueci a senha" voltar para
@@ -503,6 +629,15 @@ painel). O Hobby da Vercel é só para uso não comercial.
 | Agenda (pergunta 17) | Grade 8h–19h sem sábado; atendimento 60 min, retorno 30, intervalo de 15 | Agenda → Configurar |
 | Categorias e formas de pagamento | As da preparação (6.2) | Financeiro → Configurações |
 | Quem escreve no site | Só sócio e administrador; associado e secretária ficam de fora | Membros → Site |
+| Código de contrato | Prefixo "C", número por ano da formalização | Financeiro → Configurações |
+| Contratos antigos sem data | Formalização "a confirmar", sem data inventada | Contrato → Confirmar formalização |
+| Taxa de recebimento | Das parcelas que venceram no período (até hoje), quanto já foi pago ÷ o valor delas | `resumo_financeiro` |
+| Fechamento anual | Só com os 12 meses fechados | `fechar_ano` |
+| Importação | Modelo próprio (a planilha oficial ainda não chegou) | `dominio/importacao.js` |
+| Contagem de prazos e datas móveis | Regras do CPC/CLT/CPP descritas em `dominio/prazos.js`; móveis só cadastradas | Feriados e prazos |
+| Busca automática no DJEN | Ligada; 7 dias na primeira busca; entrega 3 dias úteis antes | Feriados e prazos |
+| Inatividade | 30 minutos | Operação e LGPD |
+| 2FA | Não implementado, por decisão do Ithalo | — |
 
 ### Parado — depende de algo que ainda não existe
 
@@ -517,15 +652,13 @@ painel). O Hobby da Vercel é só para uso não comercial.
 
 ### Para depois
 
-Comprovante anexado ao recebimento, importação de extrato OFX, feriados
-automáticos (nacionais, do Paraná e de Paranaguá) na agenda, resumo diário por e-mail,
-"desfazer" pelo histórico e horas trabalhadas vindas de Atualizações. No Site:
-agendar a publicação de um artigo para uma data e editar áreas de atuação.
-O módulo Contatos já está implementado localmente em F1; faltam aplicação e
-publicação após o teste do Ithalo. F2–F4 e F7 também estão prontos localmente.
-F5/F6 têm a parte manual pronta; contagem automática e DJEN continuam pendentes.
-F8 tem `.ics`/Google, lembrete e feriados cadastrados prontos localmente;
-feriados automáticos e importação na conta Google permanecem pendentes.
+Importação de extrato OFX e conciliação bancária (fora do escopo por decisão:
+"sem integração com banco"), feriados do Paraná e de Paranaguá (só
+cadastrados), resumo diário por e-mail, "desfazer" pelo histórico e horas
+trabalhadas vindas de Atualizações. No Site: agendar a publicação de um artigo
+para uma data e editar áreas de atuação. Exceção de CPF/CNPJ repetido (DOCX)
+só se o escritório precisar — um cliente com vários contratos resolve o caso
+comum. Importação direta da conta Google na Agenda continua pendente.
 
 ---
 
@@ -589,3 +722,21 @@ feriados automáticos e importação na conta Google permanecem pendentes.
   (`telas/site/publicacao.js`), o gatilho do banco (`privado.validar_corpo`) e o
   renderizador do site (`src/pages/publicacoes.mjs`). Tipo novo se acrescenta
   nos três.
+- **Cor das tarefas** (`urgenciaTarefa` em `dominio/tarefas.js`): conta a
+  data que vem primeiro — entrega ou fatal. Até 7 dias, amarelo; até 2 dias
+  ou atrasada, vermelho; concluída, cancelada ou sem data, sem cor. A etiqueta
+  ("Entrega em 2 dias") sai de `prazoRestante`, sobre a mesma data. Vale na
+  lista de Tarefas, em Prazos, na ficha do cliente e no "Para hoje".
+- **Em andamento volta a pendente pelo Editar.** Concluída, não: só por
+  Reabrir, que pede o motivo (o gatilho `validar_tarefa` recusa o resto).
+- **Formatação nova na barra do editor = três lugares:** a lista de
+  `documentos/formatacao.js`, o bloco entre `formatacao:inicio` e
+  `formatacao:fim` de `sistema.css` (cópia de `cssFormatacao('.documento-folha ')`;
+  `formatacao.test.mjs` acusa a divergência) e, se for tag nova, a lista
+  branca de `nucleo/higienizar.js`. O `.doc` recebe as regras sozinho.
+- **Por que a barra não usa `justifyCenter`, `hiliteColor` etc. do
+  navegador:** o Chrome grava `style=""` e a CSP não aplica. Fonte, tamanho,
+  cor e realce passam por uma fonte-marcador (`<font face="fhlfmt">`) trocada
+  na hora por `<span class="doc-…">`; alinhamento e recuo são classe no
+  parágrafo. O desfazer é próprio (fotos do HTML), porque o do navegador se
+  perde quando o texto muda fora dos comandos dele.

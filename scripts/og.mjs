@@ -34,14 +34,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { carregarConteudo } from '../src/data/conteudo.mjs';
 import { CIDADE, RAZAO } from '../src/data/site.mjs';
 import { ROOT } from '../src/lib/assets.mjs';
-import { monogramaSvg } from '../src/lib/marca.mjs';
+import { monogramaSvg, nomeSvg, peixinhoSvg } from '../src/lib/marca.mjs';
 import { OG_MANIFEST, lerOgManifest, ogImagePath } from '../src/lib/seo.mjs';
 import { allPages } from './build.mjs';
 
 const base64 = (rel) => readFileSync(join(ROOT, rel)).toString('base64');
 
-// "Fonseca Hespanha Lisboa": a razão social depois do travessão.
-const SOCIOS = RAZAO.split('—').pop().trim();
 
 /**
  * O cartão em HTML. Fontes e imagens vão embutidas em base64 porque o
@@ -78,11 +76,11 @@ body {
 .marca-dagua {
   position: absolute;
   top: 50%;
-  right: -300px;
-  height: 560px;
+  right: -120px;
+  height: 640px;
+  width: auto;
   transform: translateY(-50%);
-  fill: #EFF2EF;
-  opacity: 0.05;
+  opacity: 0.06;
 }
 .marca {
   position: absolute;
@@ -91,17 +89,11 @@ body {
   display: flex;
   align-items: center;
   gap: 18px;
+  color: #EFF2EF;
 }
-.marca svg { height: 46px; fill: #EFF2EF; }
-.marca span {
-  padding-left: 18px;
-  border-left: 1px solid #22443D;
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 30px;
-  letter-spacing: 0.18em;
-  color: #9FB2AC;
-}
+.marca svg { display: block; width: auto; }
+.marca__fl { height: 54px; }
+.marca__nome { height: 15px; padding-left: 18px; border-left: 1px solid #22443D; box-sizing: content-box; }
 .texto {
   position: absolute;
   top: 150px;
@@ -149,15 +141,15 @@ body {
 </style>
 </head>
 <body>
-${monogramaSvg({ classe: 'marca-dagua' })}
+${peixinhoSvg({ classe: 'marca-dagua', cor: '#EFF2EF' })}
 <div class="marca">
-  ${monogramaSvg()}<span>ADVOCACIA</span>
+  ${monogramaSvg({ classe: 'marca__fl' })}${nomeSvg({ classe: 'marca__nome' })}
 </div>
 <div class="texto">
   <div class="rotulo">${label}</div>
   <div class="titulo">${title}</div>
 </div>
-<div class="rodape"><span>${SOCIOS}</span><span>${CIDADE}</span></div>
+<div class="rodape"><span>${RAZAO}</span><span>${CIDADE}</span></div>
 <script>
   // Título longo: diminui a fonte até caber, sem passar de 44px.
   document.fonts.ready.then(function () {
@@ -272,7 +264,7 @@ async function main() {
   }
 
   const fila = itens.filter((i) => todas || i.estado !== 'ok');
-  const tmp = fila.length ? mkdtempSync(join(tmpdir(), 'fhl-og-')) : null;
+  const tmp = fila.length ? mkdtempSync(join(tmpdir(), 'fl-og-')) : null;
 
   try {
     if (fila.length) {

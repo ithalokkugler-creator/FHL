@@ -1,7 +1,8 @@
-// Identidade e dados de contato da FHL. Ponto único de verdade: qualquer
+// Identidade e dados de contato do escritório. Ponto único de verdade: qualquer
 // alteração aqui se propaga para as 16 páginas na próxima build.
 //
-// Dados extraídos do sistema interno da FHL (fhl-site-etapa6-1…html).
+// Dados extraídos do sistema interno do escritório (fhl-site-etapa6-1…html,
+// de quando a sociedade ainda era FHL — Fonseca Hespanha Lisboa).
 // Endereço, telefone, e-mail e horário moram em sistema/js/escritorio.js: os
 // documentos e as mensagens da área dos advogados usam os mesmos.
 
@@ -10,8 +11,8 @@ import { SUPABASE_URL } from '../../sistema/js/config.js';
 
 export { RAZAO, ENDERECO, CIDADE, TEL, TEL_HREF, WHATS, EMAIL, HORARIO, HORARIO_CURTO } from '../../sistema/js/escritorio.js';
 
-export const MARCA = 'FHL';
-export const MARCA_LONGA = 'FHL Advocacia';
+export const MARCA = 'FL';
+export { MARCA as MARCA_LONGA } from '../../sistema/js/escritorio.js';
 export const SLOGAN = 'Advocacia estratégica e institucional';
 
 // Inscrição da SOCIEDADE na OAB e CNPJ — [CONFIRMAR], não constam em lugar
@@ -40,7 +41,7 @@ export const FORM_ENDPOINT = process.env.FORM_ENDPOINT ?? `${SUPABASE_URL}/funct
 // A variável de ambiente SITE_URL sobrescreve no build: serve para testar a
 // prévia de links num endereço provisório (o da Vercel, por exemplo) antes de
 // o domínio oficial existir.
-export const DOMINIO = (process.env.SITE_URL || 'https://fhladvocacia.com.br')  // [CONFIRMAR] domínio
+export const DOMINIO = (process.env.SITE_URL || 'https://fonsecalisboa.com.br')  // [CONFIRMAR] domínio
   .replace(/\/+$/, '');
 
 // Perfis oficiais nas redes. Os campos do sistema interno nunca foram

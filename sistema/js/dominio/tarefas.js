@@ -6,7 +6,7 @@
 // fatal já conferidos. Aqui ficam só as regras de tela — quem pode mexer, que
 // alerta mostrar e o filtro das listas.
 
-import { fimDoMes, hoje, inicioDaSemana, inicioDoMes, noFuso, semAcento, somarDias } from '../nucleo/formato.js';
+import { diasEntre, fimDoMes, hoje, inicioDaSemana, inicioDoMes, noFuso, semAcento, somarDias } from '../nucleo/formato.js';
 
 export const PRIORIDADES = { baixa: 'Baixa', normal: 'Normal', alta: 'Alta', urgente: 'Urgente' };
 export const SITUACOES_TAREFA = { pendente: 'Pendente', em_andamento: 'Em andamento', concluida: 'Concluída' };
@@ -30,6 +30,50 @@ export function alertaTarefa(t, agora = new Date()) {
   if (t.fatal_em && noFuso(t.fatal_em).dia === dia) return 'fatal_hoje';
   if (t.entrega && t.entrega < dia) return 'atrasada';
   return t.entrega === dia ? 'entrega_hoje' : 'em_dia';
+}
+
+// A cor da tarefa conforme a data se aproxima (pedido do escritório, 08/10/2026):
+// faltando uma semana, amarelo; faltando dois dias, vermelho.
+export const DIAS_AMARELO = 7;
+export const DIAS_VERMELHO = 2;
+
+/**
+ * Quanto falta para a primeira data da tarefa — a entrega interna ou o fatal,
+ * a que vier antes — e a cor que isso dá. Atrasada ou com fatal vencido é
+ * sempre vermelha; concluída, cancelada ou sem data não tem cor.
+ * `{ nivel: 'vermelho' | 'amarelo' | null, dias, dia, vencida }`
+ */
+export function urgenciaTarefa(t, agora = new Date()) {
+  if (t.cancelado_em || t.situacao === 'concluida') return null;
+  const datas = [t.entrega, t.fatal_em && noFuso(t.fatal_em).dia].filter(Boolean).sort();
+  if (!datas.length) return null;
+
+  const dia = datas[0];
+  const dias = diasEntre(hoje(agora), dia);
+  // Prazo em horas vence no meio do dia: passou da hora, já está vencido.
+  const vencida = dias < 0 || Boolean(t.fatal_em && Date.parse(t.fatal_em) < +agora);
+  const nivel = vencida || dias <= DIAS_VERMELHO ? 'vermelho' : dias <= DIAS_AMARELO ? 'amarelo' : null;
+  return { nivel, dias, dia, vencida };
+}
+
+/**
+ * O que a etiqueta da data diz: "Entrega hoje", "Fatal em 3 dias",
+ * "Entrega atrasada há 2 dias", "Vence em 5 h". Fala da data que vem
+ * primeiro — a mesma que decide a cor (urgenciaTarefa); no empate, do fatal.
+ */
+export function prazoRestante(t, agora = new Date()) {
+  const u = urgenciaTarefa(t, agora);
+  if (!u) return '';
+  if (t.fatal_em && Date.parse(t.fatal_em) < +agora) return 'Fatal vencido';
+
+  const fatal = Boolean(t.fatal_em) && noFuso(t.fatal_em).dia === u.dia;
+  if (fatal && t.contagem === 'horas') {
+    return `Vence em ${Math.max(1, Math.ceil((Date.parse(t.fatal_em) - +agora) / 3600000))} h`;
+  }
+  const qual = fatal ? 'Fatal' : 'Entrega';
+  if (u.dias < 0) return `${qual} atrasada há ${-u.dias} ${u.dias === -1 ? 'dia' : 'dias'}`;
+  if (u.dias === 0) return `${qual} hoje`;
+  return u.dias === 1 ? `${qual} amanhã` : `${qual} em ${u.dias} dias`;
 }
 
 /** Período do resumo de Prazos: hoje, semana, mês, ano ou tudo em aberto. */

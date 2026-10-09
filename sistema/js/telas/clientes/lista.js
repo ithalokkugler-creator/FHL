@@ -22,6 +22,7 @@ export default async function telaClientes(ctx) {
     situacao: SITUACOES_PROCESSO[c.situacao] ? c.situacao : '',
     responsavel: c.responsavel ?? '',
     representante: ['sim', 'nao'].includes(c.representante) ? c.representante : '',
+    etiqueta: c.etiqueta ?? '',
   };
 
   const [clientes, detalhes, processos] = await Promise.all([
@@ -33,12 +34,14 @@ export default async function telaClientes(ctx) {
 
   const detalheDe = new Map(detalhes.map((d) => [d.cliente_id, d]));
   const processosDe = agruparProcessos(processos);
+  const etiquetas = [...new Set(detalhes.flatMap((d) => d.etiquetas ?? []))].sort();
 
   desenhar(ctx.raiz, html`
     ${cabecalho('Clientes', 'Cadastro, processos e tudo o que pertence a cada cliente', html`
       <button type="button" class="botao botao--primario" data-acao="novo">Novo cliente</button>`)}
     <form class="filtros">
-      <label class="campo campo--busca"><span>Buscar</span><input type="search" name="busca" value="${f.busca}" placeholder="Nome, documento, telefone ou processo"></label>
+      <label class="campo campo--busca"><span>Buscar</span><input type="search" name="busca" value="${f.busca}" placeholder="Nome, nome fantasia, documento, telefone, etiqueta ou processo"></label>
+      ${etiquetas.length ? html`<label class="campo"><span>Etiqueta</span><select name="etiqueta">${opcoes(etiquetas.map((e) => [e, e]), f.etiqueta, { vazio: 'Todas' })}</select></label>` : ''}
       <label class="campo"><span>Responsável</span><select name="responsavel">${opcoesResponsaveis(f.responsavel, { vazio: 'Todos' })}</select></label>
       <label class="campo"><span>Área</span><select name="area">${opcoes(Object.entries(AREAS_JURIDICAS), f.area, { vazio: 'Todas' })}</select></label>
       <label class="campo"><span>Situação do processo</span><select name="situacao">${opcoes(Object.entries(SITUACOES_PROCESSO), f.situacao, { vazio: 'Todas' })}</select></label>
@@ -53,7 +56,9 @@ export default async function telaClientes(ctx) {
     const ultima = ultimaAlteracao(cliente, d, casos);
     return html`
       <tr class="${cliente.ativo ? '' : 'apagada'}">
-        <td><a href="#/clientes/${cliente.id}"><strong>${cliente.nome}</strong></a><span class="sub">${cliente.email ?? ''}${cliente.ativo ? '' : ' · Inativo'}</span></td>
+        <td><a href="#/clientes/${cliente.id}"><strong>${cliente.nome}</strong></a>
+          <span class="sub">${[d?.nome_fantasia, cliente.email].filter(Boolean).join(' · ')}${cliente.ativo ? '' : ' · Inativo'}</span>
+          ${d?.etiquetas?.length ? html`<span class="etiquetas">${d.etiquetas.map((e) => html`<span class="etiqueta">${e}</span>`)}</span>` : ''}</td>
         <td><span class="num">${documento(cliente.documento) || '—'}</span></td>
         <td>${cliente.telefone ? html`<a class="num" href="${linkWhatsApp(cliente.telefone)}" target="_blank" rel="noopener">${telefone(cliente.telefone)}</a>` : '—'}</td>
         <td>${casos.filter((p) => p.situacao !== 'encerrado').length}</td>

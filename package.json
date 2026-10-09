@@ -1,8 +1,8 @@
 {
-  "name": "fhl-advocacia-site",
+  "name": "fl-advocacia-site",
   "version": "1.0.0",
   "private": true,
-  "description": "Site institucional da FHL Advocacia — Fonseca Hespanha Lisboa",
+  "description": "Site institucional da Fonseca Lisboa Advocacia",
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -16,6 +16,8 @@
     "og": "node scripts/og.mjs",
     "marca": "node scripts/marca.mjs",
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
-    "sistema:test": "node --test \"sistema/testes/*.test.mjs\""
+    "sistema:test": "node --test \"sistema/testes/*.test.mjs\"",
+    "banco:test": "node scripts/validar-banco.mjs",
+    "testar:banco": "node scripts/testar-local.mjs --banco"
   }
 }

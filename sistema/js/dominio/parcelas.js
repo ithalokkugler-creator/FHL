@@ -7,7 +7,13 @@
 //
 // Arquivo puro, sem navegador: é testado em sistema/testes/.
 
-import { somarMeses } from '../nucleo/formato.js';
+import { somarDias, somarMeses } from '../nucleo/formato.js';
+
+/** O vencimento da parcela `i` (0, 1, 2…) a partir da primeira. Mensal
+ *  mantém o dia (31/01, 28/02, 31/03); quinzenal soma 15 dias corridos. */
+const vencimentoDa = (primeiro, i, frequencia) => (frequencia === 'quinzenal'
+  ? somarDias(primeiro, 15 * i)
+  : somarMeses(primeiro, i, Number(primeiro.slice(8, 10))));
 
 /**
  * @param {object} p
@@ -16,8 +22,9 @@ import { somarMeses } from '../nucleo/formato.js';
  * @param {string} [p.dataEntrada]       'AAAA-MM-DD'
  * @param {number} p.quantidade          parcelas depois da entrada
  * @param {string} p.primeiroVencimento  'AAAA-MM-DD'
+ * @param {'mensal'|'quinzenal'} [p.frequencia]
  */
-export function gerarParcelas({ total, entrada = 0, dataEntrada, quantidade, primeiroVencimento }) {
+export function gerarParcelas({ total, entrada = 0, dataEntrada, quantidade, primeiroVencimento, frequencia = 'mensal' }) {
   if (!(total > 0)) throw new Error('Informe o valor total.');
   if (entrada < 0 || entrada > total) throw new Error('A entrada não pode passar do valor total.');
   if (entrada > 0 && !dataEntrada) throw new Error('Informe a data da entrada.');
@@ -34,14 +41,39 @@ export function gerarParcelas({ total, entrada = 0, dataEntrada, quantidade, pri
   if (restante > 0) {
     const valor = Math.floor(restante / quantidade);
     // Sempre a partir do dia da primeira: 31/01, 28/02, 31/03 — e não 28/03.
-    const dia = Number(primeiroVencimento.slice(8, 10));
     for (let i = 0; i < quantidade; i++) {
       lista.push({
         numero: i + 1,
-        vencimento: somarMeses(primeiroVencimento, i, dia),
+        vencimento: vencimentoDa(primeiroVencimento, i, frequencia),
         valor: i === quantidade - 1 ? restante - valor * (quantidade - 1) : valor,
       });
     }
+  }
+  return lista;
+}
+
+/**
+ * Pelo valor da parcela em vez da quantidade (DOCX §6): o que sobra depois
+ * da entrada em parcelas de `valorParcela`, e a última com o resto. Saldo de
+ * R$ 1.000 em parcelas de R$ 300 → 300 + 300 + 300 + 100.
+ */
+export function gerarParcelasPorValor({ total, entrada = 0, dataEntrada, valorParcela, primeiroVencimento, frequencia = 'mensal' }) {
+  if (!(total > 0)) throw new Error('Informe o valor total.');
+  if (entrada < 0 || entrada > total) throw new Error('A entrada não pode passar do valor total.');
+  if (entrada > 0 && !dataEntrada) throw new Error('Informe a data da entrada.');
+  const restante = total - entrada;
+  const lista = entrada > 0 ? [{ numero: 0, vencimento: dataEntrada, valor: entrada }] : [];
+  if (restante <= 0) return lista;
+  if (!(valorParcela > 0)) throw new Error('Informe o valor de cada parcela.');
+  if (!primeiroVencimento) throw new Error('Informe o vencimento da primeira parcela.');
+  const quantidade = Math.ceil(restante / valorParcela);
+  if (quantidade > 120) throw new Error('Isso daria mais de 120 parcelas. Aumente o valor da parcela.');
+  for (let i = 0; i < quantidade; i++) {
+    lista.push({
+      numero: i + 1,
+      vencimento: vencimentoDa(primeiroVencimento, i, frequencia),
+      valor: i === quantidade - 1 ? restante - valorParcela * (quantidade - 1) : valorParcela,
+    });
   }
   return lista;
 }

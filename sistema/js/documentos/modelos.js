@@ -349,4 +349,5 @@ export const MODELOS = Object.fromEntries(LISTA.map((m) => [m.id, m]));
 export const TITULOS_MODELO = {
   ...Object.fromEntries(LISTA.map((m) => [m.id, m.nome])),
   relatorio_atividades: 'Relatório de Atividades',
+  recibo: 'Recibo',
 };

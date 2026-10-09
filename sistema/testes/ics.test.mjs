@@ -5,7 +5,7 @@ import { mensagemLembrete } from '../js/dominio/mensagens.js';
 const c = { id:'evento-1', inicio:'2026-10-05T14:00:00-03:00', fim:'2026-10-05T15:00:00-03:00',
   titulo:'Atendimento — José', tipo:'atendimento', modalidade:'presencial', cliente_nome:'José Silva',
   responsavel_nome:'Ithalo', tipo_nome:'Atendimento presencial', processo:'Caso de teste', observacoes:'RELATO INTERNO' };
-const opcoes = { nome:'FHL — Agenda', agora:new Date('2026-10-05T12:00:00Z') };
+const opcoes = { nome:'FL — Agenda', agora:new Date('2026-10-05T12:00:00Z') };
 const desdobrar = (texto) => texto.replace(/\r\n /g,'');
 
 test('ICS escapa barra, vírgula, ponto e vírgula e todas as quebras de linha',()=>{

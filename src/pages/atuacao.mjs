@@ -36,7 +36,7 @@ ${items}
 
   return page({
     path: 'atuacao.html',
-    title: 'Atuação — FHL Advocacia',
+    title: 'Atuação — Fonseca Lisboa Advocacia',
     desc: 'Direito Trabalhista, Previdenciário, do Consumidor e Cível em Paranaguá — PR.',
     body,
   });
@@ -114,7 +114,7 @@ ${outrasHtml}
     path: `atuacao/${area.slug}.html`,
     // A cidade no título: é assim que se busca advogado ("advogado trabalhista
     // Paranaguá"), e o título é o que o Google mais pesa na página.
-    title: `${area.nome} em Paranaguá — FHL Advocacia`,
+    title: `${area.nome} em Paranaguá — Fonseca Lisboa Advocacia`,
     desc: area.resumo,
     body,
     depth: 1,

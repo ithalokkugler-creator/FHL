@@ -8,12 +8,12 @@
 import { AREAS } from '../data/areas.mjs';
 import { EQUIPE } from '../data/equipe.mjs';
 import {
-  CIDADE, EMAIL, ENDERECO, HORARIO_CURTO, MAPS, NAV, OAB, RAZAO, SLOGAN, TEL, TEL_HREF,
+  CIDADE, EMAIL, ENDERECO, HORARIO_CURTO, MAPS, MARCA_LONGA, NAV, OAB, RAZAO, SLOGAN, TEL, TEL_HREF,
   whatsappUrl,
 } from '../data/site.mjs';
 import { attr, prefix } from '../lib/html.mjs';
 import { ICONE } from '../lib/icones.mjs';
-import { assinaturaLoader, monogramaSvg } from '../lib/marca.mjs';
+import { aberturaLoader, monogramaSvg, nomeSvg } from '../lib/marca.mjs';
 import { jsonLd, seoHead } from '../lib/seo.mjs';
 
 export function shell(page) {
@@ -74,7 +74,7 @@ export function shell(page) {
   <div class="loader__panel loader__panel--top"></div>
   <div class="loader__panel loader__panel--bottom"></div>
   <div class="loader__inner">
-    ${assinaturaLoader()}
+    ${aberturaLoader()}
   </div>
 </div>`;
   }
@@ -122,9 +122,9 @@ setTimeout(function () {
 ${loader}
 <header class="header">
   <div class="wrap header__inner">
-    <a class="brand" href="${p}index.html" aria-label="FHL Advocacia — início">
+    <a class="brand" href="${p}index.html" aria-label="${MARCA_LONGA} — início">
       ${monogramaSvg({ classe: 'brand__mark' })}
-      <span class="brand__word">Advocacia</span>
+      <span class="brand__word">${nomeSvg({ classe: 'brand__nome' })}</span>
     </a>
     <div class="header__actions">
       <!-- Contato sempre à mão: era o principal pedido do cliente. -->
@@ -182,7 +182,7 @@ ${page.body}
     <div class="footer__top">
       <div class="footer__col">
         <a class="brand brand--assinatura" href="${p}index.html">
-          <img class="brand__assinatura" src="${p}assets/img/logo.svg" alt="FHL Advocacia — Fonseca Hespanha Lisboa" width="915" height="275" loading="lazy">
+          <img class="brand__assinatura" src="${p}assets/img/assinatura.svg" alt="${MARCA_LONGA}" width="3285" height="772" loading="lazy">
         </a>
         <p class="footer__slogan">${SLOGAN}</p>
       </div>
@@ -246,7 +246,7 @@ ${areasFooter}
 <!-- Canal direto sempre visível. Discreto de propósito: nada de pulsar ou
      abrir sozinho — captação agressiva é vedada pelo Provimento 205/2021. -->
 <a class="whats" href="${whatsappUrl(page.whatsapp)}" target="_blank" rel="noopener noreferrer"
-   aria-label="Conversar com a FHL Advocacia pelo WhatsApp">
+   aria-label="Conversar com a ${MARCA_LONGA} pelo WhatsApp">
   ${ICONE.whatsapp}
   <span class="whats__label">WhatsApp</span>
 </a>

@@ -230,7 +230,7 @@ if (!NO_WATCH) {
 }
 
 server.listen(PORT, '127.0.0.1', () => {
-  console.log(`\n  FHL Advocacia — site ................ http://127.0.0.1:${PORT}`);
+  console.log(`\n  Fonseca Lisboa Advocacia — site ................ http://127.0.0.1:${PORT}`);
   console.log(`                  área dos advogados . http://127.0.0.1:${PORT}/sistema`);
   console.log(NO_WATCH ? '\n  modo preview (sem watch)\n' : '\n  observando src/, assets/ e sistema/ — Ctrl+C para parar\n');
 });

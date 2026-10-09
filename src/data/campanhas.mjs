@@ -52,7 +52,7 @@ export const CAMPANHAS = [
     descricao:
       'Acidente de trabalho ou doença ocupacional? Veja os direitos que podem ' +
       'existir — estabilidade, benefício do INSS e indenização — e fale com a ' +
-      'FHL Advocacia.',
+      'Fonseca Lisboa Advocacia.',
     whatsapp:
       'Olá! Vim pela página sobre acidente de trabalho e gostaria de uma orientação.',
     situacoes: [

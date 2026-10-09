@@ -242,7 +242,7 @@ function responderContato(c) {
         const whats = $('[data-whats]', dialogo);
         const email = $('[data-email]', dialogo);
         if (whats) whats.href = linkWhatsApp(c.telefone, form.texto.value);
-        if (email) email.href = `mailto:${c.email}?subject=${encodeURIComponent('Contato — FHL Advocacia')}&body=${encodeURIComponent(form.texto.value)}`;
+        if (email) email.href = `mailto:${c.email}?subject=${encodeURIComponent('Contato — Fonseca Lisboa Advocacia')}&body=${encodeURIComponent(form.texto.value)}`;
       };
       form.texto.addEventListener('input', atualizar);
       atualizar();

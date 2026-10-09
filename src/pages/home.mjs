@@ -73,7 +73,7 @@ ${a.itens.slice(0, 4).map((it) => `                <li>${it}</li>`).join('\n')}
 
   <!-- MANIFESTO -->
   <section class="section manifesto">
-    <img class="watermark watermark--left" src="assets/img/monograma.svg" alt="" aria-hidden="true">
+    <img class="watermark watermark--left" src="assets/img/marca-dagua.svg" alt="" aria-hidden="true">
 
     <div class="wrap manifesto__inner">
       <p class="label" data-reveal="rise">O Escritório</p>
@@ -85,7 +85,7 @@ ${a.itens.slice(0, 4).map((it) => `                <li>${it}</li>`).join('\n')}
       <div class="grid">
         <div class="manifesto__aside" data-reveal="rise-group">
           <p class="lead r-rise">
-            A FHL Advocacia atua na defesa de interesses de pessoas físicas e jurídicas,
+            A Fonseca Lisboa Advocacia atua na defesa de interesses de pessoas físicas e jurídicas,
             com abordagem técnica, estratégica e personalizada. O escritório preza pela
             escuta qualificada, análise criteriosa de documentos, avaliação de riscos e
             condução responsável de cada caso.
@@ -128,7 +128,7 @@ ${numeros()}
   <section class="linguagem">
     <div class="linguagem__sticky">
       <div class="wrap linguagem__inner">
-        <img class="watermark watermark--right" src="assets/img/monograma.svg" alt="" aria-hidden="true">
+        <img class="watermark watermark--right" src="assets/img/marca-dagua.svg" alt="" aria-hidden="true">
 
         <div class="grid">
           <div class="linguagem__head">
@@ -177,7 +177,7 @@ ${numeros()}
         <p class="label" data-reveal="rise">Quem somos</p>
         <h2 class="h1 r-mask" data-reveal="mask" style="margin-top:var(--s-3)">Quem assina cada caso</h2>
         <p class="lead" data-reveal="rise" style="margin-top:var(--s-3)">
-          FHL são as iniciais dos sobrenomes dos sócios: Fonseca, Hespanha e Lisboa.
+          FL são as iniciais dos sobrenomes dos sócios: Fonseca e Lisboa.
         </p>
       </div>
 
@@ -285,7 +285,7 @@ ${contatoAside()}
 
   return page({
     path: 'index.html',
-    title: 'FHL Advocacia — Fonseca Hespanha Lisboa | Paranaguá — PR',
+    title: 'Fonseca Lisboa Advocacia | Paranaguá — PR',
     desc: 'Advocacia estratégica e institucional em Paranaguá. Direito Trabalhista, ' +
       'Previdenciário, do Consumidor e Cível.',
     body,

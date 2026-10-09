@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="18.5 0 1349 2346">
+<title>Fonseca Lisboa Advocacia</title>
+<!-- O "peixinho": a marca antiga do escritório (Logo.jpg), que os advogados
+     pediram de volta ao lado da logomarca FL. Três peças iguais: lados retos de
+     809,5 e arco de raio 854,7, vértice à direita e arco à esquerda; o vértice
+     de um é a ponta do outro. Medido do JPG original, nas cores dele — as
+     mesmas teal, vinho e menta da paleta do site. src/lib/marca.mjs lê as
+     pétalas daqui por id. -->
+<path id="petala-teal" fill="#2E615D" d="M809.5 586.5L251.5 0A854.7 854.7 0 0 0 251.5 1173Z"/>
+<path id="petala-vinho" fill="#6E5551" d="M1367.5 1173L809.5 586.5A854.7 854.7 0 0 0 809.5 1759.5Z"/>
+<path id="petala-menta" fill="#A2CBB8" d="M809.5 1759.5L251.5 1173A854.7 854.7 0 0 0 251.5 2346Z"/>
+</svg>

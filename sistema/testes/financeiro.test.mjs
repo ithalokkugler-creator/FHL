@@ -150,17 +150,17 @@ test('índices: mês sem índice publicado fica anotado; mesmo mês não corrige
 });
 
 test('cobrança: mensagem pronta para colar no WhatsApp', () => {
-  const modelo = 'Olá, {cliente}! Aqui é {remetente}, da FHL Advocacia.\n\n'
+  const modelo = 'Olá, {cliente}! Aqui é {remetente}, da Fonseca Lisboa Advocacia.\n\n'
     + 'Consta em aberto: {parcelas}.\nValor atualizado até hoje: {total}.\n{pix}\n'
     + 'Se o pagamento já foi feito, por favor desconsidere.';
   const texto = mensagemDeCobranca({
     modelo, cliente: 'Maria da Silva', remetente: 'Juliana', total: 111500,
     parcelas: [{ numero: 2, vencimento: '2026-08-01', total: 111500 }],
-    pix: { chave: '12.345.678/0001-90', titular: 'FHL Advocacia' },
+    pix: { chave: '12.345.678/0001-90', titular: 'Fonseca Lisboa Advocacia' },
   });
   assert.match(texto, /^Olá, Maria! Aqui é Juliana/);
   assert.match(texto, /parcela 2 de 01\/08\/2026 \(R\$\s1\.115,00\)/);
-  assert.match(texto, /Chave Pix: 12\.345\.678\/0001-90 — FHL Advocacia/);
+  assert.match(texto, /Chave Pix: 12\.345\.678\/0001-90 — Fonseca Lisboa Advocacia/);
 
   const semPix = mensagemDeCobranca({ modelo, cliente: 'Maria', remetente: 'Juliana', total: 100, parcelas: [], pix: null });
   assert.doesNotMatch(semPix, /\n\n\n/);

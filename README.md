@@ -1,6 +1,7 @@
-# FHL Advocacia — site
+# Fonseca Lisboa Advocacia — site
 
-**FHL Advocacia — Fonseca Hespanha Lisboa.** Paranaguá — PR.
+**Fonseca Lisboa Advocacia (FL).** Paranaguá — PR. Até out/2026 a sociedade
+era FHL — Fonseca Hespanha Lisboa; com a saída do Marlon, passou a FL.
 Site institucional construído a partir de [`preparacao-ied-legal.md`](preparacao-ied-legal.md)
 (escrito quando o cliente ainda era chamado de "I&D"; a marca real veio depois).
 Conteúdo em português do Brasil.
@@ -9,10 +10,12 @@ Conteúdo em português do Brasil.
 
 ## Como rodar
 
-**Novas funções E0/F1–F4, F5/F6 manuais, F7 e recursos manuais de F8 (05/10/2026):** use `npm run testar:local` e abra
+**Financeiro do DOCX e DJEN (08–09/10/2026):** use `npm run testar:local` e abra
 <http://127.0.0.1:8125/__teste>. Essa prévia usa dados fictícios e não acessa a
-produção. Roteiro e estado das migrações: [TESTAR-NOVAS-FUNCOES.md](TESTAR-NOVAS-FUNCOES.md).
-As novas funções ainda não foram publicadas. `npm run dev` mantém a conexão
+produção. Estado atual e ordem das migrações: [HANDOFF-FINANCEIRO-DJEN.md](HANDOFF-FINANCEIRO-DJEN.md).
+As funções de 08/10 ainda não foram publicadas; a revisão de código e visual
+de 09/10 está em [REVISAO-FINANCEIRO-DJEN.md](REVISAO-FINANCEIRO-DJEN.md).
+`npm run dev` mantém a conexão
 com o Supabase configurado no projeto.
 
 Precisa de Node.js 20 ou mais novo. Não há dependências para instalar — o
@@ -36,7 +39,7 @@ sozinho.
 | `npm run preview` | Serve `dist/` como está, sem watch — confere o que vai ao ar |
 | `npm run check` | Valida links, âncoras, meta tags e SEO de todas as páginas |
 | `npm run og` | Gera as imagens de compartilhamento que faltam (artigos e campanhas) |
-| `npm run marca` | Regera monograma, favicon, `logo.png`, `og.png` e as cópias da área dos advogados a partir de `assets/img/logo.svg` |
+| `npm run marca` | Regera marca d'água, assinatura do rodapé, favicon, `logo.png`, `og.png` e as peças da área dos advogados a partir de `assets/img/logo.svg` (FL) e `assets/img/peixinho.svg` |
 | `npm run clean` | Apaga `dist/` |
 | `npm run sistema:test` | Testes dos cálculos da área dos advogados — ver [`sistema/README.md`](sistema/README.md) |
 
@@ -103,7 +106,7 @@ src/
   partials/institucional.mjs  Método e números (home e escritório)
   lib/html.mjs           pageHead, nextBlock, arrowLink, descritor de página
   lib/icones.mjs         Ícones de traço em SVG inline (canais, compartilhar)
-  lib/marca.mjs          Logomarca: lê assets/img/logo.svg e monta os SVG embutidos
+  lib/marca.mjs          Marcas: lê logo.svg (FL) e peixinho.svg e monta os SVG embutidos
   lib/seo.mjs            Canonical, Open Graph, JSON-LD
   lib/assets.mjs         Existência e dimensões de imagens
   pages/*.mjs            Uma função por página (ou por família de páginas)
@@ -113,7 +116,7 @@ scripts/
   dev.mjs                Servidor local, watch e live reload
   check.mjs              Validação de links, âncoras, meta tags e SEO
   og.mjs                 Imagens de compartilhamento (Chrome/Edge headless)
-  marca.mjs              Arquivos derivados da logomarca (`npm run marca`)
+  marca.mjs              Arquivos derivados das marcas (`npm run marca`)
 
 dist/                    Saída do build — descartável, fora do git
 
@@ -128,8 +131,9 @@ assets/
   js/site.js             Loader, header, menu, formulário, cookies
   fonts/                 Galano Grotesque + Newsreader (.woff2)
   vendor/                GSAP, ScrollTrigger, Lenis
-  img/logo.svg           Logomarca — FONTE ÚNICA da marca (ver Identidade)
-  img/                   Monograma, favicon, logo.png, grão, fallback do herói, OG
+  img/logo.svg           Logomarca FL — fonte única (ver Identidade)
+  img/peixinho.svg       A marca antiga, de volta — fonte única (ver Identidade)
+  img/                   Marca d'água, assinatura, favicon, logo.png, grão, fallback do herói, OG
   img/og/                Imagens de compartilhamento geradas por `npm run og`
   img/publicacoes/       Imagens dos cartões de post dentro dos artigos
 
@@ -194,46 +198,67 @@ juridiquês, e a conformidade com o Provimento 205/2021.
 
 ## Identidade
 
-**Logomarca:** monograma serifado FHL + filete + "Fonseca / Hespanha / Lisboa"
-(`LogosNovas/`, adotada em 29/09/2026). Vetorizada do PNG em
-**`assets/img/logo.svg`**, a fonte única: cada parte tem id (`#f`, `#hl`,
-`#filete`, `#fonseca`, `#hespanha`, `#lisboa`) e `src/lib/marca.mjs` lê os
-caminhos dali. Onde ela aparece:
+Duas marcas convivem desde 09/10/2026, a pedido dos advogados:
 
-| Onde | Como |
+**Logomarca FL** — o monograma FL serifado cruzado pelo traço em três faixas,
+"FONSECA LISBOA" e "ADVOCACIA" entre filetes. Original: `Fonseca Lisboa Logo
+final.png` (raiz). Vetorizada em `LogosNovas/FL/_fonte/` (`vetorizar.py` →
+`tracado.json` → `gerar.py`), que também gera as peças avulsas em
+`LogosNovas/FL/` e a fonte do site, **`assets/img/logo.svg`**: cada elemento
+tem id (`#monograma`, `#fl`, `#traco`, `#traco-terra`, `#traco-verde`, `#nome`,
+`#advocacia`, `#filete-esquerdo`, `#advocacia-letras`, `#filete-direito`) e
+caixa (`data-caixa`), e `src/lib/marca.mjs` monta tudo dali.
+
+**Peixinho** — a marca antiga (`Logo.jpg`, igual a `LogosNovas/Logo_Peixinho.jpg`):
+três setores de círculo em teal, vinho e menta — as cores do site. Desenhado em
+**`assets/img/peixinho.svg`** por medida do JPG (lados retos 809,5, arco de raio
+854,7; 99% de sobreposição com o original). **Nunca vai para os documentos
+gerados.**
+
+| Onde | Marca |
 |---|---|
-| Header | Só o monograma, SVG embutido em `currentColor` — escurece sozinho sobre as seções claras — + filete + "Advocacia" |
-| Rodapé | Assinatura completa (`logo.svg` como `<img>`) |
-| Loader da home | Assinatura completa embutida e animada (ver abaixo) |
-| Marca d'água | `monograma.svg` ampliado e recortado pela borda, 4,5% de opacidade |
+| Header | FL embutido (letras em `currentColor`, escurecem sozinhas sobre as seções claras; faixas terra/verde fixas) + filete + FONSECA LISBOA; no celular só o FL |
+| Rodapé | Assinatura horizontal FL (`assinatura.svg`) |
+| Abertura da home | Peixinho e FL desenhados lado a lado + nome FL (ver abaixo) |
+| Marca d'água | Peixinho numa cor (`marca-dagua.svg`) ampliado e recortado pela borda, 4,5% de opacidade |
+| Favicon | Peixinho sobre o carvão |
+| `logo.png` (JSON-LD), `og.png`, cartões de `npm run og` | FL (os cartões levam o peixinho de marca d'água) |
+| Área dos advogados | Entrada: logo FL completa + peixinho de marca d'água · menu: monograma FL · **documentos: só a assinatura FL** |
 | Retratos da equipe | O filete, na cor do advogado |
-| Favicon, `logo.png` (JSON-LD), `og.png`, cartões de `npm run og`, área dos advogados | Gerados por `npm run marca` / `npm run og` |
 
-Trocar a marca = substituir `logo.svg` mantendo os ids e rodar `npm run marca`
-e `npm run og -- --todas`.
+Trocar a FL = regerar com `LogosNovas/FL/_fonte/gerar.py`; depois
+`npm run marca` e `npm run og -- --todas`.
 
-**Loader (1ª visita da sessão, só na home, ~2,7s):** o F e o HL são desenhados a
-traço menta e preenchidos, o filete cresce do centro, e os três nomes saem de
-trás dele (um `clipPath` esconde o que ainda está à esquerda do filete). Depois
-os painéis se separam. Timeline em `initLoader()` de `assets/js/site.js`. Como
-passa dos 3s da rede de segurança do `<head>` em rede lenta, o `site.js` marca
-`ied-boot` ao começar e a rede deixa de agir — o loader tem teto próprio (3,2s).
+**Abertura (1ª visita da sessão, só na home, ~3s):** as duas marcas se
+desenham lado a lado — o peixinho à esquerda, o FL à direita, um filete
+vertical entre eles crescendo do centro. Cada contorno é traçado em menta
+(`stroke-dasharray`) e depois preenchido: as pétalas nas próprias cores, o FL
+na tinta, e as faixas terra e verde do traço entram por último. Então
+FONSECA LISBOA se revela embaixo, da esquerda (um `clipPath` que cresce), e os
+filetes do ADVOCACIA crescem a partir das letras. Depois os painéis se separam.
+Timeline em `initLoader()` de `assets/js/site.js`; marcação em `aberturaLoader()`
+de `src/lib/marca.mjs`. Como passa dos 3s da rede de segurança do `<head>` em
+rede lenta, o `site.js` marca `ied-boot` ao começar e a rede deixa de agir — a
+abertura tem teto próprio (4,2s).
 
-**Cores.** A logomarca é monocromática — tinta clara sobre o petróleo, petróleo
-sobre o claro. As cores são do site:
+**Cores.** As do site são as do peixinho; a FL entra em tinta clara sobre o
+petróleo e em petróleo sobre o claro, com as faixas do traço em cor própria:
 
 | Cor | Papel |
 |---|---|
-| `#2E615D` teal | Acento sobre fundo **claro** (6,2:1) |
-| `#A2CBB8` menta | Acento sobre fundo **escuro** (9,7:1) · cortina de menu · rim light do herói |
-| `#6E5551` vinho | Acento quente, preenchimentos |
+| `#2E615D` teal | Acento sobre fundo **claro** (6,2:1) · pétala |
+| `#A2CBB8` menta | Acento sobre fundo **escuro** (9,7:1) · cortina de menu · rim light do herói · pétala |
+| `#6E5551` vinho | Acento quente, preenchimentos · pétala |
+| `#4B3D37` terra · `#435B54` verde | Faixas do traço da FL |
+| `#202322` carvão | Fundo do favicon e do `logo.png`; tinta da FL nos documentos |
 
-Não existe dourado na identidade.
+Paleta completa da FL (Pantone/CMYK): `LogosNovas/FL/paleta.svg`. Não existe
+dourado na identidade.
 
-**Dados reais** (extraídos do sistema interno da FHL):
+**Dados reais** (extraídos do sistema interno do escritório):
 Rua Dr. Leocádio, 282 — Centro, Paranaguá/PR · (41) 2152-2607 ·
 áreas: Trabalhista, Previdenciário, Consumidor e Cível ·
-sócios: Fonseca, Hespanha e Lisboa — que são as iniciais **FHL**.
+sócios: Fonseca e Lisboa — as iniciais **FL** (era FHL até a saída do Marlon).
 
 Paranaguá é a segunda maior cidade portuária do Brasil, o que explica por que
 dois dos advogados listam Direito Portuário no perfil.
@@ -403,17 +428,18 @@ números. A seção Linguagem mostra o texto já traduzido.
 1. **Licença Webfont da Galano Grotesque.** Os `.otf` da pasta são licença
    *desktop*. Uso em `@font-face` exige licença web do René Bieder. Exposição
    jurídica real, num site de advocacia.
-2. **Logomarca em vetor original.** `assets/img/logo.svg` foi vetorizado do PNG
-   de `LogosNovas/` (1000 px) — fiel no tamanho em que o site usa, mas com
-   leve ondulação nas bordas em ampliação extrema. Se o designer tiver o
-   `.ai`/`.svg` original, substituir mantendo os ids (ver Identidade).
+2. **Logomarca em vetor original.** `assets/img/logo.svg` foi vetorizado do
+   PNG `Fonseca Lisboa Logo final.png` (2368 px) — fiel no tamanho em que o
+   site usa. Se o designer tiver o `.ai`/`.svg` original, trocar o
+   `tracado.json` de `LogosNovas/FL/_fonte/` (ver Identidade).
 3. **Inscrição da sociedade na OAB e CNPJ.** `OAB` e `CNPJ` estão **vazios**
    em `src/data/site.mjs` — o site mostrava "OAB/PR nº 00.000" no rodapé, no
    menu e no contato, e "00.000.000/0001-00" na Política de Privacidade.
    Vazios, o rodapé lista a inscrição de cada advogado e a política omite o
    CNPJ; preenchidos, aparecem sozinhos em todos esses lugares.
-4. **E-mail e domínio oficiais.** `contato@fhladvocacia.com.br` e
-   `fhladvocacia.com.br` são suposições — não havia e-mail da FHL no arquivo.
+4. **E-mail e domínio oficiais.** `contato@fonsecalisboa.com.br` e
+   `fonsecalisboa.com.br` são suposições (antes, `fhladvocacia.com.br`, também
+   suposição) — não havia e-mail do escritório no arquivo.
 5. **Ensaio fotográfico.** Até ele existir, cada advogado tem um retrato
    tipográfico — iniciais em serifada e o filete da logomarca
    (`src/partials/equipe.mjs`). A foto entra pelo campo `foto` de

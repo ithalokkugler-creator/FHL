@@ -10,7 +10,7 @@ import { CIDADE, ENDERECO } from '../escritorio.js';
 const primeiroNome = (nome) => String(nome ?? '').trim().split(/\s+/)[0];
 
 export function mensagemAniversario({ cliente, remetente }) {
-  return `Olá, ${primeiroNome(cliente.nome)}! Aqui é ${remetente}, da FHL Advocacia. `
+  return `Olá, ${primeiroNome(cliente.nome)}! Aqui é ${remetente}, da Fonseca Lisboa Advocacia. `
     + 'Passando para desejar um feliz aniversário — muita saúde, muita sorte, e que Deus te abençoe! '
     + 'Precisando de alguma coisa, estamos à disposição.';
 }
@@ -19,7 +19,7 @@ export function mensagemAniversario({ cliente, remetente }) {
 export function mensagemLembrete({ compromisso: c, remetente, advogado }) {
   const online = c.modalidade === 'online';
   const local = c.local_ou_link || (online ? 'O link será confirmado pela equipe.' : `${ENDERECO}, ${CIDADE}.`);
-  return `Olá, ${primeiroNome(c.cliente_nome)}! Aqui é ${remetente}, da FHL Advocacia. `
+  return `Olá, ${primeiroNome(c.cliente_nome)}! Aqui é ${remetente}, da Fonseca Lisboa Advocacia. `
     + `Lembrando do seu atendimento em ${dataExtensa(noFuso(c.inicio).dia)}, às ${hora(c.inicio)}`
     + `${advogado ? `, com ${advogado}` : ''}. `
     + `${online ? 'Atendimento online: ' : 'Local: '}${local} `
@@ -37,7 +37,7 @@ const ORIGENS = {
 
 export function mensagemRespostaContato({ contato, remetente }) {
   const origem = ORIGENS[contato.canal];
-  return `Olá, ${primeiroNome(contato.nome)}! Aqui é ${remetente}, da FHL Advocacia. `
+  return `Olá, ${primeiroNome(contato.nome)}! Aqui é ${remetente}, da Fonseca Lisboa Advocacia. `
     + `Recebemos seu contato${origem ? ` ${origem}` : ''} e estamos à disposição para conversar sobre a sua situação. `
     + 'Qual seria um bom horário para falar?';
 }

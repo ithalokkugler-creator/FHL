@@ -7,3 +7,10 @@ verify_jwt = false
 # Preserva o modo da função existente: ela confere o usuário e o acesso ao Site.
 [functions.publicar-site]
 verify_jwt = false
+
+# Conferem o token de quem chamou pelo banco (RLS e RPCs), como publicar-site.
+[functions.finalizar-anexo]
+verify_jwt = false
+
+[functions.administrar-usuarios]
+verify_jwt = false

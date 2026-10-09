@@ -40,9 +40,9 @@ function evento(c) {
   };
 }
 
-export function gerarIcs(compromissos, { nome = 'FHL Advocacia', agora = new Date() } = {}) {
+export function gerarIcs(compromissos, { nome = 'Fonseca Lisboa Advocacia', agora = new Date() } = {}) {
   const carimbo = utc(agora.toISOString());
-  const linhas = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//FHL Advocacia//Agenda//PT-BR',
+  const linhas = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Fonseca Lisboa Advocacia//Agenda//PT-BR',
     'CALSCALE:GREGORIAN', `X-WR-CALNAME:${escaparIcs(nome)}`];
   const ids = new Set();
   for (const c of compromissos) {

@@ -19,6 +19,7 @@ import { garantirContasDoMes, rotuloParcela } from './financeiro/base.js';
 import { iniciarCronometro } from './atualizacoes/cronometro.js';
 import { aniversariantes } from '../dominio/aniversarios.js';
 import { tarefasParaHoje } from '../dominio/avisos-do-dia.js';
+import { urgenciaTarefa } from '../dominio/tarefas.js';
 import { mensagemAniversario, mensagemLembrete } from '../dominio/mensagens.js';
 import { prepararMensagem } from './preparar-mensagem.js';
 
@@ -154,7 +155,7 @@ async function carregar(dia) {
       filtros: [['situacao', 'eq', 'vencida']],
     });
     tarefas.contas = contasCriadas.then(() => db.listar('v_contas', {
-      select: 'id,descricao,valor,vencimento,competencia,situacao',
+      select: 'id,descricao,valor,saldo,parcial,vencimento,competencia,situacao',
       filtros: [['situacao', 'in', ['a_pagar', 'vencida', 'sem_valor']], ['vencimento', 'lte', daquiAUmaSemana]],
       ordem: 'vencimento.asc',
       limite: 8,
@@ -167,15 +168,16 @@ async function carregar(dia) {
       select: 'fechado',
       filtros: [['competencia', 'eq', mesPassado]],
     });
-    // Lembrar de fechar só faz sentido se o mês teve movimento — entrada ou saída.
+    // Lembrar de fechar só faz sentido se o mês teve movimento — entrada ou
+    // saída. A saída é qualquer pagamento de despesa, mesmo parcial.
     tarefas.movimentoMesPassado = Promise.all([
       db.um('recebimentos', {
         select: 'id',
         filtros: [['data', 'gte', mesPassado], ['data', 'lte', fimDoMes(mesPassado)], ['estornado_em', 'is', null]],
       }),
-      db.um('contas', {
+      db.um('pagamentos_despesa', {
         select: 'id',
-        filtros: [['data_pagamento', 'gte', mesPassado], ['data_pagamento', 'lte', fimDoMes(mesPassado)], ['cancelado_em', 'is', null]],
+        filtros: [['data', 'gte', mesPassado], ['data', 'lte', fimDoMes(mesPassado)], ['estornado_em', 'is', null]],
       }),
     ]).then(([entrada, saida]) => Boolean(entrada || saida));
   }
@@ -237,7 +239,7 @@ function painelTarefas(lista) {
     return html`
       <h3 class="aviso-lista__titulo rotulo">${titulo} · ${itens.length}</h3>
       <ul class="lista">${itens.map((t) => html`
-        <li><a class="lista__item" href="#/tarefas?visao=minhas&busca=${encodeURIComponent(t.titulo)}">
+        <li><a class="lista__item tarefa-aviso tarefa-aviso--${urgenciaTarefa(t)?.nivel ?? 'neutro'}" href="#/tarefas?visao=minhas&busca=${encodeURIComponent(t.titulo)}">
           <span>
             <strong>${t.titulo}</strong>
             <span class="sub">${t.cliente_nome || 'Sem cliente'}${t.entrega ? ` · entrega ${dataCurta(t.entrega)}` : ''}</span>
@@ -308,10 +310,12 @@ function painelContatos(dados) {
 function painelIntimacoes(dados) {
   if (!dados.intimacoes) return indisponivel('Intimações a conferir');
   const total = dados.avisos?.intimacoes_pendentes;
+  const novasHoje = dados.avisos?.intimacoes_novas_hoje ?? 0;
   return html`
     <section class="painel" data-painel="intimacoes">
       ${topoPainel('Intimações a conferir', '#/intimacoes?situacao=pendente', 'Conferir')}
-      ${total != null ? html`<p class="painel__corpo">${plural(total, 'intimação pendente', 'intimações pendentes')}.</p>` : ''}
+      ${total != null ? html`<p class="painel__corpo">${plural(total, 'intimação pendente', 'intimações pendentes')}${novasHoje
+        ? html` · <strong>${plural(novasHoje, 'nova do diário hoje', 'novas do diário hoje')}</strong>` : ''}.</p>` : ''}
       ${dados.intimacoes.length
         ? html`<ul class="lista">${dados.intimacoes.map((i) => html`
             <li><a class="lista__item" href="#/intimacoes?situacao=pendente&busca=${encodeURIComponent(i.numero_processo || '')}">
@@ -384,6 +388,7 @@ function painelFinanceiro(dados, dia) {
   const clientesVencidos = new Set(dados.vencidas.map((p) => p.cliente_id)).size;
   const mesPassado = somarMeses(inicioDoMes(dia), -1);
   const lembrarFechamento = pode.fechamento() && dados.movimentoMesPassado && !dados.fechamento?.fechado;
+  const alertas = dados.avisos?.alertas_financeiros ?? null;
 
   return html`
     <section class="painel">
@@ -396,6 +401,8 @@ function painelFinanceiro(dados, dia) {
         ${indicador('Em atraso', moeda(saldoVencido),
           `${plural(dados.vencidas.length, 'parcela', 'parcelas')} · ${plural(clientesVencidos, 'cliente', 'clientes')} · sem encargos`,
           { tom: saldoVencido ? 'perigo' : '', href: '#/financeiro/atraso' })}
+        ${alertas != null ? indicador('Alertas novos', String(alertas), 'fechamentos, estornos, acessos',
+          { tom: alertas ? 'alerta' : '', href: '#/financeiro/alertas' }) : ''}
       </div>
 
       ${lembrarFechamento
@@ -416,7 +423,7 @@ function painelFinanceiro(dados, dia) {
         ? html`<ul class="lista">${dados.contas.map((c) => html`
             <li><a class="lista__item" href="#/financeiro/contas?mes=${c.competencia}">
               <span>${c.descricao}<span class="sub">vence ${dataCurta(c.vencimento)}</span></span>
-              <span>${c.valor != null ? html`<span class="num">${moeda(centavos(c.valor))}</span> ` : ''}${seloConta(c.situacao)}</span>
+              <span>${c.valor != null ? html`<span class="num">${moeda(centavos(c.parcial ? c.saldo : c.valor))}</span>${c.parcial ? html`<span class="sub">pago em parte · total ${moeda(centavos(c.valor))}</span>` : ''} ` : ''}${seloConta(c.situacao)}</span>
             </a></li>`)}</ul>`
         : vazio('Nenhuma conta vencida ou vencendo nesta semana.')}
     </section>`;

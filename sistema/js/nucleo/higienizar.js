@@ -7,7 +7,8 @@
 // `doc-*` e imagens da própria pasta /sistema/img/. Estilo colado do Word,
 // script, formulário e imagem externa ficam de fora.
 
-const TAGS = new Set('P H1 H2 H3 STRONG B EM I U BR UL OL LI TABLE THEAD TBODY TR TH TD DIV SPAN HR IMG'.split(' '));
+// S e STRIKE: o riscado da barra de formatação (documentos/editor.js).
+const TAGS = new Set('P H1 H2 H3 STRONG B EM I U S STRIKE BR UL OL LI TABLE THEAD TBODY TR TH TD DIV SPAN HR IMG'.split(' '));
 
 // Descartadas com todo o conteúdo. Uma tag fora das duas listas some, mas o
 // texto de dentro fica.
@@ -29,7 +30,8 @@ export function higienizar(texto) {
   const limpar = (origem, destino) => {
     for (const n of origem.childNodes) {
       if (n.nodeType === TEXTO) {
-        destino.append(doc.createTextNode(n.textContent));
+        // O espaço de largura zero só segura o cursor no editor; não vai para o papel.
+        destino.append(doc.createTextNode(n.textContent.replaceAll('\u200B', '')));
         continue;
       }
       if (n.nodeType !== ELEMENTO || DESCARTAR.has(n.tagName)) continue;
@@ -43,7 +45,7 @@ export function higienizar(texto) {
         const src = n.getAttribute('src') ?? '';
         if (!IMAGEM_PERMITIDA.test(src) || src.includes('..') || src.includes('//')) continue;
         e.setAttribute('src', src);
-        e.setAttribute('alt', 'FHL Advocacia');
+        e.setAttribute('alt', 'Fonseca Lisboa Advocacia');
       }
       const classes = [...n.classList].filter((c) => /^doc-[a-z0-9-]+$/.test(c));
       if (classes.length) e.className = classes.join(' ');

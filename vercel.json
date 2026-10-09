@@ -49,7 +49,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://ulnpnbzibwbrzrpomgia.supabase.co; font-src 'self'; connect-src 'self' https://ulnpnbzibwbrzrpomgia.supabase.co https://api.bcb.gov.br; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://ulnpnbzibwbrzrpomgia.supabase.co; font-src 'self'; connect-src 'self' https://ulnpnbzibwbrzrpomgia.supabase.co https://api.bcb.gov.br https://comunicaapi.pje.jus.br https://viacep.com.br; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
         },
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "Referrer-Policy", "value": "no-referrer" },
@@ -62,7 +62,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://ulnpnbzibwbrzrpomgia.supabase.co; font-src 'self'; connect-src 'self' https://ulnpnbzibwbrzrpomgia.supabase.co https://api.bcb.gov.br; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https://ulnpnbzibwbrzrpomgia.supabase.co; font-src 'self'; connect-src 'self' https://ulnpnbzibwbrzrpomgia.supabase.co https://api.bcb.gov.br https://comunicaapi.pje.jus.br https://viacep.com.br; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
         },
         { "key": "X-Frame-Options", "value": "DENY" },
         { "key": "Referrer-Policy", "value": "no-referrer" },

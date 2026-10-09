@@ -165,7 +165,7 @@ function trilha(page) {
   const secao = NAV.find(([href]) => href === `${pasta}.html`);
   const itens = [['Início', absUrl('index.html')]];
   if (secao) itens.push([secao[1], absUrl(secao[0])]);
-  itens.push([page.name ?? page.title.replace(/ — FHL Advocacia$/, ''), absUrl(page.path)]);
+  itens.push([page.name ?? page.title.replace(/ — Fonseca Lisboa Advocacia$/, ''), absUrl(page.path)]);
 
   return {
     '@context': 'https://schema.org',

@@ -1,15 +1,16 @@
 /* ==========================================================================
-   FHL ADVOCACIA — COMPONENTES
+   FONSECA LISBOA ADVOCACIA — COMPONENTES
    Header, cortina de menu, botões, links, formulário, rodapé.
    Preparação, seções 7.3 a 7.5.
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
    MARCA
-   O monograma FHL da logomarca (assets/img/logo.svg), embutido como SVG e
-   pintado com currentColor — sobre as seções claras o header só troca a cor.
-   Ao lado, "Advocacia" depois de um filete, como os nomes na assinatura
-   completa. No rodapé vai a assinatura inteira.
+   O monograma FL da logomarca (assets/img/logo.svg), embutido como SVG: as
+   letras e a faixa de cima do traço são currentColor — sobre as seções
+   claras o header só troca a cor —, as faixas terra e verde têm cor própria.
+   Ao lado, FONSECA LISBOA depois de um filete, as letras da própria logo.
+   No rodapé vai a assinatura horizontal (assets/img/assinatura.svg).
    -------------------------------------------------------------------------- */
 .brand {
   display: inline-flex;
@@ -20,30 +21,29 @@
   line-height: 1;
 }
 .brand__mark {
-  height: 32px;
+  display: block;
+  height: 36px;
   width: auto;
-  aspect-ratio: 430 / 259;
   flex: 0 0 auto;
-  fill: currentColor;
 }
 .brand__word {
-  padding-left: 14px;
+  display: block;
+  padding: 4px 0 4px 14px;
   border-left: 1px solid color-mix(in srgb, currentColor 30%, transparent);
-  font-weight: 500;
-  font-size: 11.5px;
-  line-height: 20px;
-  letter-spacing: var(--tr-label);
-  text-transform: uppercase;
-  color: var(--c-text-muted);
+}
+.brand__nome {
+  display: block;
+  height: 11px;
+  width: auto;
 }
 .brand__assinatura {
   display: block;
-  height: 58px;
+  height: 64px;
   width: auto;
 }
 
 @media (max-width: 560px) {
-  .brand__mark { height: 26px; }
+  .brand__mark { height: 30px; }
   .brand__word { display: none; }
 }
 
@@ -359,8 +359,9 @@ a { color: inherit; }
 
 /* --------------------------------------------------------------------------
    MARCA D'ÁGUA
-   O monograma ampliado e recortado pela borda, tom sobre tom
-   (assets/img/monograma.svg). Da esquerda aparece o F; da direita, o L.
+   O peixinho — a marca antiga — ampliado e recortado pela borda, tom sobre
+   tom (assets/img/marca-dagua.svg). Da esquerda aparecem os arcos das
+   pétalas; da direita, as pontas.
    -------------------------------------------------------------------------- */
 .watermark {
   position: absolute;
@@ -372,13 +373,13 @@ a { color: inherit; }
   user-select: none;
   will-change: transform;
 }
-.watermark--left { left: -14vw; top: 50%; transform: translateY(-50%); }
-.watermark--right { right: -14vw; top: 50%; transform: translateY(-50%); }
+.watermark--left { left: -12vw; top: 50%; transform: translateY(-50%); }
+.watermark--right { right: -10vw; top: 50%; transform: translateY(-50%); }
 
 @media (max-width: 767px) {
   .watermark { height: 42vh; opacity: 0.035; }
-  .watermark--left { left: -38vw; }
-  .watermark--right { right: -38vw; }
+  .watermark--left { left: -22vw; }
+  .watermark--right { right: -20vw; }
 }
 
 /* --------------------------------------------------------------------------
@@ -581,7 +582,8 @@ main:has(> .next-block:last-child) + .footer .footer__top {
 .transition__panel--bottom { bottom: 0; transform: translate3d(0, 100%, 0); }
 
 /* --------------------------------------------------------------------------
-   LOADER (6.0) — a assinatura se monta; ~2,7s, só na 1ª visita da sessão
+   LOADER (6.0) — peixinho e FL se desenham lado a lado e o nome se revela
+   embaixo; ~3s, só na 1ª visita da sessão
    Só existe com JS: sem a classe `.js` ele cobria a home para sempre — com o
    JS desligado, ou quando a rede de segurança de 3s do <head> desiste de um
    site.js que não chegou (ela tira a classe, e agora o loader vai junto).
@@ -606,21 +608,54 @@ main:has(> .next-block:last-child) + .footer .footer__top {
 }
 .loader__panel--top { top: 0; }
 .loader__panel--bottom { bottom: 0; }
-.loader__inner { position: relative; z-index: 2; }
-/* A assinatura completa. Fica invisível até o site.js recolher as partes
-   (traço, filete, nomes): sem isso ela piscaria pronta antes de se montar. */
-.loader__marca {
-  display: block;
-  width: min(520px, 78vw);
-  height: auto;
-  overflow: visible;
-  visibility: hidden;
-  fill: var(--c-ink);
+.loader__inner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(28px, 5vh, 44px);
 }
-.loader__letra {
-  stroke: var(--c-mint);
-  stroke-width: 2.4;
-  stroke-linejoin: round;
+/* As marcas e o nome ficam invisíveis até o site.js recolher as partes
+   (traços recolhidos, preenchimento zerado, nome recortado): sem isso
+   piscariam prontos antes de se desenhar. */
+.loader__marcas,
+.loader__nome {
+  visibility: hidden;
+}
+/* Peixinho | filete | FL, centrados na mesma linha. */
+.loader__marcas {
+  display: flex;
+  align-items: center;
+  gap: clamp(22px, 4vw, 44px);
+}
+.loader__peixe,
+.loader__fl,
+.loader__nome {
+  display: block;
+  overflow: visible;
+}
+.loader__peixe {
+  height: clamp(110px, 19vh, 168px);
+  width: auto;
+}
+.loader__fl {
+  height: clamp(86px, 15vh, 132px);
+  width: auto;
+  color: var(--c-ink);
+}
+.loader__traco { stroke: var(--c-mint); stroke-linejoin: round; }
+.loader__divisor {
+  display: block;
+  width: 1px;
+  height: clamp(110px, 19vh, 168px);
+  background: color-mix(in srgb, var(--c-ink) 45%, transparent);
+  transform-origin: 50% 50%;
+}
+.loader__nome {
+  width: min(380px, 74vw);
+  height: auto;
+  color: var(--c-ink);
 }
 
 /* --------------------------------------------------------------------------

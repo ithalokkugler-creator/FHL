@@ -136,3 +136,28 @@ export function memoriaParaGravar(r) {
     passos: r.passos.map((p) => ({ rotulo: p.rotulo, detalhe: p.detalhe ?? null, valor: reais(p.valor) })),
   };
 }
+
+/**
+ * Os encargos de um recebimento, discriminados (preparação T03): quanto do
+ * que passou do saldo foi correção, multa e juros — na proporção do cálculo
+ * do dia —, e quanto passou até do total calculado (acréscimo). Centavos; a
+ * diferença de arredondamento fica nos juros. Pagamento que só abate saldo
+ * tem tudo zero.
+ *
+ * A regra de imputação (saldo primeiro, depois encargos) é a do sistema desde
+ * setembro, a confirmar com o escritório — o art. 354 do Código Civil manda
+ * imputar primeiro nos juros, salvo acordo.
+ */
+export function componentesDosEncargos(calculo, encargosPagos) {
+  const pago = Math.max(0, Math.round(encargosPagos || 0));
+  const correcao = Math.max(0, calculo?.correcao ?? 0);
+  const multa = Math.max(0, calculo?.multa ?? 0);
+  const juros = Math.max(0, calculo?.juros ?? 0);
+  const devido = correcao + multa + juros;
+  if (!pago) return { correcao: 0, multa: 0, juros: 0, acrescimo: 0 };
+  if (!devido) return { correcao: 0, multa: 0, juros: 0, acrescimo: pago };
+  const coberto = Math.min(pago, devido);
+  const c = Math.floor((coberto * correcao) / devido);
+  const m = Math.floor((coberto * multa) / devido);
+  return { correcao: c, multa: m, juros: coberto - c - m, acrescimo: pago - coberto };
+}

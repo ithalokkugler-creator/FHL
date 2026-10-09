@@ -3,7 +3,7 @@
 //
 // "Precisa de uma página por campanha ou dá para usar o mesmo site?"
 // (CLAUDE.md §5.3) — dá para usar o mesmo site: cada campanha daqui vira
-// campanhas/<slug>.html, com a marca, o domínio e o SEO da FHL.
+// campanhas/<slug>.html, com a marca, o domínio e o SEO do escritório.
 //
 // O PERÍODO NÃO ESCONDE A PÁGINA. Antes do início ela existe para revisar o
 // link, mas fica fora do Google. Depois do fim continua no ar, com aviso de

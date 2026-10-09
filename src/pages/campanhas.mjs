@@ -84,7 +84,7 @@ export function buildCampanha(c) {
       </p>` : '';
 
   const hero = `  <section class="page-head campanha-hero">
-    <img class="watermark watermark--right" src="${P}assets/img/monograma.svg" alt="" aria-hidden="true">
+    <img class="watermark watermark--right" src="${P}assets/img/marca-dagua.svg" alt="" aria-hidden="true">
     <div class="wrap page-head__inner">${aviso}
       <p class="label" data-reveal="rise">${c.rotulo}</p>
       <h1 class="h1 page-head__title campanha-hero__title r-mask" data-reveal="mask">${c.titulo}</h1>
@@ -211,7 +211,7 @@ ${contatoAside({ extra: area ? `
 
   return page({
     path: `campanhas/${c.slug}.html`,
-    title: `${c.titulo} — FHL Advocacia`,
+    title: `${c.titulo} — Fonseca Lisboa Advocacia`,
     desc: c.descricao,
     body: hero + situacoes + direitos + passos + documentos + faq + contato,
     depth: 1,

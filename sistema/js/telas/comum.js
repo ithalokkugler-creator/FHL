@@ -37,7 +37,7 @@ export const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
 /** Cabeçalho que só aparece no papel (fechamento e relatórios). */
 export const cabecalhoImpressao = () => html`
   <div class="so-impressao">
-    <p class="rotulo">FHL Advocacia — Fonseca Hespanha Lisboa</p>
+    <p class="rotulo">Fonseca Lisboa Advocacia</p>
     <p>Impresso em ${dataHora(new Date().toISOString())}</p>
   </div>`;
 
@@ -60,6 +60,19 @@ export function seletorMes(mes) {
     </div>`;
 }
 
+/** Navegação de páginas das listas sem teto fixo: "1–100 de 1.205". */
+export function paginacao(pagina, paginas, total, porPagina = 100) {
+  if (paginas <= 1) return html`<p class="painel__rodape sub">${total} ${total === 1 ? 'registro' : 'registros'}</p>`;
+  const de = (pagina - 1) * porPagina + 1;
+  return html`
+    <nav class="paginacao painel__rodape" aria-label="Páginas">
+      <span class="sub">${de}–${Math.min(total, pagina * porPagina)} de ${total.toLocaleString('pt-BR')}</span>
+      <button type="button" class="botao botao--pequeno" data-acao="pagina" data-pagina="${pagina - 1}" ${pagina <= 1 ? 'disabled' : ''}>‹ Anterior</button>
+      <span>Página ${pagina} de ${paginas}</span>
+      <button type="button" class="botao botao--pequeno" data-acao="pagina" data-pagina="${pagina + 1}" ${pagina >= paginas ? 'disabled' : ''}>Próxima ›</button>
+    </nav>`;
+}
+
 const selo = ([rotulo, tom]) => html`<span class="selo${tom ? ` selo--${tom}` : ''}">${rotulo}</span>`;
 
 // ---------------------------------------------------------------------------
@@ -73,15 +86,6 @@ const SITUACOES_TAREFA = {
   cancelada: ['Cancelada', 'escuro'],
 };
 export const seloTarefa = (s) => selo(SITUACOES_TAREFA[s] ?? [s, '']);
-
-// O alerta de `v_tarefas` (ou de alertaTarefa): só aparece quando pede atenção.
-const ALERTAS_TAREFA = {
-  vencida: ['Fatal vencido', 'perigo'],
-  fatal_hoje: ['Fatal hoje', 'perigo'],
-  atrasada: ['Entrega atrasada', 'perigo'],
-  entrega_hoje: ['Entrega hoje', 'alerta'],
-};
-export const seloAlertaTarefa = (s) => (ALERTAS_TAREFA[s] ? selo(ALERTAS_TAREFA[s]) : '');
 
 const SITUACOES_INTIMACAO = {
   pendente: ['Pendente de conferência', 'alerta'],
@@ -131,10 +135,16 @@ export function seloParcela(situacao, parcial) {
     : ''}`;
 }
 
+// `situacao` (ativo/quitado/a_apurar/cancelado) e o `rotulo` do DOCX, que
+// acrescenta arquivado, com pendência, renegociado e em andamento.
 const SITUACOES_CONTRATO = {
   ativo: ['Ativo', ''],
+  em_andamento: ['Em andamento', ''],
+  com_pendencia: ['Com pendência', 'perigo'],
+  renegociado: ['Renegociado', 'alerta'],
   quitado: ['Quitado', 'ok'],
   a_apurar: ['Êxito a apurar', 'alerta'],
+  arquivado: ['Arquivado', 'escuro'],
   cancelado: ['Cancelado', 'escuro'],
 };
 export const seloContrato = (s) => selo(SITUACOES_CONTRATO[s] ?? [s, '']);
@@ -191,6 +201,18 @@ const SITUACOES_COMPROMISSO = {
   remarcado: ['Remarcado', 'alerta'],
 };
 export const seloCompromisso = (s) => selo(SITUACOES_COMPROMISSO[s] ?? [s, '']);
+
+// Nome legível de uma situação gravada, para quem lê o histórico.
+const SITUACOES_POR_TABELA = {
+  tarefas: SITUACOES_TAREFA, intimacoes: SITUACOES_INTIMACAO, parcelas: SITUACOES_PARCELA,
+  contratos: SITUACOES_CONTRATO, contas: SITUACOES_CONTA, compromissos: SITUACOES_COMPROMISSO,
+};
+export function rotuloSituacao(tabela, valor) {
+  if (tabela === 'contatos') return SITUACOES_CONTATO[valor] ?? valor;
+  const rotulo = SITUACOES_POR_TABELA[tabela]?.[valor]
+    ?? Object.values(SITUACOES_POR_TABELA).map((m) => m[valor]).find(Boolean);
+  return rotulo?.[0] ?? valor;
+}
 
 /** Exportação manual: só o usuário salva no Google e confere a disponibilidade. */
 export const notaGoogle = () => html`

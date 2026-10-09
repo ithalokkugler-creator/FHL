@@ -1,5 +1,5 @@
 -- =============================================================================
--- FHL ADVOCACIA — ÁREA DOS ADVOGADOS
+-- FONSECA LISBOA ADVOCACIA — ÁREA DOS ADVOGADOS
 -- Cenários do Financeiro, do contrato ao fechamento, direto no banco
 -- =============================================================================
 --
@@ -221,19 +221,21 @@ begin
 
     -- ============================== parcelas ==============================
     etapa := 'parcelas';
-    update public.parcelas set vencimento = '2026-04-25' where id = a2;
+    -- Desde 08/10/2026 a mudança de vencimento leva o motivo junto.
+    update public.parcelas set vencimento = '2026-04-25', motivo_alteracao = 'Cliente pediu cinco dias' where id = a2;
     perform set_config('role', 'none', true);
     select count(*) into v_qtd from public.auditoria
-     where registro_id = a2 and acao = 'alterou' and campos = array['vencimento']
+     where registro_id = a2 and acao = 'alterou' and campos @> array['vencimento']
        and antes ->> 'vencimento' = '2026-04-20' and depois ->> 'vencimento' = '2026-04-25';
     perform set_config('role', 'authenticated', true);
     res := res || jsonb_build_object('ok', v_qtd = 1, 't', 'F17 vencimento alterado deixa o anterior no histórico', 'd', v_qtd);
 
+    -- Desde 08/10/2026 o valor da parcela não se altera direto pela API (T02).
     begin
       update public.parcelas set valor = 300 where id = a1;
-      res := res || jsonb_build_object('ok', false, 't', 'F18 parcela não fica menor do que já foi recebido', 'd', 'aceitou');
+      res := res || jsonb_build_object('ok', false, 't', 'F18 valor de parcela não se altera direto pela API', 'd', 'aceitou');
     exception when others then
-      res := res || jsonb_build_object('ok', sqlerrm like '%menos do que já foi recebido%', 't', 'F18 parcela não fica menor do que já foi recebido', 'd', sqlerrm);
+      res := res || jsonb_build_object('ok', sqlstate = '42501', 't', 'F18 valor de parcela não se altera direto pela API', 'd', sqlerrm);
     end;
 
     begin
@@ -396,7 +398,8 @@ begin
     res := res || jsonb_build_object('ok', v_txt = '2026-06-01', 't', 'F38 conta avulsa muda de mês junto com o vencimento', 'd', v_txt);
 
     begin
-      update public.contas set data_pagamento = privado.hoje() + 1 where id = v_conta;
+      perform public.registrar_pagamento_despesa(jsonb_build_object(
+        'conta_id', v_conta, 'valor', 80, 'data', privado.hoje() + 1));
       res := res || jsonb_build_object('ok', false, 't', 'F39 pagamento com data futura é recusado', 'd', 'aceitou');
     exception when others then
       res := res || jsonb_build_object('ok', sqlerrm like '%futuro%', 't', 'F39 pagamento com data futura é recusado', 'd', sqlerrm);
@@ -415,11 +418,12 @@ begin
 
     select situacao into v_txt from public.v_contas where descricao = 'Energia teste' and competencia = '2026-02-01';
     begin
-      update public.contas set data_pagamento = '2026-02-10'
-       where descricao = 'Energia teste' and competencia = '2026-02-01';
+      perform public.registrar_pagamento_despesa(jsonb_build_object(
+        'conta_id', (select id from public.contas where descricao = 'Energia teste' and competencia = '2026-02-01'),
+        'valor', 10, 'data', '2026-02-10'));
       v_bool := false;
     exception when others then
-      v_bool := sqlstate = '23514';
+      v_bool := sqlerrm like '%valor da conta%';
     end;
     res := res || jsonb_build_object('ok', v_txt = 'sem_valor' and v_bool, 't', 'F42 conta de valor variável nasce sem valor e não se paga assim', 'd', v_txt);
 
@@ -432,10 +436,14 @@ begin
     res := res || jsonb_build_object('ok', v_qtd = 0, 't', 'F44 não gera contas de meses distantes', 'd', v_qtd);
 
     -- Saídas de março: aluguel pelo caixa e café pago pela sócia.
-    insert into public.contas (descricao, categoria_id, valor, vencimento, data_pagamento, forma_id)
-      values ('Aluguel de março', v_cat, 400, '2026-03-10', '2026-03-12', v_pix);
-    insert into public.contas (descricao, categoria_id, valor, vencimento, data_pagamento, pago_por_id)
-      values ('Café', v_cafe, 30, '2026-03-15', '2026-03-15', m_socia) returning id into v_conta;
+    insert into public.contas (descricao, categoria_id, valor, vencimento)
+      values ('Aluguel de março', v_cat, 400, '2026-03-10') returning id into v_conta;
+    perform public.registrar_pagamento_despesa(jsonb_build_object(
+      'conta_id', v_conta, 'valor', 400, 'data', '2026-03-12', 'forma_id', v_pix));
+    insert into public.contas (descricao, categoria_id, valor, vencimento)
+      values ('Café', v_cafe, 30, '2026-03-15') returning id into v_conta;
+    perform public.registrar_pagamento_despesa(jsonb_build_object(
+      'conta_id', v_conta, 'valor', 30, 'data', '2026-03-15', 'pago_por_id', m_socia));
     -- Conta de março ainda sem pagamento: vira pendência do fechamento.
     insert into public.contas (descricao, categoria_id, valor, vencimento)
       values ('Internet de março', v_cat, 99.90, '2026-03-20');
@@ -533,8 +541,8 @@ begin
       res := res || jsonb_build_object('ok', sqlerrm like '%está fechado%', 't', 'F57 conta paga no mês fechado não muda de valor', 'd', sqlerrm);
     end;
 
-    update public.contas set reembolsado_em = '2026-04-05' where id = v_conta;
-    get diagnostics v_qtd = row_count;
+    perform public.registrar_reembolso((select id from public.pagamentos_despesa where conta_id = v_conta), '2026-04-05');
+    select count(*) into v_qtd from public.pagamentos_despesa where conta_id = v_conta and reembolsado_em = '2026-04-05';
     res := res || jsonb_build_object('ok', v_qtd = 1, 't', 'F58 reembolso à sócia se marca mesmo com o mês fechado', 'd', v_qtd);
 
     perform set_config('request.jwt.claims', jsonb_build_object('sub', u_admin, 'role', 'authenticated')::text, true);

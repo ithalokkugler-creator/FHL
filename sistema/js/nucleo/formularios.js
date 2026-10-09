@@ -1,4 +1,6 @@
 // Validação comum: motivo visível, dados preservados e foco no campo errado.
+import { data } from './formato.js';
+
 let proximoId = 0;
 
 export class ErroCampo extends Error {
@@ -40,7 +42,7 @@ const CAMPOS_MENSAGEM = [
   [/valor inválido|valor pago|valor recebido|valor dos honorários|precisa de valor|Informe o valor\./i, ['valor']],
   [/dia vai de/i, ['dia']],
   [/tribunal/i, ['tribunal']],
-  [/datas.*publicação/i, ['publicada_em']],
+  [/datas.*publicação|data de publicação/i, ['publicada_em']],
   [/leu e conferiu/i, ['conferi']],
   [/assunto.*cliente/i, ['titulo', 'cliente_texto']],
   [/último.*dia/i, ['ultimo']],
@@ -162,8 +164,8 @@ export function motivoInvalido(campo) {
     return campo.type === 'checkbox' ? 'Marque esta confirmação para continuar.' : `Preencha ${rotulo(campo)}.`;
   }
   if (v.typeMismatch) return campo.type === 'email' ? 'Informe um e-mail válido, como nome@exemplo.com.' : 'Informe um endereço válido.';
-  if (v.rangeUnderflow) return `Informe um valor igual ou maior que ${campo.min}.`;
-  if (v.rangeOverflow) return `Informe um valor igual ou menor que ${campo.max}.`;
+  if (v.rangeUnderflow) return campo.type === 'date' ? `Informe uma data igual ou posterior a ${data(campo.min)}.` : `Informe um valor igual ou maior que ${campo.min}.`;
+  if (v.rangeOverflow) return campo.type === 'date' ? `Informe uma data igual ou anterior a ${data(campo.max)}.` : `Informe um valor igual ou menor que ${campo.max}.`;
   if (v.stepMismatch) return campo.step === 'any' ? 'Confira o valor informado.' : 'Informe um valor no intervalo permitido (sem frações quando forem unidades inteiras).';
   if (v.tooShort) return `Use pelo menos ${campo.minLength} caracteres.`;
   if (v.tooLong) return `Use no máximo ${campo.maxLength} caracteres.`;

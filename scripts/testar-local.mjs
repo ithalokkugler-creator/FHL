@@ -2,13 +2,21 @@
 // Prévia isolada das funções novas: `npm run testar:local`.
 // ========================================================
 //
-// O mesmo frontend e o mesmo handler HTTP do formulário (receber-contato),
-// com um banco fictício em memória (scripts/local/dados.mjs). Não carrega
-// credenciais, não chama o Supabase nem a Vercel e não usa login real: o
-// perfil vem do endereço (?perfil=admin, socia, secretaria…).
+// O mesmo frontend, com dados fictícios e sem login real: o perfil vem do
+// endereço (?perfil=admin, socia, secretaria, consulta, auditoria…).
 //
-// O build vai para .local/previa/, separado de dist/. Mudou código? Encerre
-// (Ctrl+C) e rode de novo — não há recarga automática.
+// Dois modos:
+//   · COM BANCO (padrão desde 08/10/2026): PostgreSQL em memória (PGlite) com
+//     todas as migrações e uma Data API que fala como o PostgREST — as telas
+//     esbarram nas mesmas políticas, gatilhos e funções do Supabase. Precisa do
+//     PGlite em .local/ferramentas (ver scripts/local/banco.mjs).
+//   · SIMULADO (`npm run testar:local -- --simulado`): a prévia antiga, com
+//     respostas imitadas em memória (scripts/local/dados.mjs). Não conhece as
+//     tabelas do Financeiro novo.
+//
+// Não carrega credenciais, não chama o Supabase, a Vercel nem o CNJ (o DJEN e
+// o CEP da prévia são fictícios). O build vai para .local/previa/, separado
+// de dist/. Mudou código? Encerre (Ctrl+C) e rode de novo.
 
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -16,6 +24,7 @@ import { dirname, extname, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { criarRecebedor } from '../supabase/functions/receber-contato/handler.js';
 import { apiFicticia, criarDados } from './local/dados.mjs';
+import { respostaCepFicticia, respostaDjenFicticia } from './local/djen-ficticio.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = resolve(ROOT, '.local', 'previa');
@@ -34,6 +43,17 @@ const { build } = await import('./build.mjs');
 await build({ local: true, quiet: true, destino: DIST });
 
 let dados = criarDados();
+
+// Com banco, quando o PGlite está instalado; senão (ou com --simulado), a antiga.
+let previaBanco = null;
+if (!process.argv.includes('--simulado')) {
+  try {
+    const { criarPreviaBanco } = await import('./local/previa-banco.mjs');
+    previaBanco = await criarPreviaBanco({ origem });
+  } catch (erro) {
+    console.warn(`\nPrévia COM BANCO indisponível — seguindo com a simulada.\n${erro.message}\n`);
+  }
+}
 const receber = criarRecebedor({
   url: `${origem}/__teste`,
   chave: 'sb_secret_PREVIA_FICTICIA',
@@ -68,19 +88,26 @@ const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 's
 
 const CLIENTE_EXEMPLO = '00000000-0000-4000-8000-000000000202';
 const link = (perfil, rota, rotulo) => `<a href="/sistema/?perfil=${perfil}#${rota}">${rotulo}</a>`;
+const modo = () => (previaBanco
+  ? '<p class="nota nota--info">Modo <strong>com banco</strong>: PostgreSQL em memória com todas as migrações. As telas seguem as mesmas regras do Supabase.</p>'
+  : '<p class="nota">Modo <strong>simulado</strong>: o Financeiro novo, anexos e importação não funcionam aqui. Instale o PGlite (ver scripts/local/banco.mjs) para o modo com banco.</p>');
+const perfisBanco = () => (previaBanco ? `
+    <li>${link('consulta', '/financeiro', 'Consulta')} — lê o Financeiro e não grava nada.</li>
+    <li>${link('auditoria', '/historico', 'Auditoria')} — lê o histórico de todos os módulos, sem alterar.</li>` : '');
 
-const paginaControle = `<!doctype html>
+const paginaControle = () => `<!doctype html>
 <html lang="pt-BR">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Prévia local — FHL</title>
+<title>Prévia local — FL</title>
 <link rel="stylesheet" href="/sistema/css/sistema.css">
 <link rel="stylesheet" href="/__teste/painel.css">
 <body>
 <main class="previa">
-  <h1 class="pagina__titulo">Prévia local — sistema FHL</h1>
+  <h1 class="pagina__titulo">Prévia local — sistema FL</h1>
   <p class="pagina__sub">Todos os nomes e dados são fictícios. As alterações ficam na memória deste servidor:
     reiniciar ou restaurar apaga os testes. O sistema nunca envia mensagem sozinho.</p>
+  ${modo()}
 
   <h2 class="secao__titulo secao">Perfis</h2>
   <ul class="previa__lista">
@@ -88,7 +115,7 @@ const paginaControle = `<!doctype html>
     <li>${link('socia', '/inicio', 'Sócia')} — Clientes, Prazos, Site e Financeiro completo; edita só a própria agenda; sem Membros.</li>
     <li>${link('secretaria', '/inicio', 'Secretária')} — Clientes, agenda de todos e lançamentos, sem fechamento; começa com um cronômetro esquecido há nove horas.</li>
     <li>${link('sem-clientes', '/tarefas', 'Associado sem Clientes e Prazos')} — trabalha nas tarefas recebidas e vê a agenda, editando só a própria.</li>
-    <li>${link('clientes-sem-financeiro', '/clientes', 'Equipe só de Clientes')} — ficha sem Agenda e Financeiro.</li>
+    <li>${link('clientes-sem-financeiro', '/clientes', 'Equipe só de Clientes')} — ficha sem Agenda e Financeiro.</li>${perfisBanco()}
   </ul>
 
   <h2 class="secao__titulo secao">Atalhos (como administrador)</h2>
@@ -100,7 +127,12 @@ const paginaControle = `<!doctype html>
     <li>${link('admin', '/atualizacoes', 'Atualizações e cronômetro')} · ${link('admin', `/atualizacoes/relatorio?cliente=${CLIENTE_EXEMPLO}`, 'Relatório de atividades')}</li>
     <li>${link('admin', '/tarefas', 'Tarefas')} · ${link('admin', '/prazos', 'Prazos')} · ${link('admin', '/feriados', 'Feriados')} · ${link('admin', '/intimacoes', 'Intimações')}
       — prazos e intimações manuais; contagem automática e DJEN ainda pendentes.</li>
-    <li>${link('admin', '/agenda', 'Agenda')} — Google, .ics, lembrete e feriados cadastrados. · ${link('admin', '/membros', 'Membros')}</li>
+    <li>${link('admin', '/agenda', 'Agenda')} — Google, .ics, lembrete e feriados. · ${link('admin', '/membros', 'Membros')}</li>
+    <li>${link('admin', '/financeiro', 'Financeiro — painel')} · ${link('admin', '/financeiro/contas', 'Despesas')} ·
+      ${link('admin', '/financeiro/contas-financeiras', 'Contas financeiras')} · ${link('admin', '/financeiro/alertas', 'Alertas')} ·
+      ${link('admin', '/financeiro/fechamento?aba=anual', 'Fechamento anual')} · ${link('admin', '/financeiro/relatorios', 'Relatórios')} ·
+      ${link('admin', '/financeiro/importacao', 'Importação')}</li>
+    <li>${link('admin', '/intimacoes', 'Intimações — buscar no DJEN (fictício)')} · ${link('admin', '/operacao', 'Operação e LGPD')}</li>
   </ul>
 
   <p class="secao"><button class="botao" id="restaurar">Restaurar dados fictícios</button></p>
@@ -145,14 +177,22 @@ const cssTeste = '\n.teste-local{position:fixed;right:12px;bottom:8px;z-index:30
 async function tratar(req) {
   const caminho = new URL(req.url).pathname;
 
-  if (caminho === '/__teste' || caminho === '/__teste/') return texto(paginaControle);
+  if (caminho === '/__teste' || caminho === '/__teste/') return texto(paginaControle());
   if (caminho === '/__teste/painel.css') return texto(painelCss, MIME['.css']);
   if (caminho === '/__teste/controle.js') return texto(controleJs, MIME['.js']);
   if (caminho === '/__teste/entrada.js') return texto(bootstrap, MIME['.js']);
   if (caminho === '/__teste/restaurar' && req.method === 'POST') {
     dados = criarDados();
+    await previaBanco?.restaurar();
     return Response.json({ ok: true });
   }
+  if (previaBanco && /^\/__teste\/(rest|storage|auth|functions|djen|cep)\//.test(caminho)) {
+    const resposta = await previaBanco.tratar(req);
+    if (resposta) return resposta;
+  }
+  if (caminho.startsWith('/__teste/djen/api/v1/comunicacao')) return respostaDjenFicticia(new URL(req.url));
+  const cep = /^\/__teste\/cep\/(\d{8})\/json\/?$/.exec(caminho);
+  if (cep) return respostaCepFicticia(cep[1]);
   if (caminho === '/__teste/estado' && req.method === 'GET') return Response.json(dados);
   if (caminho === '/__teste/functions/v1/receber-contato') return receber(req);
   if (caminho.startsWith('/__teste/rest/v1/')) return apiFicticia(dados, req);
@@ -161,7 +201,9 @@ async function tratar(req) {
 
   // O Supabase da prévia é este servidor.
   if (caminho === '/sistema/js/config.js') {
-    return texto(`export const SUPABASE_URL = ${JSON.stringify(`${origem}/__teste`)}; export const SUPABASE_CHAVE = 'CHAVE-PUBLICA-FICTICIA';`, MIME['.js']);
+    return texto(`export const SUPABASE_URL = ${JSON.stringify(`${origem}/__teste`)}; export const SUPABASE_CHAVE = 'CHAVE-PUBLICA-FICTICIA';`
+      + ` export const DJEN_URL = ${JSON.stringify(`${origem}/__teste/djen/api/v1`)};`
+      + ` export const CEP_URL = ${JSON.stringify(`${origem}/__teste/cep`)};`, MIME['.js']);
   }
 
   const rel = caminho === '/sistema' || caminho === '/sistema/' ? '/sistema/index.html' : caminho === '/' ? '/index.html' : caminho;
@@ -196,7 +238,7 @@ const servidor = createServer(async (req, res) => {
       return;
     }
 
-    const limite = req.url.startsWith('/__teste/rest/') ? 2_000_000 : 20_000;
+    const limite = req.url.startsWith('/__teste/storage/') ? 11_000_000 : req.url.startsWith('/__teste/rest/') ? 5_000_000 : 20_000;
     const partes = [];
     let total = 0;
     for await (const parte of req) {
@@ -241,7 +283,7 @@ servidor.on('error', (erro) => {
 });
 
 servidor.listen(porta, '127.0.0.1', () => {
-  console.log(`\nPrévia com dados fictícios: ${origem}/__teste`);
+  console.log(`\nPrévia ${previaBanco ? 'COM BANCO' : 'SIMULADA'}, com dados fictícios: ${origem}/__teste`);
   console.log(`Sistema: ${origem}/sistema/?perfil=admin#/inicio`);
   console.log('Sem Supabase nem Vercel de produção. Ctrl+C encerra e descarta os testes.\n');
 });

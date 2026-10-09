@@ -46,6 +46,7 @@ export default async function telaRelatorio(ctx) {
       <button class="botao" data-acao="word" type="button">Baixar para o Word</button>
       <button class="botao" data-acao="salvar" type="button">Salvar sem imprimir</button>
     </div>
+    <p class="sub so-celular">No celular a folha aparece em modo de leitura. A impressão e o Word saem em A4.</p>
     <div class="documento-visualizacao secao"><article class="documento-folha" aria-label="Relatório de atividades"></article></div>`);
 
   const form = $('form', ctx.raiz);

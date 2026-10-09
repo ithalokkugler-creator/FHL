@@ -7,19 +7,19 @@ export function buildEscritorio() {
   const body = pageHead(
     'O Escritório',
     'Entender o caso primeiro, agir depois',
-    'A FHL Advocacia atende pessoas e empresas em Paranaguá e região, nas áreas ' +
+    'A Fonseca Lisboa Advocacia atende pessoas e empresas em Paranaguá e região, nas áreas ' +
     'trabalhista, previdenciária, do consumidor e cível.'
   ) + `
 
   <section class="section">
     <div class="wrap grid">
       <div class="area__side">
-        <p class="label" data-reveal="rise">Quem é a FHL</p>
+        <p class="label" data-reveal="rise">Quem é a Fonseca Lisboa</p>
       </div>
       <div class="area__main" data-reveal="rise-group">
         <div class="prose">
           <p class="lead r-rise">
-            FHL são as iniciais dos sobrenomes dos sócios: Fonseca, Hespanha e Lisboa.
+            FL são as iniciais dos sobrenomes dos sócios: Fonseca e Lisboa.
             O escritório reúne três advogados e atende pessoas físicas e jurídicas
             com abordagem técnica, estratégica e personalizada.
           </p>
@@ -51,8 +51,8 @@ ${numeros()}
 
   return page({
     path: 'escritorio.html',
-    title: 'O Escritório — FHL Advocacia',
-    desc: 'Quem é a FHL Advocacia: três advogados em Paranaguá, com atuação ' +
+    title: 'O Escritório — Fonseca Lisboa Advocacia',
+    desc: 'Quem é a Fonseca Lisboa Advocacia: três advogados em Paranaguá, com atuação ' +
       'trabalhista, previdenciária, do consumidor e cível.',
     body,
   });

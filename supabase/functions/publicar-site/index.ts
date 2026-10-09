@@ -1,5 +1,5 @@
 // =============================================================================
-// FHL ADVOCACIA — função de borda `publicar-site`
+// FONSECA LISBOA ADVOCACIA — função de borda `publicar-site`
 // =============================================================================
 //
 // Manda a Vercel gerar o site de novo, para o que foi escrito na área dos

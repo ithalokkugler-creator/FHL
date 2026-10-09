@@ -53,7 +53,7 @@ test('origens contam só o período solicitado e resposta é apenas texto', () =
   assert.match(mensagemRespostaContato({ contato: { ...lista[0], canal: 'presencial' }, remetente: 'Equipe' }), /contato aqui no escritório/);
   assert.match(mensagemRespostaContato({ contato: { ...lista[0], canal: 'outro' }, remetente: 'Equipe' }), /Recebemos seu contato e estamos/);
   assert.match(texto, /Equipe Teste/);
-  assert.match(texto, /FHL/);
+  assert.match(texto, /Fonseca Lisboa Advocacia/);
 });
 
 const dados = { nome: 'Pessoa Fictícia', email: 'TESTE@EXAMPLE.TEST', mensagem: 'Mensagem fictícia', consent: '1', pagina: '/contato.html', website: '' };

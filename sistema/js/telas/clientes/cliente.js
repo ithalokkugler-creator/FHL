@@ -1,12 +1,17 @@
 // Ficha do cliente (F2): tudo o que pertence a ele numa tela só — processos,
 // atualizações e tempo, tarefas e prazos, documentos, agenda, financeiro,
-// dados completos e de onde veio. Agenda e Financeiro só aparecem (e só são
-// consultados) para quem tem acesso a eles.
+// contatos, anexos, dados completos e de onde veio. Agenda e Financeiro só
+// aparecem (e só são consultados) para quem tem acesso a eles.
+//
+// Contatos (T14): várias pessoas e canais por cliente. Um é o principal; quem
+// recebe a cobrança é marcado no contato — o Financeiro só enxerga esses.
+// Contato não se apaga: desativa.
 
 import { avisar, avisarErro } from '../../nucleo/avisos.js';
 import { abrirDialogo } from '../../nucleo/dialogo.js';
+import { ErroCampo } from '../../nucleo/formularios.js';
 import { nomeDe, pode } from '../../nucleo/estado.js';
-import { centavos, data, dataHora, documento, duracao, hoje, linkWhatsApp, moeda, noFuso, telefone } from '../../nucleo/formato.js';
+import { centavos, data, dataHora, documento, duracao, hoje, linkWhatsApp, moeda, noFuso, soDigitos, telefone } from '../../nucleo/formato.js';
 import { aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { db } from '../../nucleo/supabase.js';
 import { COLUNAS_CLIENTE, COLUNAS_DETALHES, COLUNAS_PROCESSO, diasParaAniversario, ESTADOS_CIVIS, TIPOS_PESSOA } from '../../dominio/clientes.js';
@@ -14,7 +19,8 @@ import { origemContato } from '../../dominio/contatos.js';
 import { COLUNAS_TAREFA } from '../../dominio/tarefas.js';
 import { COLUNAS_ATUALIZACAO, totais } from '../../dominio/tempo.js';
 import { COLUNAS_LISTA_DOCUMENTO } from '../../documentos/acoes.js';
-import { cabecalho, seloCompromisso, seloContrato, vazio } from '../comum.js';
+import { abrirAnexos } from '../anexos.js';
+import { cabecalho, opcoes, seloCompromisso, seloContrato, vazio } from '../comum.js';
 import { abrirHistorico } from '../historico.js';
 import { formularioProcesso, tabelaProcessos } from '../processos.js';
 import { iniciarCronometro } from '../atualizacoes/cronometro.js';
@@ -77,10 +83,85 @@ function painelFinanceiro(contratos) {
     : vazio('Nenhum contrato vinculado.'));
 }
 
+const TIPOS_CONTATO = {
+  proprio: 'O próprio cliente', responsavel: 'Responsável', financeiro: 'Financeiro / pagador',
+  familiar: 'Familiar', recados: 'Recados', outro: 'Outro',
+};
+
+function canaisDoContato(c) {
+  const canais = [];
+  if (c.telefone) {
+    canais.push(c.whatsapp
+      ? html`<a href="${linkWhatsApp(c.telefone)}" target="_blank" rel="noopener">${telefone(c.telefone)}</a>`
+      : html`<span>${telefone(c.telefone)}</span>`);
+  }
+  if (c.email) canais.push(html`<a href="mailto:${c.email}">${c.email}</a>`);
+  return canais.map((x, i) => html`${i ? ' · ' : ''}${x}`);
+}
+
+function painelContatos(lista) {
+  const ativos = lista.filter((c) => c.ativo);
+  const inativos = lista.filter((c) => !c.ativo);
+  const item = (c) => html`
+    <li class="lista__item ${c.ativo ? '' : 'apagada'}">
+      <span>
+        <strong>${c.nome}</strong> <span class="sub">${TIPOS_CONTATO[c.tipo] ?? c.tipo}</span>
+        ${c.principal ? html`<span class="selo selo--ok">Principal</span>` : ''}
+        ${c.recebe_cobranca ? html`<span class="selo">Recebe cobrança</span>` : ''}
+        ${c.ativo ? '' : html`<span class="selo">Inativo</span>`}
+        <span class="sub">${canaisDoContato(c)}</span>
+        ${c.observacoes ? html`<span class="sub">${c.observacoes}</span>` : ''}
+      </span>
+      ${pode.clientes() ? html`<span class="grupo-botoes">
+        <button type="button" class="botao botao--pequeno botao--discreto" data-acao="editar-contato" data-id="${c.id}">Editar</button>
+        ${c.ativo && !c.principal ? html`<button type="button" class="botao botao--pequeno botao--discreto" data-acao="principal-contato" data-id="${c.id}">Tornar principal</button>` : ''}
+        ${c.principal ? '' : html`<button type="button" class="botao botao--pequeno botao--discreto" data-acao="ativo-contato" data-id="${c.id}">${c.ativo ? 'Desativar' : 'Reativar'}</button>`}
+      </span>` : ''}
+    </li>`;
+  return painel('Contatos', pode.clientes() ? html`<button type="button" class="botao botao--pequeno" data-acao="novo-contato">Novo contato</button>` : '', html`
+    ${ativos.length ? html`<ul class="lista">${ativos.map(item)}</ul>` : vazio('Nenhum contato ativo. Cadastre um contato e marque se ele recebe cobranças.')}
+    ${inativos.length ? html`<details class="painel__corpo"><summary>${inativos.length} inativo(s)</summary><ul class="lista">${inativos.map(item)}</ul></details>` : ''}
+    <p class="painel__rodape sub">A cobrança do Financeiro vai para quem está marcado como "Recebe cobrança". Registre como a pessoa autorizou o canal, quando for o caso (LGPD).</p>`);
+}
+
+function editarContato(clienteId, c = null) {
+  return abrirDialogo({
+    titulo: c ? `Editar contato — ${c.nome}` : 'Novo contato',
+    corpo: html`
+      <div class="campos">
+        <label class="campo campo--8"><span>Nome</span><input name="nome" value="${c?.nome ?? ''}" required maxlength="200" autofocus></label>
+        <label class="campo campo--4"><span>Quem é</span><select name="tipo">${opcoes(Object.entries(TIPOS_CONTATO), c?.tipo ?? 'outro')}</select></label>
+        <label class="campo campo--6"><span>Telefone</span><input type="tel" name="telefone" value="${telefone(c?.telefone) || ''}" maxlength="20"></label>
+        <label class="campo campo--6"><span>E-mail</span><input type="email" name="email" value="${c?.email ?? ''}" maxlength="200"></label>
+        <label class="opcao campo--6"><input type="checkbox" name="whatsapp" ${c?.whatsapp !== false ? 'checked' : ''}> O telefone tem WhatsApp</label>
+        <label class="opcao campo--6"><input type="checkbox" name="recebe_cobranca" ${c?.recebe_cobranca ? 'checked' : ''}> Recebe as mensagens de cobrança</label>
+        <label class="campo"><span>Autorização do canal (LGPD)</span><input name="autorizacao" value="${c?.autorizacao ?? ''}" maxlength="500" placeholder="Ex.: autorizou por WhatsApp em 08/10/2026"></label>
+        <label class="campo"><span>Observações</span><textarea name="observacoes" rows="2" maxlength="2000">${c?.observacoes ?? ''}</textarea></label>
+      </div>`,
+    aoEnviar: async (d) => {
+      const fone = soDigitos(d.telefone);
+      if (d.telefone && !/^\d{10,13}$/.test(fone)) throw new ErroCampo('telefone', 'Telefone precisa de DDD e 10 a 13 dígitos.');
+      const email = (d.email ?? '').trim().toLowerCase();
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw new ErroCampo('email', 'Confira o e-mail.');
+      if (!fone && !email) throw new ErroCampo('telefone', 'Informe telefone ou e-mail.');
+      const registro = {
+        nome: d.nome.trim(), tipo: d.tipo, telefone: fone || null, email: email || null, whatsapp: Boolean(d.whatsapp),
+        recebe_cobranca: Boolean(d.recebe_cobranca), autorizacao: d.autorizacao?.trim() || null, observacoes: d.observacoes?.trim() || null,
+      };
+      if (c) await db.alterar('clientes_contatos', [['id', 'eq', c.id]], registro, 'id');
+      else await db.inserir('clientes_contatos', { ...registro, cliente_id: clienteId }, 'id');
+      avisar(c ? 'Contato salvo.' : 'Contato incluído.');
+      return true;
+    },
+  });
+}
+
 function dadosCompletos(cliente, d, pj) {
   return html`
     ${grupo('Identificação', [
       ['Tipo de pessoa', TIPOS_PESSOA[d.tipo_pessoa] ?? (pj ? 'Pessoa jurídica' : 'Pessoa física')],
+      ['Nome fantasia', d.nome_fantasia],
+      ['Etiquetas', d.etiquetas?.length ? d.etiquetas.join(', ') : ''],
       [pj ? 'CNPJ' : 'CPF', documento(cliente.documento)],
       [pj ? 'Inscrição estadual' : 'RG', d.rg],
       [pj ? 'Constituição' : 'Nascimento', data(d.nascimento)],
@@ -136,7 +217,7 @@ async function carregarFicha(id) {
     ? db.listar('compromissos', { select: 'id,titulo,inicio,fim,membro_id,situacao', filtros: [...doCliente, ['cancelado_em', 'is', null], ...filtros], ordem, limite: 5 })
     : []);
 
-  const [cliente, detalhes, processos, contatos, futuros, anteriores, contratos, atualizacoes, documentos, tarefas] = await Promise.all([
+  const [cliente, detalhes, processos, contatos, futuros, anteriores, contratos, atualizacoes, documentos, tarefas, pessoas] = await Promise.all([
     db.um('clientes', { select: COLUNAS_CLIENTE, filtros: [['id', 'eq', id]] }),
     db.um('clientes_detalhes', { select: COLUNAS_DETALHES, filtros: doCliente }),
     db.todos('processos', { select: COLUNAS_PROCESSO, filtros: doCliente, ordem: 'criado_em.desc,id.desc' }),
@@ -153,8 +234,9 @@ async function carregarFicha(id) {
       filtros: [...doCliente, ['cancelado_em', 'is', null], ['situacao', 'in', ['pendente', 'em_andamento']]],
       ordem: 'fatal_em.asc,id.asc',
     }),
+    db.todos('clientes_contatos', { select: '*', filtros: doCliente, ordem: 'principal.desc,nome.asc,id.asc' }).catch(() => []),
   ]);
-  return { cliente, detalhes, processos, contatos, futuros, anteriores, contratos, atualizacoes, documentos, tarefas };
+  return { cliente, detalhes, processos, contatos, futuros, anteriores, contratos, atualizacoes, documentos, tarefas, pessoas };
 }
 
 function tela(id, f) {
@@ -166,8 +248,9 @@ function tela(id, f) {
 
   return html`
     <a href="#/clientes" class="pagina__voltar">← Clientes</a>
-    ${cabecalho(cliente.nome, `${documento(cliente.documento) || 'Documento não informado'} · Responsável: ${nomeDe(d.responsavel_id)}`, html`
+    ${cabecalho(cliente.nome, `${d.nome_fantasia ? `${d.nome_fantasia} · ` : ''}${documento(cliente.documento) || 'Documento não informado'} · Responsável: ${nomeDe(d.responsavel_id)}`, html`
       <button type="button" class="botao botao--primario" data-acao="editar">Editar dados</button>
+      <button type="button" class="botao" data-acao="anexos">Anexos</button>
       <button type="button" class="botao" data-acao="historico">Histórico</button>
       <button type="button" class="botao${cliente.ativo ? ' botao--discreto' : ''}" data-acao="atividade">${cliente.ativo ? 'Desativar' : 'Reativar'}</button>`)}
     ${cliente.ativo ? '' : html`<p class="nota">Cliente inativo. O cadastro e seus registros continuam disponíveis para consulta.</p>`}
@@ -197,6 +280,7 @@ function tela(id, f) {
         ${compromissos(f.anteriores)}
       </div>`) : ''}
     ${pode.financeiro() ? painelFinanceiro(f.contratos) : ''}
+    ${painelContatos(f.pessoas)}
     ${dadosCompletos(cliente, d, pj)}
     ${painelOrigem(f.contatos)}`;
 }
@@ -263,14 +347,29 @@ export default async function telaCliente(ctx) {
   };
 
   const processo = (el) => f.processos.find((p) => p.id === el.dataset.id);
+  const pessoa = (el) => f.pessoas.find((p) => p.id === el.dataset.id);
   const limpar = aoClicar(ctx.raiz, {
+    anexos: () => abrirAnexos({ titulo: `Anexos — ${f.cliente.nome}`, destino: { cliente_id: id }, podeGravar: pode.clientes(), categoria: 'documento_pessoal' }),
+    'novo-contato': () => depois(editarContato(id)),
+    'editar-contato': (el) => depois(editarContato(id, pessoa(el))),
+    'principal-contato': (el) => depois(db.rpc('definir_contato_principal', { p_id: el.dataset.id }).then(() => {
+      avisar('Contato principal trocado.');
+      return true;
+    })),
+    'ativo-contato': (el) => {
+      const c = pessoa(el);
+      return depois(db.alterar('clientes_contatos', [['id', 'eq', c.id]], { ativo: !c.ativo }, 'id').then(() => {
+        avisar(c.ativo ? 'Contato desativado. Continua no histórico.' : 'Contato reativado.');
+        return true;
+      }));
+    },
     'nova-tarefa': () => depois(formularioTarefa({ cliente_id: id })),
     'iniciar-cronometro': () => depois(iniciarCronometro({ cliente_id: id })),
     'lancar-atualizacao': () => depois(formularioAtualizacao({ cliente_id: id })),
     editar: () => depois(formularioCompleto(id)),
     historico: () => abrirHistorico({
       titulo: f.cliente.nome,
-      registros: [id, ...(f.detalhes ? [f.detalhes.id] : []), ...f.processos.map((p) => p.id)],
+      registros: [id, ...(f.detalhes ? [f.detalhes.id] : []), ...f.processos.map((p) => p.id), ...f.pessoas.map((p) => p.id)],
     }),
     atividade: () => depois(alternarAtividade()),
     'novo-processo': () => depois(formularioProcesso({ cliente_id: id })),

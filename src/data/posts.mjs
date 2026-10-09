@@ -29,7 +29,7 @@ export const POSTS = [
     titulo: 'O que é, afinal, uma cláusula de não concorrência',
     area: 'Trabalhista',
     thumb: '§',
-    autor: 'Equipe FHL Advocacia',
+    autor: 'Equipe Fonseca Lisboa Advocacia',
     resumo:
       'Ela aparece em quase todo contrato relevante e quase nunca é lida com ' +
       'atenção. Três perguntas para saber se a sua é válida.',

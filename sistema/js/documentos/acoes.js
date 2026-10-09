@@ -10,9 +10,10 @@ import { abrirDialogo } from '../nucleo/dialogo.js';
 import { higienizar } from '../nucleo/higienizar.js';
 import { html } from '../nucleo/html.js';
 import { db } from '../nucleo/supabase.js';
+import { cssFormatacao } from './formatacao.js';
 
 export const COLUNAS_DOCUMENTO = 'id,modelo,titulo,cliente_id,processo_id,contrato_id,compromisso_id,atualizacao_id,'
-  + 'dados,conteudo,cancelado_em,cancelado_por,motivo_cancelamento,criado_em,criado_por';
+  + 'recebimento_id,dados,conteudo,cancelado_em,cancelado_por,motivo_cancelamento,criado_em,criado_por';
 export const COLUNAS_LISTA_DOCUMENTO = 'id,modelo,titulo,cliente_id,processo_id,criado_em,criado_por,cancelado_em';
 
 /** Aviso antes de imprimir com "[dados]" ainda entre colchetes. */
@@ -155,6 +156,9 @@ const ESTILO_WORD = [
   '.doc-ficha{font-size:11pt}.doc-ficha th{width:18%;text-align:left;background:#f2f2f2}.doc-ficha-relato{height:45mm}',
   '.doc-nota{font-size:10pt}.doc-num{white-space:nowrap}',
   '.doc-falta{color:#a00;background:#fff0d5}',
+  'h3{font-size:12pt}ol{list-style:decimal}',
+  // A formatação da barra do editor vem por último, para valer sobre as de cima.
+  cssFormatacao(''),
 ].join('');
 
 const nomeDeArquivo = (titulo) => titulo.normalize('NFD').replace(/[̀-ͯ]/g, '')

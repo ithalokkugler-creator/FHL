@@ -9,6 +9,7 @@
 // Google Agenda por cópia manual (.ics ou formulário preenchido).
 
 import { conflitos, distribuirColunas } from '../dominio/agenda.js';
+import { feriadosNacionaisFixos } from '../dominio/feriados.js';
 import { gerarIcs, linkGoogleAgenda } from '../dominio/ics.js';
 import { mensagemLembrete } from '../dominio/mensagens.js';
 import { avisar, avisarErro } from '../nucleo/avisos.js';
@@ -46,9 +47,10 @@ export default async function telaAgenda(ctx) {
   let config = await db.um('config_agenda', { select: '*' });
   let compromissos = [];
   let feriados = [];
+  let feriadosFalharam = false;
   let pedido = 0;
 
-  const redesenhar = () => desenhar(ctx.raiz, tela({ semana, compromissos, config, ocultos, feriados }));
+  const redesenhar = () => desenhar(ctx.raiz, tela({ semana, compromissos, config, ocultos, feriados, feriadosFalharam }));
 
   const carregar = async () => {
     const este = ++pedido;
@@ -67,7 +69,8 @@ export default async function telaAgenda(ctx) {
     ]);
     if (!ctx.ativa() || este !== pedido) return;
     compromissos = lista;
-    feriados = datas;
+    feriadosFalharam = datas === null;
+    feriados = comNacionais(datas ?? [], de);
     redesenhar();
   };
   await carregar();
@@ -166,6 +169,16 @@ function rotuloSemana(inicio, dias) {
   return `${data(inicio)} a ${data(fim)}`;
 }
 
+/** Os feriados nacionais fixos da semana entram sozinhos, sem cadastro. */
+function comNacionais(cadastrados, de) {
+  const ate = somarDias(de, 6);
+  const anos = [...new Set([de.slice(0, 4), ate.slice(0, 4)])].map(Number);
+  const nacionais = anos.flatMap((a) => [...feriadosNacionaisFixos(a)])
+    .filter(([d]) => d >= de && d <= ate && !cadastrados.some((f) => f.data === d))
+    .map(([d, nome]) => ({ id: `nacional-${d}`, data: d, nome }));
+  return [...cadastrados, ...nacionais];
+}
+
 function montarSemana({ semana, compromissos, config, ocultos, feriados }) {
   const dia = hoje();
   const visiveis = compromissos.filter((c) => !ocultos.has(c.membro_id));
@@ -233,7 +246,7 @@ function tela(estadoTela) {
       <button type="button" class="botao botao--primario" data-acao="novo">Novo compromisso</button>`)}
 
     <div class="nao-imprimir">${notaGoogle()}</div>
-    ${estadoTela.feriados === null ? html`<p class="nota secao">Não foi possível ler os feriados cadastrados. Recarregue a agenda para conferir.</p>` : ''}
+    ${estadoTela.feriadosFalharam ? html`<p class="nota secao">Não foi possível ler os feriados cadastrados (os nacionais fixos aparecem mesmo assim). Recarregue a agenda para conferir.</p>` : ''}
 
     <div class="chips secao nao-imprimir" role="group" aria-label="Mostrar a agenda de">
       ${membrosAtivos().map((m) => html`
@@ -336,8 +349,8 @@ function exportarAgenda({ semana, ocultos }) {
       if (!filtrados.length) throw new Error('Nenhum compromisso no período e nos advogados escolhidos.');
       const nome = d.membro === 'todos' ? 'Todos os advogados' : d.membro === 'marcados' ? 'Advogados marcados' : nomeDe(d.membro);
       const quem = ['todos', 'marcados'].includes(d.membro) ? d.membro : semAcento(nomeDe(d.membro)).toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      baixarArquivo(`agenda-fhl-${d.periodo}-${de}-${quem}.ics`,
-        gerarIcs(filtrados.map(paraExportacao), { nome: `FHL Advocacia · ${nome}` }), 'text/calendar;charset=utf-8');
+      baixarArquivo(`agenda-fl-${d.periodo}-${de}-${quem}.ics`,
+        gerarIcs(filtrados.map(paraExportacao), { nome: `Fonseca Lisboa Advocacia · ${nome}` }), 'text/calendar;charset=utf-8');
       avisar('Arquivo .ics preparado. Importe e confira os horários na agenda de destino.');
       return true;
     },

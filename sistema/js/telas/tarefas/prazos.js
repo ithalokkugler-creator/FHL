@@ -1,6 +1,6 @@
 // Prazos (F5): o resumo filtrável — hoje, semana, mês, ano — que o Vinícius
 // pediu (CLAUDE.md §4: "não é agenda"), com impressão. As datas são as
-// informadas e conferidas pelo advogado; a contagem automática ainda não existe.
+// informadas e conferidas pelo advogado; a contagem automática dá uma sugestão.
 
 import { avisarErro } from '../../nucleo/avisos.js';
 import { estado, membrosAtivos } from '../../nucleo/estado.js';
@@ -64,7 +64,7 @@ export default async function telaPrazos(ctx) {
         <label class="opcao"><input type="checkbox" name="soPrazos" ${f.soPrazos ? 'checked' : ''}> Só prazos processuais</label>
       </form>
       <p class="so-impressao" data-filtros-impressao></p>
-      <p class="nota">As datas são informadas e conferidas pelo advogado. A contagem automática ainda está pendente.</p>
+    <p class="nota">As datas são conferidas pelo advogado. Ao criar ou editar um prazo, a contagem automática sugere a data fatal e mostra a memória de cálculo.</p>
       <section class="painel" data-lista></section>`);
 
     const form = $('form.filtros', ctx.raiz);

@@ -271,7 +271,11 @@ export function sessaoDoLink() {
 // Data API
 // ---------------------------------------------------------------------------
 
-async function rest(metodo, caminho, { params = [], corpo, prefer } = {}, repetida = false) {
+async function rest(metodo, caminho, opcoes = {}, repetida = false) {
+  return (await restCompleto(metodo, caminho, opcoes, repetida)).dados;
+}
+
+async function restCompleto(metodo, caminho, { params = [], corpo, prefer } = {}, repetida = false) {
   const token = await tokenValido();
   const headers = { apikey: SUPABASE_CHAVE, Accept: 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -290,7 +294,7 @@ async function rest(metodo, caminho, { params = [], corpo, prefer } = {}, repeti
   // Token recusado no meio do caminho: renova uma vez e repete.
   if (resposta.status === 401 && token && !repetida) {
     await renovar(token).catch(() => {});
-    if (sessao) return rest(metodo, caminho, { params, corpo, prefer }, true);
+    if (sessao) return restCompleto(metodo, caminho, { params, corpo, prefer }, true);
   }
 
   const dados = await jsonOuNada(resposta);
@@ -307,7 +311,19 @@ async function rest(metodo, caminho, { params = [], corpo, prefer } = {}, repeti
   // Quem depende de uma gravação (os contadores do menu, por exemplo) decide
   // por conta própria se ela interessa: aqui só se avisa onde se gravou.
   if (metodo !== 'GET') dispatchEvent(new CustomEvent('fhl:gravou', { detail: { caminho } }));
-  return dados;
+  // "0-24/1205": o total vem no cabeçalho quando se pede count=exact.
+  const total = Number((resposta.headers.get('content-range') ?? '').split('/')[1]);
+  return { dados, total: Number.isFinite(total) ? total : null };
+}
+
+/** POST no Storage com o token de quem entrou (envio e link assinado). */
+async function storagePost(caminho, corpo, extra = {}) {
+  const token = await tokenValido();
+  return buscar(`${SUPABASE_URL}/storage/v1/${caminho}`, {
+    method: 'POST',
+    headers: { apikey: SUPABASE_CHAVE, Authorization: `Bearer ${token}`, ...extra },
+    body: corpo,
+  });
 }
 
 export const db = {
@@ -325,6 +341,20 @@ export const db = {
       linhas.push(...pagina);
       if (pagina.length < 1000) return linhas;
     }
+  },
+
+  /**
+   * Uma página e o total do filtro inteiro — para listas sem teto fixo
+   * (Recebíveis, Contratos, Histórico). A ordem precisa terminar num campo
+   * único (o id), senão uma linha pode aparecer em duas páginas.
+   * Devolve { linhas, total }.
+   */
+  async pagina(tabela, { pagina = 1, porPagina = 100, ...consulta } = {}) {
+    const { dados, total } = await restCompleto('GET', tabela, {
+      params: montarConsulta({ ...consulta, limite: porPagina, deslocamento: (pagina - 1) * porPagina }),
+      prefer: 'count=exact',
+    });
+    return { linhas: dados, total: total ?? dados.length };
   },
 
   async um(tabela, consulta) {
@@ -396,11 +426,46 @@ export const db = {
     `${SUPABASE_URL}/storage/v1/object/public/${balde}/${caminho}`,
 
   /**
-   * Chama uma função de borda (Edge Function).
-   *
-   * Existe uma só: `publicar-site`, que guarda a URL do Deploy Hook da Vercel.
-   * Ela precisa ficar fora do navegador — quem tem essa URL dispara build no
-   * site do escritório sem passar por login nenhum.
+   * Envia para um balde PRIVADO (anexos), no caminho que o banco reservou.
+   * Sem `x-upsert`: um arquivo já enviado nunca é sobrescrito — versão nova
+   * é caminho novo. Quem pode enviar é a política do balde.
+   */
+  async enviarArquivoPrivado(balde, caminho, arquivo) {
+    const resposta = await storagePost(`object/${balde}/${caminho}`, arquivo, {
+      'Content-Type': arquivo.type || 'application/octet-stream',
+    });
+    if (!resposta.ok) {
+      const dados = await jsonOuNada(resposta);
+      const mensagem = resposta.status === 413 ? 'Arquivo maior que 10 MB.'
+        : resposta.status === 415 ? 'Tipo de arquivo não aceito. Envie PDF, PNG, JPG ou WEBP.'
+          : resposta.status === 403 || resposta.status === 401 ? 'Seu acesso não permite anexar arquivos aqui.'
+            : dados?.message || 'Não foi possível enviar o arquivo.';
+      throw new ErroApi(mensagem, { status: resposta.status });
+    }
+    dispatchEvent(new CustomEvent('fhl:gravou', { detail: { caminho: `storage/${balde}` } }));
+    return caminho;
+  },
+
+  /**
+   * Link de leitura que vale poucos segundos, para um arquivo privado. Só sai
+   * para quem a política do balde deixa ler; o link não fica guardado.
+   */
+  async linkAssinado(balde, caminho, segundos = 60) {
+    const resposta = await storagePost(`object/sign/${balde}/${caminho}`, JSON.stringify({ expiresIn: segundos }), {
+      'Content-Type': 'application/json',
+    });
+    const dados = await jsonOuNada(resposta);
+    if (!resposta.ok || !dados?.signedURL) {
+      throw new ErroApi('Arquivo indisponível ou sem acesso.', { status: resposta.status });
+    }
+    return `${SUPABASE_URL}/storage/v1${dados.signedURL}`;
+  },
+
+  /**
+   * Chama uma função de borda (Edge Function): `publicar-site` (guarda a URL
+   * do Deploy Hook da Vercel), `finalizar-anexo` (verifica o arquivo com a
+   * chave do servidor) e `administrar-usuarios` (convite por e-mail). O que
+   * é segredo fica na borda, nunca no navegador.
    */
   async funcao(nome, corpo = {}) {
     const token = await tokenValido();
@@ -416,7 +481,7 @@ export const db = {
 
     const dados = await jsonOuNada(resposta);
     if (!resposta.ok) {
-      throw new ErroApi(dados?.erro || 'Não foi possível concluir. Tente de novo.', {
+      throw new ErroApi(dados?.erro || dados?.motivo || 'Não foi possível concluir. Tente de novo.', {
         status: resposta.status,
         detalhe: dados?.detalhe || '',
       });

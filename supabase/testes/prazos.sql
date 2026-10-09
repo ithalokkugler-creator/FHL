@@ -8,7 +8,7 @@ language plpgsql as $$
 declare
  u uuid:=gen_random_uuid();us uuid:=gen_random_uuid();ua uuid:=gen_random_uuid();uo uuid:=gen_random_uuid();
  m uuid:=gen_random_uuid();s uuid:=gen_random_uuid();a uuid:=gen_random_uuid();o uuid:=gen_random_uuid();
- cl uuid;cl2 uuid;pr uuid;t uuid;tp uuid;i uuid;f uuid;comp uuid;p jsonb;total integer;
+ cl uuid;cl2 uuid;pr uuid;t uuid;tp uuid;i uuid;i2 uuid;f uuid;comp uuid;p jsonb;total integer;
 begin
  insert into auth.users(id,email,email_confirmed_at) values(u,'associado-prazo@example.test',now()),(us,'socia-prazo@example.test',now()),(ua,'admin-prazo@example.test',now()),(uo,'outro-prazo@example.test',now());
  insert into public.membros(id,user_id,nome,nome_curto,email,papel,acesso_agenda,acesso_clientes,acesso_prazos)
@@ -89,6 +89,12 @@ begin
  t:=public.criar_prazo_intimacao(i,p);
  return query select 'Prazo guarda intimação de origem',exists(select 1 from public.tarefas where id=t and intimacao_id=i);
  return query select 'Prazo confere intimação atomicamente',exists(select 1 from public.intimacoes where id=i and situacao='conferida' and conferida_por=s and conferida_em is not null);
+ return query select 'Publicação com prazo ativo não muda',pg_temp.recusa_prazo(format('update public.intimacoes set publicada_em=privado.hoje()+1 where id=%L',i),'P0001');
+ insert into public.intimacoes(fonte,disponibilizada_em,texto,cliente_id,processo_id,membro_id)
+ values('manual',privado.hoje(),'Teor sem publicação',cl,pr,s) returning id into i2;
+ update public.intimacoes set publicada_em=privado.hoje() where id=i2;
+ return query select 'Publicação da intimação manual pode ser completada',exists(select 1 from public.intimacoes where id=i2 and publicada_em=privado.hoje());
+ return query select 'Publicação informada não volta a ficar vazia',pg_temp.recusa_prazo(format('update public.intimacoes set publicada_em=null where id=%L',i2),'P0001');
  return query select 'Audiência em agenda alheia é recusada',pg_temp.recusa_prazo(format('select public.lancar_audiencia_intimacao(%L,%L::jsonb)',i,jsonb_build_object('tipo','audiencia','membro_id',m,'cliente_id',cl,'modalidade','presencial','inicio',now(),'fim',now()+interval '1 hour')),'42501');
  return query select 'Lembrete inválido não cria audiência nem vínculo',pg_temp.recusa_prazo(format('select public.lancar_audiencia_intimacao(%L,%L::jsonb)',i,jsonb_build_object('tipo','audiencia','membro_id',s,'cliente_id',cl,'modalidade','presencial','inicio',now(),'fim',now()+interval '1 hour','lembrete_minutos',-1)),'23514') and exists(select 1 from public.intimacoes where id=i and compromisso_id is null);
  comp:=public.lancar_audiencia_intimacao(i,jsonb_build_object('tipo','audiencia','membro_id',s,'cliente_id',cl,'modalidade','presencial','inicio',now(),'fim',now()+interval '1 hour','lembrete_minutos',1440));

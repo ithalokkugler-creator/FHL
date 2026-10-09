@@ -9,12 +9,14 @@ const ROTULOS = {
   '/tarefas': 'tarefas atrasadas ou para hoje',
   '/contatos': 'contatos novos',
   '/intimacoes': 'intimações a conferir',
+  '/financeiro/alertas': 'alertas novos do Financeiro',
 };
 
 // Gravações que mudam algum contador (caminhos da Data API).
 const MUDAM_CONTADORES = new Set([
   'tarefas', 'contatos', 'intimacoes',
   'rpc/criar_tarefa', 'rpc/reabrir_tarefa', 'rpc/criar_prazo_intimacao', 'rpc/lancar_audiencia_intimacao',
+  'rpc/importar_intimacoes', 'rpc/marcar_alerta', 'rpc/fechar_mes', 'rpc/reabrir_mes', 'rpc/fechar_ano', 'rpc/reabrir_ano',
 ]);
 export const mudaContadores = (caminho) => MUDAM_CONTADORES.has(caminho);
 
@@ -33,6 +35,7 @@ export async function atualizarAvisos(raiz) {
       '/tarefas': (avisos?.minhas_atrasadas ?? 0) + (avisos?.meus_prazos_hoje ?? 0),
       '/contatos': avisos?.contatos_novos ?? 0,
       '/intimacoes': avisos?.intimacoes_pendentes ?? 0,
+      '/financeiro/alertas': avisos?.alertas_financeiros ?? 0,
     };
     for (const [caminho, numero] of Object.entries(numeros)) {
       const contagem = raiz.querySelector(`[data-caminho="${caminho}"] .menu__contagem`);

@@ -37,6 +37,48 @@ function celula(valor, tipo) {
   return /[;"\r\n]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
 }
 
+/**
+ * Texto de um CSV → linhas de células (texto). Aceita ";" (Excel em
+ * português), "," e tabulação — o separador é o que mais aparece fora de
+ * aspas na primeira linha —, aspas com "" dentro e BOM no começo.
+ */
+export function lerCsv(texto) {
+  const t = String(texto ?? '').replace(/^﻿/, '');
+  const primeira = t.split(/\r?\n/, 1)[0] ?? '';
+  const fora = primeira.replace(/"[^"]*"/g, '');
+  const separador = [';', ',', '\t'].map((s) => [s, fora.split(s).length]).sort((a, b) => b[1] - a[1])[0][0];
+
+  const linhas = [];
+  let linha = [];
+  let celulaAtual = '';
+  let aspas = false;
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (aspas) {
+      if (c === '"' && t[i + 1] === '"') {
+        celulaAtual += '"';
+        i++;
+      } else if (c === '"') aspas = false;
+      else celulaAtual += c;
+    } else if (c === '"') aspas = true;
+    else if (c === separador) {
+      linha.push(celulaAtual);
+      celulaAtual = '';
+    } else if (c === '\n' || c === '\r') {
+      if (c === '\r' && t[i + 1] === '\n') i++;
+      linha.push(celulaAtual);
+      linhas.push(linha);
+      linha = [];
+      celulaAtual = '';
+    } else celulaAtual += c;
+  }
+  if (celulaAtual !== '' || linha.length) {
+    linha.push(celulaAtual);
+    linhas.push(linha);
+  }
+  return linhas;
+}
+
 export function baixarArquivo(nome, conteudo, tipo = 'text/csv;charset=utf-8') {
   const url = URL.createObjectURL(new Blob([conteudo], { type: tipo }));
   const link = Object.assign(document.createElement('a'), { href: url, download: nome });

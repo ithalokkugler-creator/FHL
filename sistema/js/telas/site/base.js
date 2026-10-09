@@ -1,7 +1,7 @@
 // Site — o que Publicações e Campanhas usam em comum.
 // ===================================================
 //
-// Este bloco edita o SITE PÚBLICO (fhladvocacia.com.br): o que se escreve
+// Este bloco edita o SITE PÚBLICO (DOMINIO em src/data/site.mjs): o que se escreve
 // aqui é lido pelo build do site, em src/data/conteudo.mjs, e vira HTML.
 // Salvar não muda o site no ar — quem muda é a publicação, na tela Publicar.
 

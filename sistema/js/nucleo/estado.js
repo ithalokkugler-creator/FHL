@@ -16,8 +16,15 @@ export const estado = {
 export const pode = {
   agenda: () => (estado.membro?.acesso_agenda ?? 'nenhum') !== 'nenhum',
   agendaDeTodos: () => estado.membro?.acesso_agenda === 'todas',
-  financeiro: () => ['lancamentos', 'completo'].includes(estado.membro?.acesso_financeiro),
-  fechamento: () => estado.membro?.acesso_financeiro === 'completo',
+  // Lê o Financeiro: Consulta, Lançamentos ou Completo.
+  financeiro: () => ['consulta', 'lancamentos', 'completo'].includes(estado.membro?.acesso_financeiro),
+  // Grava no Financeiro (Consulta só lê).
+  lancar: () => ['lancamentos', 'completo'].includes(estado.membro?.acesso_financeiro),
+  // Leitura do fechamento; fechar/reabrir continua exclusivo do administrador.
+  fechamento: () => ['consulta', 'completo'].includes(estado.membro?.acesso_financeiro),
+  // Desconto, abatimento, acréscimo e carga de importação: o Completo.
+  ajustar: () => estado.membro?.acesso_financeiro === 'completo',
+  auditoria: () => estado.membro?.acesso_auditoria === 'ver' || estado.membro?.papel === 'admin',
   site: () => estado.membro?.acesso_site === 'editar',
   clientes: () => estado.membro?.acesso_clientes === 'editar',
   prazos: () => estado.membro?.acesso_prazos === 'editar',
@@ -26,7 +33,7 @@ export const pode = {
 
 export async function carregarMembros() {
   estado.membros = await db.listar('membros', {
-    select: 'id,nome,nome_curto,papel,oab,cor,email,user_id,acesso_agenda,acesso_financeiro,acesso_site,acesso_clientes,acesso_prazos,ativo',
+    select: 'id,nome,nome_curto,papel,oab,cor,email,user_id,acesso_agenda,acesso_financeiro,acesso_site,acesso_clientes,acesso_prazos,acesso_auditoria,ativo',
     ordem: 'nome_curto.asc',
   });
   estado.porId = new Map(estado.membros.map((m) => [m.id, m]));
@@ -52,8 +59,14 @@ export const NIVEIS_AGENDA = {
 
 export const NIVEIS_FINANCEIRO = {
   nenhum: 'Sem acesso',
+  consulta: 'Consulta: lê tudo, não grava nada',
   lancamentos: 'Lança, sem ver fechamento e divisão',
   completo: 'Completo',
+};
+
+export const NIVEIS_AUDITORIA = {
+  nenhum: 'Sem acesso',
+  ver: 'Lê o histórico de todos os módulos, sem alterar',
 };
 
 export const NIVEIS_SITE = {

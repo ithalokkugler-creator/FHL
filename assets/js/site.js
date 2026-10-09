@@ -1,5 +1,5 @@
 /* ==========================================================================
-   FHL ADVOCACIA — SITE
+   FONSECA LISBOA ADVOCACIA — SITE
    Componentes globais: loader, header, cortina de menu, botão
    magnético, transição de página, formulário e banner de cookies.
    Preparação, seções 6.0, 7.3, 7.4, 7.5 e 14.
@@ -20,9 +20,13 @@ window.IED = window.IED || {};
 
   /* =====================================================================
      LOADER (6.0)
-     A assinatura da FHL se monta: o F e o HL são desenhados a traço e
-     preenchidos, o filete cresce do centro e os três nomes saem de trás
-     dele. Depois os painéis se separam. ~2,6s, só na 1ª visita da sessão;
+     As duas marcas do escritório se desenham lado a lado: à esquerda o
+     peixinho (a marca antiga), à direita o monograma FL, e entre eles um
+     filete que cresce do centro. Cada contorno é traçado em menta e
+     depois preenchido — as pétalas nas próprias cores; as faixas terra e
+     verde do traço do FL entram por último. Então FONSECA LISBOA se revela
+     embaixo, da esquerda, e os filetes do ADVOCACIA crescem a partir das
+     letras. Depois os painéis se separam. ~3s, só na 1ª visita da sessão;
      com movimento reduzido nem aparece.
      ===================================================================== */
   function initLoader(done) {
@@ -41,26 +45,46 @@ window.IED = window.IED || {};
 
     document.body.classList.add('is-locked');
 
-    var marca = el.querySelector('.loader__marca');
-    var letras = el.querySelectorAll('.loader__letra');
-    var filete = el.querySelector('.loader__filete');
-    var nomes = el.querySelectorAll('.loader__nome');
+    var marcas = el.querySelector('.loader__marcas');
+    var peixe = el.querySelector('.loader__peixe');
+    var fl = el.querySelector('.loader__fl');
+    var divisor = el.querySelector('.loader__divisor');
+    var tracosPeixe = peixe.querySelectorAll('.loader__traco');
+    var tracosFl = fl.querySelectorAll('.loader__traco');
+    var faixas = fl.querySelectorAll('.loader__faixa');
+    var nome = el.querySelector('.loader__nome');
+    var revela = el.querySelector('.loader__revela');
+    var filetes = el.querySelectorAll('.loader__filete');
+    var advocacia = el.querySelector('.loader__advocacia');
     var panels = el.querySelectorAll('.loader__panel');
     var inner = el.querySelector('.loader__inner');
 
-    /* Traço do tamanho exato do contorno: começa todo recolhido e é
-       "desenhado" levando o deslocamento a zero. */
-    letras.forEach(function (p) {
-      var len = Math.ceil(p.getTotalLength());
-      gsap.set(p, { strokeDasharray: len, strokeDashoffset: len, fillOpacity: 0, strokeOpacity: 1 });
-    });
-    gsap.set(filete, { scaleY: 0, transformOrigin: '50% 50%' });
-    /* Cada nome começa inteiro à esquerda do filete — escondido pelo recorte
-       do SVG — e anda a própria largura até o lugar. */
-    gsap.set(nomes, {
-      x: function (i, n) { var b = n.getBBox(); return 505 - (b.x + b.width); },
-    });
-    gsap.set(marca, { visibility: 'visible' });
+    /* Os dois desenhos têm escalas muito diferentes (o peixinho mede 2346
+       unidades de altura; o FL, 792): a espessura do traço é convertida para
+       dar ~1,6px na tela nos dois. O traço do tamanho exato do contorno
+       começa todo recolhido e é "desenhado" levando o deslocamento a zero. */
+    function preparar(svg, caminhos) {
+      var vb = svg.viewBox.baseVal;
+      var escala = svg.getBoundingClientRect().height / vb.height || 1;
+      caminhos.forEach(function (p) {
+        var len = Math.ceil(p.getTotalLength());
+        gsap.set(p, {
+          strokeWidth: 1.6 / escala, strokeDasharray: len, strokeDashoffset: len,
+          fillOpacity: 0, strokeOpacity: 1
+        });
+      });
+    }
+    preparar(peixe, tracosPeixe);
+    preparar(fl, tracosFl);
+    gsap.set(faixas, { opacity: 0 });
+    gsap.set(divisor, { scaleY: 0 });
+    var largura = revela.getAttribute('width');
+    gsap.set(revela, { attr: { width: 0 } });
+    /* Cada filete do ADVOCACIA cresce a partir do lado das letras. */
+    gsap.set(filetes[0], { scaleX: 0, transformOrigin: '100% 50%' });
+    gsap.set(filetes[1], { scaleX: 0, transformOrigin: '0% 50%' });
+    gsap.set(advocacia, { opacity: 0, y: 14 });
+    gsap.set([marcas, nome], { visibility: 'visible' });
 
     var tl = gsap.timeline({
       onComplete: function () {
@@ -71,22 +95,27 @@ window.IED = window.IED || {};
       }
     });
 
-    tl.fromTo(marca, { scale: 0.96 }, { scale: 1, duration: 1.7, ease: 'power2.out' }, 0)
-      .to(letras, { strokeDashoffset: 0, duration: 0.95, ease: 'power2.inOut', stagger: 0.14 }, 0)
-      .to(letras, { fillOpacity: 1, duration: 0.5, ease: 'power1.out', stagger: 0.14 }, 0.55)
-      .to(letras, { strokeOpacity: 0, duration: 0.4, ease: 'power1.out' }, 1.0)
-      .to(filete, { scaleY: 1, duration: 0.75, ease: EASE.entrada }, 0.5)
-      .to(nomes, { x: 0, duration: 0.9, ease: EASE.entrada, stagger: 0.1 }, 0.8)
-      .to(inner, { opacity: 0, y: -14, duration: 0.3, ease: EASE.saida }, 1.65)
+    tl.fromTo(marcas, { scale: 0.96 }, { scale: 1, duration: 1.9, ease: 'power2.out' }, 0)
+      .to(divisor, { scaleY: 1, duration: 0.8, ease: EASE.entrada }, 0.1)
+      .to(tracosPeixe, { strokeDashoffset: 0, duration: 0.95, ease: 'power2.inOut', stagger: 0.12 }, 0.1)
+      .to(tracosFl, { strokeDashoffset: 0, duration: 1.0, ease: 'power2.inOut', stagger: 0.14 }, 0.2)
+      .to(tracosPeixe, { fillOpacity: 1, duration: 0.5, ease: 'power1.out', stagger: 0.12 }, 0.75)
+      .to(tracosFl, { fillOpacity: 1, duration: 0.5, ease: 'power1.out', stagger: 0.14 }, 0.85)
+      .to([tracosPeixe, tracosFl], { strokeOpacity: 0, duration: 0.4, ease: 'power1.out' }, 1.25)
+      .to(faixas, { opacity: 1, duration: 0.5, ease: 'power1.out', stagger: 0.1 }, 1.2)
+      .to(revela, { attr: { width: largura }, duration: 0.85, ease: 'power3.inOut' }, 1.35)
+      .to(filetes, { scaleX: 1, duration: 0.7, ease: EASE.entrada }, 1.7)
+      .to(advocacia, { opacity: 1, y: 0, duration: 0.55, ease: EASE.entrada }, 1.65)
+      .to(inner, { opacity: 0, y: -14, duration: 0.3, ease: EASE.saida }, 2.5)
       /* dois painéis se separam — um sobe, um desce (6.0) */
-      .to(panels[0], { yPercent: -100, duration: 0.9, ease: EASE.cortina }, 1.72)
+      .to(panels[0], { yPercent: -100, duration: 0.9, ease: EASE.cortina }, 2.57)
       .to(panels[1], { yPercent: 100, duration: 0.9, ease: EASE.cortina }, '<0.06');
 
     /* Teto rígido: se algo travar (aba em segundo plano, rAF parado), o site
        abre mesmo assim. */
     setTimeout(function () {
       if (tl.isActive()) tl.progress(1);
-    }, 3200);
+    }, 4200);
   }
 
   /* =====================================================================
@@ -377,7 +406,7 @@ window.IED = window.IED || {};
   ];
 
   function mensagemWhats(d) {
-    var linhas = ['Olá! Escrevo pelo formulário do site da FHL Advocacia.', ''];
+    var linhas = ['Olá! Escrevo pelo formulário do site da Fonseca Lisboa Advocacia.', ''];
     CAMPOS_WHATS.forEach(function (c) {
       if (d[c[0]]) linhas.push(c[1] + ': ' + d[c[0]]);
     });
@@ -632,7 +661,7 @@ window.IED = window.IED || {};
       frame.src = box.dataset.mapSrc;
       frame.loading = 'lazy';
       frame.referrerPolicy = 'no-referrer-when-downgrade';
-      frame.title = 'Mapa do escritório da FHL Advocacia em Paranaguá';
+      frame.title = 'Mapa do escritório da Fonseca Lisboa Advocacia em Paranaguá';
       frame.setAttribute('allowfullscreen', '');
 
       box.appendChild(frame);

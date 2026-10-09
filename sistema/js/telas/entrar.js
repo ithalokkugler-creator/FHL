@@ -10,17 +10,18 @@ import { ErroCampo, mostrarErroFormulario } from '../nucleo/formularios.js';
 
 export default function telaEntrada(app, { erro, aviso } = {}) {
   app.dataset.tela = 'entrada';
-  document.title = 'Entrar — FHL Advocacia';
+  document.title = 'Entrar — Fonseca Lisboa Advocacia';
 
   desenhar(app, html`
     <div class="entrada">
       <section class="entrada__marca">
-        <img class="entrada__assinatura" src="/sistema/img/logo.svg" alt="FHL Advocacia — Fonseca Hespanha Lisboa" width="915" height="275">
+        <img class="entrada__peixe" src="/sistema/img/marca-dagua.svg" alt="" aria-hidden="true" width="1349" height="2346">
+        <img class="entrada__assinatura" src="/sistema/img/logo.svg" alt="Fonseca Lisboa Advocacia" width="1972" height="1280">
         <div>
           <p class="rotulo">Área dos advogados</p>
           <p class="entrada__frase">Agenda da equipe e financeiro do escritório.</p>
         </div>
-        <p class="entrada__rodape">Fonseca Hespanha Lisboa · Rua Dr. Leocádio, 282 · Paranaguá — PR</p>
+        <p class="entrada__rodape">Fonseca Lisboa · Rua Dr. Leocádio, 282 · Paranaguá — PR</p>
       </section>
 
       <section class="entrada__painel">
@@ -38,7 +39,7 @@ export default function telaEntrada(app, { erro, aviso } = {}) {
           </label>
           <button class="botao botao--primario botao--largo" type="submit">Entrar</button>
           <button class="botao botao--discreto" type="button" data-acao="esqueci">Esqueci a senha</button>
-          <p class="entrada__volta"><a href="/">Voltar ao site da FHL</a></p>
+          <p class="entrada__volta"><a href="/">Voltar ao site</a></p>
         </form>
       </section>
     </div>`);

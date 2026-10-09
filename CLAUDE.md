@@ -1,4 +1,4 @@
-# FHL Advocacia — contexto do cliente
+# Fonseca Lisboa Advocacia (ex-FHL) — contexto do cliente
 
 Este arquivo guarda **o que o cliente quer e por quê**. A parte técnica do site
 (como rodar, build, arquitetura, tokens, pendências de lançamento) está no
@@ -32,11 +32,35 @@ móveis e busca/importação DJEN ficaram pendentes após bloqueio do filtro de
 conteúdo durante a geração dos módulos, sem motivo detalhado. A captura
 diária fica para depois da busca manual em uso, conforme §10.7.
 
+**Entrega local de 08–09/10/2026 (sem commit, sem migração remota):**
+- **Financeiro:** todo o DOCX (T01–T17), com Consulta/Auditoria, pagamentos
+  parciais, contas financeiras, código C001/AAAA, fechamento anual,
+  relatórios/XLSX, recibo, anexos, alertas e importação da planilha antiga.
+- **Prazos e DJEN:** busca no DJEN pelo navegador, captura diária e contagem
+  automática de prazos como sugestão, com conferência obrigatória.
+- **Clientes e operação:** contatos múltiplos e etiquetas, Operação/LGPD e
+  convite por e-mail.
+- **"Sem integração com banco"** = sem OFX/Open Finance. **Sem 2FA**, por
+  decisão do Ithalo.
+
+Estado e ordem de publicação:
+[HANDOFF-FINANCEIRO-DJEN.md](HANDOFF-FINANCEIRO-DJEN.md).
+
+**Marca FL — 09/10/2026 (local, sem commit, migração `20261009120000_marca_fl` não aplicada):**
+com a saída do Marlon a sociedade passou a **Fonseca Lisboa Advocacia (FL)**.
+Logo definitiva: `Fonseca Lisboa Logo final.png` — vetorizada e desmembrada em
+`LogosNovas/FL/` (paleta exata em `LogosNovas/FL/paleta.svg`). Os advogados
+pediram de volta o **peixinho** (`Logo.jpg`, a marca antiga de pétalas): ele
+abre a home, faz as marcas d'água e o favicon; a FL fica no cabeçalho, rodapé,
+área dos advogados e documentos. **O peixinho nunca vai para os documentos
+gerados.** Detalhes: README §Identidade. As menções a "FHL" abaixo são
+histórico.
+
 ---
 
 ## 1. Quem é quem
 
-**Cliente — FHL Advocacia — Fonseca Hespanha Lisboa.**
+**Cliente — Fonseca Lisboa Advocacia (FL; até out/2026, FHL — Fonseca Hespanha Lisboa).**
 Rua Dr. Leocádio, 282 — Centro, Paranaguá/PR · (41) 2152-2607 ·
 WhatsApp 55 41 2152-2607 · Seg–sex, 9h–18h.
 FHL = iniciais dos sobrenomes dos sócios: **F**onseca, **H**espanha, **L**isboa.
@@ -49,7 +73,7 @@ FHL = iniciais dos sobrenomes dos sócios: **F**onseca, **H**espanha, **L**isboa
 | **Vinícius Rangel de Lima de Paula Lisboa** | 105.790 | Trabalhista, Criminal, Previdenciário, Regularização Fundiária, Ambiental, Portuário |
 
 **Vinícius é o interlocutor** — advogado-chefe, foi quem apresentou tudo e quem
-decide. Juliana é esposa dele. Escritório com 6 anos. Hoje são 3 advogados (o Marlon saiu em out/2026 — o "H" de FHL e o nome da sociedade continuam: decidir com o Vinícius); ele já
+decide. Juliana é esposa dele. Escritório com 6 anos. Hoje são 3 advogados (o Marlon saiu em out/2026 — a marca virou FL — Fonseca Lisboa em 09/10/2026; a razão social registrada na OAB ainda é a confirmar); ele já
 fala em estagiário e secretária no futuro.
 
 **Fornecedores — Ithalo e Rodrigo** (primos). Ithalo é o organizador da reunião;
@@ -188,7 +212,8 @@ link para abrir no celular.
    **Resolvido em 29/09/2026:** a logo nova (monograma serifado FHL + filete +
    "Fonseca Hespanha Lisboa", em `LogosNovas/`) substituiu a antiga no site e
    na área dos advogados. Ainda falta o arquivo vetorial original — o site usa
-   uma vetorização do PNG (README §Identidade).
+   uma vetorização do PNG (README §Identidade). **Substituída em 09/10/2026**
+   pela FL (`Fonseca Lisboa Logo final.png`), com o peixinho de volta.
 5. **SEO / tráfego** [18:30]. Pergunta genuína dele: mais interação = mais
    entrega, como no Instagram? Quer orgânico **e** pago. Merece uma resposta
    curta e honesta na próxima conversa.

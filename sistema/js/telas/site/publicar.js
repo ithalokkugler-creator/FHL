@@ -1,7 +1,7 @@
 // Site · Publicar — mandar o que foi escrito para o ar.
 // =====================================================
 //
-// O site da FHL é estático: as páginas são geradas uma vez e servidas como
+// O site do escritório é estático: as páginas são geradas uma vez e servidas como
 // arquivos. É isso que o deixa rápido e indexável, e é isso que separa
 // "salvar" de "publicar".
 //

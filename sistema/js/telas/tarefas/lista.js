@@ -4,49 +4,58 @@
 import { avisar, avisarErro } from '../../nucleo/avisos.js';
 import { pedirMotivo } from '../../nucleo/dialogo.js';
 import { corDe, estado, iniciais, nomeDe, pode } from '../../nucleo/estado.js';
-import { data, dataHora, diasEntre, hoje, numeroCnj } from '../../nucleo/formato.js';
+import { data, dataHora, noFuso, numeroCnj } from '../../nucleo/formato.js';
 import { $, aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { guardarConsulta } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
-import { alertaTarefa, COLUNAS_TAREFA, filtrarTarefas, podeAlterarTarefa, PRIORIDADES, SITUACOES_TAREFA } from '../../dominio/tarefas.js';
-import { cabecalho, opcoes, plural, seloAlertaTarefa, seloTarefa, vazio } from '../comum.js';
+import {
+  COLUNAS_TAREFA, filtrarTarefas, podeAlterarTarefa, prazoRestante, PRIORIDADES, SITUACOES_TAREFA, urgenciaTarefa,
+} from '../../dominio/tarefas.js';
+import { cabecalho, opcoes, seloTarefa, vazio } from '../comum.js';
 import { abrirHistorico } from '../historico.js';
 import { formularioTarefa } from './formulario.js';
 
 const VISOES = [['minhas', 'Minhas'], ['deleguei', 'Que eu deleguei'], ['todas', 'Todas']];
 export const SITUACOES_FILTRO = [['abertas', 'Abertas'], ['todos', 'Todas'], ...Object.entries(SITUACOES_TAREFA), ['cancelada', 'Canceladas']];
 
-/**
- * Quanto falta, quando não há selo de alerta dizendo o mesmo: "Entrega em
- * 3 dias", "Vence em 5 h". Prazo em horas conta até a hora fatal.
- */
-export function prazoRestante(t) {
-  if (t.cancelado_em || t.situacao === 'concluida') return '';
-  if (t.contagem === 'horas' && t.fatal_em) {
-    const horas = (Date.parse(t.fatal_em) - Date.now()) / 3600000;
-    return horas < 0 ? 'Prazo vencido' : `Vence em ${Math.ceil(horas)} h`;
-  }
-  if (!t.entrega) return '';
-  const dias = diasEntre(hoje(), t.entrega);
-  if (dias < 0) return `Entrega atrasada há ${plural(-dias, 'dia', 'dias')}`;
-  return dias === 0 ? 'Entrega hoje' : `Entrega em ${plural(dias, 'dia', 'dias')}`;
-}
-
-/** Fatal (se for prazo), entrega e o alerta. Quando há selo — "Entrega
- *  hoje", "Fatal vencido" —, o texto de quanto falta seria repetição. */
+/** Fatal (se for prazo), entrega e quanto falta, na cor da urgência. */
 function celulaDatas(t) {
-  const selo = seloAlertaTarefa(alertaTarefa(t));
-  const restante = prazoRestante(t);
   const emHoras = t.contagem === 'horas' && t.fatal_em;
+  const restante = prazoRestante(t);
+  const nivel = urgenciaTarefa(t)?.nivel ?? 'neutro';
   return html`
     <div class="tarefa-datas">
       ${t.fatal_em ? html`
-        <strong class="num">${dataHora(t.fatal_em)}</strong>
-        <span class="sub">${emHoras ? `Fatal · prazo em horas${restante ? ` · ${restante.toLowerCase()}` : ''}` : 'Data fatal'}</span>` : ''}
-      <span class="num">${t.entrega ? `Entrega ${data(t.entrega)}` : 'Sem entrega'}</span>
-      ${!emHoras && !selo && restante ? html`<span class="sub">${restante}</span>` : ''}
-      ${selo}
+        <span class="tarefa-data"><span class="tarefa-data__rotulo">Fatal</span>
+          <strong class="num">${emHoras ? dataHora(t.fatal_em) : data(noFuso(t.fatal_em).dia)}</strong></span>` : ''}
+      ${t.entrega ? html`
+        <span class="tarefa-data"><span class="tarefa-data__rotulo">Entrega</span><span class="num">${data(t.entrega)}</span></span>` : ''}
+      ${!t.fatal_em && !t.entrega ? html`<span class="sub">Sem data</span>` : ''}
+      ${restante ? html`<span class="selo tarefa-quando tarefa-quando--${nivel}">${restante}</span>` : ''}
     </div>`;
+}
+
+/**
+ * Título; abaixo, numa linha só, a situação, a prioridade quando não é a
+ * normal, o ato, se veio de intimação e o bloqueio na agenda. Juntar tudo
+ * aqui poupa uma coluna — a tabela cabe num notebook sem rolar para o lado.
+ */
+function celulaTarefa(t) {
+  const detalhes = [
+    t.ato,
+    t.intimacao_id && (pode.prazos() ? html`<a href="#/intimacoes?id=${t.intimacao_id}&situacao=todas">Da intimação</a>` : 'Da intimação'),
+    t.compromisso_id && pode.agenda() && html`<a href="#/agenda">Bloqueio na agenda</a>`,
+  ].filter(Boolean);
+  return html`
+    <strong class="tarefa-titulo">${t.titulo}</strong>
+    <span class="tarefa-meta">
+      ${seloTarefa(t.cancelado_em ? 'cancelada' : t.situacao)}
+      ${t.prioridade !== 'normal' ? html`<span class="selo${['urgente', 'alta'].includes(t.prioridade) ? ' selo--perigo' : ''}">Prioridade ${PRIORIDADES[t.prioridade].toLowerCase()}</span>` : ''}
+      ${detalhes.length ? html`<span class="tarefa-meta__texto">${detalhes.map((d, i) => html`${i ? ' · ' : ''}${d}`)}</span>` : ''}
+    </span>
+    ${t.concluida_em ? html`<span class="sub">Concluída por ${nomeDe(t.concluida_por)} · ${dataHora(t.concluida_em)}</span>` : ''}
+    ${t.motivo_cancelamento ? html`<span class="sub">Motivo: ${t.motivo_cancelamento}</span>` : ''}
+    ${t.descricao ? html`<details class="tarefa-descricao"><summary>Descrição</summary><p class="texto-preservado">${t.descricao}</p></details>` : ''}`;
 }
 
 function celulaResponsavel(t) {
@@ -56,28 +65,25 @@ function celulaResponsavel(t) {
     ${delegada ? html`<span class="sub">Delegada por ${nomeDe(t.criado_por)}</span>` : ''}`;
 }
 
-function celulaOrigem(t) {
-  const intimacao = t.intimacao_id
-    ? (pode.prazos() ? html`<a href="#/intimacoes?id=${t.intimacao_id}&situacao=todas">Intimação</a>` : 'Intimação')
-    : 'Manual';
-  const bloqueio = t.compromisso_id && pode.agenda() ? html`<span class="sub"><a href="#/agenda">Bloqueio na Agenda</a></span>` : '';
-  return html`${intimacao}${bloqueio}`;
-}
-
+/** Duas fileiras: concluir/reabrir e editar; abaixo, as ações de texto. */
 function celulaAcoes(t) {
-  const historico = html`<button class="botao botao--pequeno botao--discreto" type="button" data-acao="tarefa-historico" data-id="${t.id}">Histórico</button>`;
-  if (!podeAlterarTarefa(t, estado.membro)) return html`<div class="registro-acoes">${historico}</div>`;
-  const andamento = t.situacao === 'concluida'
-    ? html`<button class="botao botao--pequeno" type="button" data-acao="tarefa-reabrir" data-id="${t.id}">Reabrir</button>`
-    : html`
-      <button class="botao botao--pequeno" type="button" data-acao="tarefa-concluir" data-id="${t.id}">Concluir</button>
-      ${t.situacao === 'pendente' ? html`<button class="botao botao--pequeno" type="button" data-acao="tarefa-andamento" data-id="${t.id}">Em andamento</button>` : ''}`;
+  const historico = html`<button class="acao-texto" type="button" data-acao="tarefa-historico" data-id="${t.id}">Histórico</button>`;
+  if (!podeAlterarTarefa(t, estado.membro)) {
+    return html`<div class="tarefa-acoes"><div class="tarefa-acoes__textos">${historico}</div></div>`;
+  }
   return html`
-    <div class="registro-acoes">
-      ${andamento}
-      <button class="botao botao--pequeno" type="button" data-acao="tarefa-editar" data-id="${t.id}">Editar</button>
-      <button class="botao botao--pequeno botao--discreto" type="button" data-acao="tarefa-cancelar" data-id="${t.id}">Cancelar</button>
-      ${historico}
+    <div class="tarefa-acoes">
+      <div class="tarefa-acoes__botoes">
+        ${t.situacao === 'concluida'
+          ? html`<button class="botao botao--pequeno" type="button" data-acao="tarefa-reabrir" data-id="${t.id}">Reabrir</button>`
+          : html`<button class="botao botao--pequeno" type="button" data-acao="tarefa-concluir" data-id="${t.id}">Concluir</button>`}
+        <button class="botao botao--pequeno" type="button" data-acao="tarefa-editar" data-id="${t.id}">Editar</button>
+      </div>
+      <div class="tarefa-acoes__textos">
+        ${t.situacao === 'pendente' ? html`<button class="acao-texto" type="button" data-acao="tarefa-andamento" data-id="${t.id}" title="Marcar como em andamento (volta a pendente em Editar)">Iniciar</button>` : ''}
+        <button class="acao-texto" type="button" data-acao="tarefa-cancelar" data-id="${t.id}">Cancelar</button>
+        ${historico}
+      </div>
     </div>`;
 }
 
@@ -85,32 +91,24 @@ function celulaAcoes(t) {
 export function tabelaTarefas(lista, { resumo = false, vazio: semTarefas = 'Nenhuma tarefa ou prazo neste filtro.' } = {}) {
   if (!lista.length) return vazio(semTarefas);
   return html`
-    <div class="tabela-rolagem"><table class="tabela tabela--tarefas">
+    <div class="tabela-rolagem"><table class="tabela tabela--tarefas${resumo ? ' tabela--tarefas-resumo' : ''}">
       <thead><tr>
-        <th>${resumo ? 'Fatal / entrega' : 'Tarefa / ato'}</th><th>${resumo ? 'Ato / tarefa' : 'Entrega / fatal'}</th>
-        <th>Cliente / processo</th><th>Responsável / delegação</th><th>Prioridade / situação</th><th>Origem</th>
-        <th class="nao-imprimir">Ações</th>
+        <th>${resumo ? 'Fatal / entrega' : 'Tarefa / situação'}</th><th>${resumo ? 'Tarefa / situação' : 'Entrega / fatal'}</th>
+        <th>Cliente / processo</th><th>Responsável</th>
+        <th class="nao-imprimir"><span class="sr-only">Ações</span></th>
       </tr></thead>
       <tbody>${lista.map((t) => {
-        const titulo = html`
-          <strong>${t.titulo}</strong><span class="sub">${t.ato ?? ''}</span>
-          ${t.descricao ? html`<details><summary>Descrição</summary><p class="texto-preservado">${t.descricao}</p></details>` : ''}`;
+        const titulo = celulaTarefa(t);
         const datas = celulaDatas(t);
+        const nivel = urgenciaTarefa(t)?.nivel;
         const cliente = t.cliente_id && pode.clientes() ? html`<a href="#/clientes/${t.cliente_id}">${t.cliente_nome}</a>` : t.cliente_nome ?? 'Sem cliente';
         return html`
-          <tr>
-            <td>${resumo ? datas : titulo}</td>
-            <td>${resumo ? titulo : datas}</td>
-            <td>${cliente}<span class="sub num">${numeroCnj(t.processo_numero) || t.processo_titulo || 'Sem processo'}</span></td>
-            <td>${celulaResponsavel(t)}</td>
-            <td>
-              <span class="selo${['urgente', 'alta'].includes(t.prioridade) ? ' selo--perigo' : ''}">${PRIORIDADES[t.prioridade]}</span>
-              ${seloTarefa(t.cancelado_em ? 'cancelada' : t.situacao)}
-              ${t.concluida_em ? html`<span class="sub">${nomeDe(t.concluida_por)} · ${dataHora(t.concluida_em)}</span>` : ''}
-              ${t.motivo_cancelamento ? html`<span class="sub">${t.motivo_cancelamento}</span>` : ''}
-            </td>
-            <td>${celulaOrigem(t)}</td>
-            <td class="nao-imprimir">${celulaAcoes(t)}</td>
+          <tr class="tarefa-linha${nivel ? ` tarefa-linha--${nivel}` : ''}">
+            <td class="${resumo ? 'tarefa-celula-datas' : 'tarefa-celula-titulo'}">${resumo ? datas : titulo}</td>
+            <td class="${resumo ? 'tarefa-celula-titulo' : 'tarefa-celula-datas'}">${resumo ? titulo : datas}</td>
+            <td class="tarefa-celula-cliente">${cliente}<span class="sub num">${numeroCnj(t.processo_numero) || t.processo_titulo || 'Sem processo'}</span></td>
+            <td class="tarefa-celula-responsavel">${celulaResponsavel(t)}</td>
+            <td class="tarefa-celula-acoes nao-imprimir">${celulaAcoes(t)}</td>
           </tr>`;
       })}
       </tbody>
@@ -140,7 +138,7 @@ export function ligarAcoesTarefas(raiz, lista, recarregar) {
   return aoClicar(raiz, {
     'tarefa-editar': (el) => executar(el, () => formularioTarefa({ tarefa: tarefa(el) })),
     'tarefa-concluir': (el) => mudarSituacao(el, 'concluida', 'Tarefa concluída.'),
-    'tarefa-andamento': (el) => mudarSituacao(el, 'em_andamento', 'Tarefa em andamento.'),
+    'tarefa-andamento': (el) => mudarSituacao(el, 'em_andamento', 'Tarefa em andamento. Para voltar a pendente, use Editar.'),
     'tarefa-cancelar': (el) => executar(el, async () => {
       const motivo = await pedirMotivo({
         titulo: 'Cancelar tarefa / prazo',

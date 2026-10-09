@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// FHL ADVOCACIA — gerador de páginas estáticas
+// FONSECA LISBOA ADVOCACIA — gerador de páginas estáticas
 // ============================================
 //
 // Aplica o shell único de src/layouts/shell.mjs a cada página de src/pages/ e

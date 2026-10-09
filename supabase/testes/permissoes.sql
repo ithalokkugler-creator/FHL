@@ -1,5 +1,5 @@
 -- =============================================================================
--- FHL ADVOCACIA — ÁREA DOS ADVOGADOS
+-- FONSECA LISBOA ADVOCACIA — ÁREA DOS ADVOGADOS
 -- Testes de permissão e de regra de negócio, direto no banco
 -- =============================================================================
 --
@@ -17,7 +17,7 @@
 -- Out/2026: Marlon desativado — a divisão passa a ter 3 sócios (teste 38); testes
 -- 33, 40, 43 e 79 deixaram de supor banco vazio (o piloto tem dados reais): 87 de 87.
 
-create or replace function pg_temp.testar_fhl()
+create or replace function pg_temp.testar_permissoes()
 returns table (n bigint, ok boolean, teste text, detalhe text)
 language plpgsql
 as $fn$
@@ -245,8 +245,11 @@ begin
 
     -- contas
     etapa := 'contas';
-    insert into public.contas (descricao, categoria_id, valor, vencimento, data_pagamento, forma_id)
-      values ('Aluguel teste', v_cat, 200, v_hoje, v_hoje, v_forma) returning id into v_conta;
+    insert into public.contas (descricao, categoria_id, valor, vencimento, forma_id)
+      values ('Aluguel teste', v_cat, 200, v_hoje, v_forma) returning id into v_conta;
+    -- Desde 08/10/2026 o pagamento é um registro à parte (pagamentos_despesa).
+    perform public.registrar_pagamento_despesa(jsonb_build_object(
+      'conta_id', v_conta, 'valor', 200, 'data', v_hoje, 'forma_id', v_forma));
     select competencia into v_data from public.contas where id = v_conta;
     res := res || jsonb_build_object('ok', v_data = v_mes, 't', '29 competência vem do vencimento', 'd', v_data);
 
@@ -262,8 +265,10 @@ begin
      where r.descricao = 'Internet teste' and c.competencia = v_mes;
     res := res || jsonb_build_object('ok', v_data = (v_mes + interval '1 month')::date - 1, 't', '33 dia 31 cai no último dia do mês', 'd', v_data);
 
-    insert into public.contas (descricao, categoria_id, valor, vencimento, data_pagamento, pago_por_id)
-      values ('Café pago pela sócia', v_cat, 50, v_hoje, v_hoje, m_socia);
+    insert into public.contas (descricao, categoria_id, valor, vencimento)
+      values ('Café pago pela sócia', v_cat, 50, v_hoje) returning id into v_conta;
+    perform public.registrar_pagamento_despesa(jsonb_build_object(
+      'conta_id', v_conta, 'valor', 50, 'data', v_hoje, 'pago_por_id', m_socia));
 
     -- renegociação
     etapa := 'renegociação';
@@ -610,4 +615,4 @@ begin
 end
 $fn$;
 
-select * from pg_temp.testar_fhl();
+select * from pg_temp.testar_permissoes();

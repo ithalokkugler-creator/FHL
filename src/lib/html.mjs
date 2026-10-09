@@ -31,7 +31,7 @@ export function arrowLink(href, text, cls = 'link-arrow') {
 export function pageHead(label, title, lead = null, depth = 0) {
   const leadHtml = lead ? `<p class="lead" data-reveal="rise">${lead}</p>` : '';
   return `  <section class="page-head">
-    <img class="watermark watermark--right" src="${prefix(depth)}assets/img/monograma.svg" alt="" aria-hidden="true">
+    <img class="watermark watermark--right" src="${prefix(depth)}assets/img/marca-dagua.svg" alt="" aria-hidden="true">
     <div class="wrap page-head__inner">
       <p class="label" data-reveal="rise">${label}</p>
       <h1 class="h1 page-head__title r-mask" data-reveal="mask">${title}</h1>
@@ -49,7 +49,7 @@ export function pageHead(label, title, lead = null, depth = 0) {
  */
 export function nextBlock(title, href, cta, depth = 0) {
   return `  <section class="next-block">
-    <img class="watermark watermark--left" src="${prefix(depth)}assets/img/monograma.svg" alt="" aria-hidden="true">
+    <img class="watermark watermark--left" src="${prefix(depth)}assets/img/marca-dagua.svg" alt="" aria-hidden="true">
     <div class="wrap next-block__inner">
       <h2 class="display next-block__title r-mask" data-reveal="mask">${title}</h2>
       <div class="next-block__actions" data-reveal="rise">
@@ -74,7 +74,7 @@ export function nextBlock(title, href, cta, depth = 0) {
  * article  objeto de POSTS quando a página é um artigo — liga o JSON-LD Article
  * campanha objeto de CAMPANHAS quando a página é uma campanha — liga o FAQPage
  * name     nome curto da página na trilha (breadcrumb) que o Google exibe.
- *          Padrão: o title sem o " — FHL Advocacia"
+ *          Padrão: o title sem o " — Fonseca Lisboa Advocacia"
  * og       { label, title } — a página ganha imagem de compartilhamento
  *          própria, gerada por `npm run og` (ver src/lib/seo.mjs)
  * noindex  fora do Google e do sitemap (404, campanha fora do período)

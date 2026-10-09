@@ -17,6 +17,7 @@ import { db } from '../../nucleo/supabase.js';
 import { COLUNAS_CLIENTE, COLUNAS_DETALHES, COLUNAS_PROCESSO } from '../../dominio/clientes.js';
 import { COLUNAS_ATUALIZACAO } from '../../dominio/tempo.js';
 import { ajustarFolha, baixarWord, confirmarPendencias, imprimirDocumento, salvarDocumento } from '../../documentos/acoes.js';
+import { barraDeFormatacao, ligarEditor } from '../../documentos/editor.js';
 import { ErroCampo, mostrarErroFormulario, validarFormulario } from '../../nucleo/formularios.js';
 import { MODELOS, validarComplementos } from '../../documentos/modelos.js';
 import { AREAS_JURIDICAS, cabecalho, opcoes } from '../comum.js';
@@ -138,17 +139,22 @@ export default async function telaNovoDocumento(ctx) {
           <button type="button" class="botao" data-acao="salvar">Salvar sem imprimir</button>
           <button type="button" class="botao botao--discreto" data-acao="refazer">Refazer texto</button>
         </div>
-        <p class="sub secao">A prévia acompanha os campos automaticamente. Se editar a folha à mão, suas alterações serão preservadas e você poderá escolher como atualizar o texto.</p>
+        <p class="sub secao">A prévia acompanha os campos automaticamente. Se editar a folha à mão — inclusive pela barra de formatação —, suas alterações serão preservadas e você poderá escolher como atualizar o texto.</p>
         <p class="sub secao">Confira o texto antes de entregar. Os modelos aguardam revisão do escritório.</p>
       </aside>
-      <div class="documento-visualizacao">
-        <article class="documento-folha" contenteditable="true" role="textbox" aria-label="Prévia editável do documento" aria-multiline="true" spellcheck="true"></article>
+      <div class="documento-area">
+        ${barraDeFormatacao()}
+        <p class="sub so-celular">No celular a folha aparece em modo de leitura. A impressão e o Word saem em A4.</p>
+        <div class="documento-visualizacao">
+          <article class="documento-folha" contenteditable="true" role="textbox" aria-label="Prévia editável do documento" aria-multiline="true" spellcheck="true"></article>
+        </div>
       </div>
     </div>`);
 
   const form = $('[data-controles]', ctx.raiz);
   const folha = $('.documento-folha', ctx.raiz);
   const desligarFolha = ajustarFolha($('.documento-visualizacao', ctx.raiz));
+  let editor = null; // a barra de formatação, ligada depois do primeiro texto
 
   const campo = (c) => {
     const valor = dados[c.nome] ?? c.padrao ?? '';
@@ -217,6 +223,7 @@ export default async function telaNovoDocumento(ctx) {
       hoje: hoje(),
     };
     desenhar(folha, cru(higienizar(String(MODELOS[modelo].montar(contexto)))));
+    editor?.reiniciar(); // o desfazer recomeça do texto novo
     sujo = false;
     desatualizado = false;
     pendencias();
@@ -302,7 +309,7 @@ export default async function telaNovoDocumento(ctx) {
   };
   form.addEventListener('input', atualizarComplementos);
   form.addEventListener('change', (e) => {
-    if (['cliente_id', 'processo_id'].includes(e.target.name)) refazer();
+    if (['cliente_texto', 'cliente_id', 'processo_id'].includes(e.target.name)) refazer();
     else atualizarComplementos(e);
   });
   form.addEventListener('click', (e) => {
@@ -315,11 +322,25 @@ export default async function telaNovoDocumento(ctx) {
     pendencias();
   };
   folha.addEventListener('input', editou);
+  editor = ligarEditor($('.editor-barra', ctx.raiz), folha, { aoEditar: editou });
   const desligarColagem = ligarColagem(folha, editou);
 
   const executar = async (acao) => {
     if (ocupado || alterando) return;
     if (!validarFormulario(form)) return;
+    // Cliente ou processo escolhido sem a folha ter acompanhado (o campo não
+    // perdeu o foco, por exemplo): atualiza agora e pede para conferir.
+    const escolha = ler();
+    if (escolha.cliente_id !== clienteId || escolha.processo_id !== processoId) {
+      await refazer();
+      if (!ctx.ativa()) return;
+      const agora = ler();
+      if (agora.cliente_id === clienteId && agora.processo_id === processoId) {
+        avisar('A folha foi atualizada com o cliente e o processo escolhidos. Confira o texto e repita a ação.');
+        folha.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      return;
+    }
     if (desatualizado) {
       avisar('Escolha atualizar pelos campos ou manter o texto editado antes de continuar.');
       $('[data-pendencias]', ctx.raiz).scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -388,5 +409,6 @@ export default async function telaNovoDocumento(ctx) {
     desligar();
     desligarColagem();
     desligarFolha();
+    editor.desligar();
   };
 }
