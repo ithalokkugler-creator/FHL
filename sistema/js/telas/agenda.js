@@ -495,6 +495,9 @@ export async function editarCompromisso(c = null, { config, dia = hoje(), minuto
   const duracao = c ? Math.round((ms(c.fim) - ms(c.inicio)) / 60000) : duracaoPadrao(config, tipo, inicial.modalidade ?? 'presencial');
   const termina = Math.min(comeca.minuto + duracao, 23 * 60 + 55);
   const ultimoDia = c?.dia_inteiro ? somarDias(noFuso(c.fim).dia, -1) : comeca.dia;
+  // Sobreposição com outro compromisso do mesmo responsável: pede
+  // confirmação ao salvar (cliente esperando é o que o escritório quer evitar).
+  let verificarConflitos = async () => 0;
 
   return abrirDialogo({
     titulo: novo ? 'Novo compromisso' : 'Editar compromisso',
@@ -532,7 +535,8 @@ export async function editarCompromisso(c = null, { config, dia = hoje(), minuto
         </label>
         <label class="opcao campo--6" data-papel="particular"><input type="checkbox" name="particular" ${c?.particular ? 'checked' : ''}> Particular — os outros veem só "Ocupado"</label>
       </div>
-      <p class="nota secao" data-papel="conflito" role="status" hidden></p>`,
+      <p class="nota secao" data-papel="conflito" role="status" hidden></p>
+      <label class="opcao campo" data-papel="confirma-conflito" hidden><input type="checkbox" name="confirma_conflito"> Confirmo o horário mesmo com o conflito.</label>`,
 
     aoAbrir: (dialogo, form) => {
       ligarCampoCliente(form, clientes);
@@ -572,13 +576,13 @@ export async function editarCompromisso(c = null, { config, dia = hoje(), minuto
       };
 
       let pedido = 0;
-      const verificarConflitos = async () => {
+      verificarConflitos = async () => {
         const este = ++pedido;
         const caixa = bloco('conflito');
         const p = periodo(form);
         if (!p) {
           caixa.hidden = true;
-          return;
+          return 0;
         }
         try {
           const existentes = await db.rpc('agenda_periodo', { p_de: instante(p.primeiro), p_ate: instante(somarDias(p.ultimo, 1)) });
@@ -593,10 +597,13 @@ export async function editarCompromisso(c = null, { config, dia = hoje(), minuto
           const partes = [];
           if (r.sobrepostos.length) partes.push(`Conflita com ${r.sobrepostos.map(descrever).join('; ')}.`);
           if (r.colados.length) partes.push(`Fica a menos de ${intervalo} minutos de ${r.colados.map(descrever).join('; ')}.`);
-          caixa.textContent = partes.length ? `${partes.join(' ')} Dá para marcar mesmo assim.` : '';
+          caixa.textContent = partes.length ? `${partes.join(' ')}${r.sobrepostos.length ? ' Para marcar mesmo assim, confirme abaixo.' : ' Dá para marcar mesmo assim.'}` : '';
           caixa.hidden = !partes.length;
+          if (!r.sobrepostos.length) bloco('confirma-conflito').hidden = true;
+          return r.sobrepostos.length;
         } catch {
           caixa.hidden = true;
+          return 0;
         }
       };
 
@@ -628,6 +635,10 @@ export async function editarCompromisso(c = null, { config, dia = hoje(), minuto
         throw new ErroCampo(form.dia_inteiro.checked ? 'dia_fim' : 'hora_fim', form.dia_inteiro.checked
           ? 'Informe o primeiro e o último dia — o último igual ou depois do primeiro.'
           : 'Informe o dia e um horário de fim depois do começo.');
+      }
+      if (!d.confirma_conflito && d.tipo !== 'bloqueio' && await verificarConflitos()) {
+        form.querySelector('[data-papel="confirma-conflito"]').hidden = false;
+        throw new ErroCampo('confirma_conflito', 'Este horário se sobrepõe a outro compromisso do responsável. Confira ou confirme para marcar mesmo assim.');
       }
       const registro = {
         membro_id: deTodos ? form.membro_id.value : c?.membro_id ?? eu,

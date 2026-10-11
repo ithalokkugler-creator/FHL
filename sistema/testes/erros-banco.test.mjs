@@ -23,3 +23,14 @@ test('Coluna obrigatória e vínculo recusado apontam o campo correto', () => {
   assert.equal(descreverErroBanco({ code: '23503', message: 'violates foreign key constraint "tarefas_processo_id_fkey"' }, 400).campo, 'processo_id');
   assert.match(descreverErroBanco({ code: '23505', message: 'violates unique constraint "clientes_documento_unico"' }, 400).mensagem, /CPF \/ CNPJ/);
 });
+
+test('RLS e falta de permissão não chegam em inglês técnico (red team 11/10)', () => {
+  for (const message of ['new row violates row-level security policy for table "contas"', 'permission denied for table clientes']) {
+    const r = descreverErroBanco({ code: '42501', message }, 403);
+    assert.doesNotMatch(r.mensagem, /row-level|permission denied/i);
+    assert.match(r.mensagem, /Seu acesso não permite esta ação/);
+  }
+  // Mensagem própria do banco (em português) continua passando.
+  assert.equal(descreverErroBanco({ code: '42501', message: 'Seu acesso não inclui as intimações.' }, 403).mensagem,
+    'Seu acesso não inclui as intimações.');
+});

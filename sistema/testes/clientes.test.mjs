@@ -50,3 +50,9 @@ test('aniversário cruza virada de ano e trata 29/02 sem conversão de fuso',()=
 test('última alteração considera detalhes, processos e offsets diferentes',()=>{
   assert.equal(ultimaAlteracao({criado_em:'2026-10-05T12:00:00Z'},{alterado_em:'2026-10-05T10:00:00-03:00'},[{alterado_em:'2026-10-05T12:30:00Z'}]),'2026-10-05T10:00:00-03:00');
 });
+
+test('Nascimento antes de 1900 ou no futuro é recusado (red team 11/10)', () => {
+  assert.throws(() => prepararCliente({ nome: 'Fictício', nascimento: '1800-01-01' }), /anterior a 1900/);
+  assert.throws(() => prepararCliente({ nome: 'Fictício', nascimento: '2999-01-01' }), /posterior a hoje/);
+  assert.equal(prepararCliente({ nome: 'Fictício', nascimento: '1950-05-10' }).detalhes.nascimento, '1950-05-10');
+});

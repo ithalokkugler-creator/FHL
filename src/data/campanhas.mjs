@@ -47,7 +47,7 @@ export const CAMPANHAS = [
     titulo: 'Sofreu um acidente de trabalho?',
     subtitulo:
       'Acidente no serviço, no trajeto ou doença causada pelo trabalho podem ' +
-      'garantir estabilidade no emprego, benefício do INSS e indenização. ' +
+      'dar direito a estabilidade no emprego, benefício do INSS e indenização. ' +
       'Entenda o que se aplica ao seu caso.',
     descricao:
       'Acidente de trabalho ou doença ocupacional? Veja os direitos que podem ' +

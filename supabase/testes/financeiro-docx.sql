@@ -444,6 +444,12 @@ begin
     v_txt := pg_temp.erro(format($q$select public.salvar_cliente(jsonb_build_object('id', %L, 'nome', 'Cliente DOCX',
       'documento', '52998224725', 'detalhes', jsonb_build_object('tipo_pessoa', 'fisica', 'nascimento', '2099-01-01')))$q$, v_cli));
     res := res || pg_temp.t(v_txt like '22023%', 'CC3 nascimento futuro é recusado', v_txt);
+    v_txt := pg_temp.erro(format($q$select public.salvar_cliente(jsonb_build_object('id', %L, 'nome', 'Cliente DOCX',
+      'documento', '52998224725', 'detalhes', jsonb_build_object('tipo_pessoa', 'fisica', 'nascimento', '1800-01-01')))$q$, v_cli));
+    res := res || pg_temp.t(v_txt like '22023%', 'CC4 nascimento antes de 1900 é recusado', v_txt);
+    v_txt := pg_temp.erro($q$update public.publicacoes set corpo = '[["instagram", {"url": "https://example.test/\"><img src=x>", "imagem": "/assets/img/publicacoes/x.jpg", "legenda": "x", "alt": "x"}]]'::jsonb
+      where id = (select id from public.publicacoes order by id limit 1)$q$);
+    res := res || pg_temp.t(v_txt like 'P0001%aspas%', 'RT link de post com aspas e < > é recusado', v_txt);
     perform pg_temp.como(u_sec);
     select string_agg(nome, ',') into v_txt from public.clientes_contatos where cliente_id = v_cli;
     res := res || pg_temp.t(v_txt = 'Financeiro da empresa',

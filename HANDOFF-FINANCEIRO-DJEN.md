@@ -485,3 +485,13 @@ publicação apagada) e 17 páginas do site.
 Os registros fictícios que o QA deixou **na produção** (cliente "TESTE QA
 0910…", contrato de R$ 100 com recebimento de R$ 10, conta de R$ 75,50,
 rascunhos do site etc.) continuam lá — nada foi apagado ou alterado.
+
+## 10. Red team e correções de 11/10/2026
+
+Relatório e correções: [RELATORIO-RED-TEAM-1110.md](RELATORIO-RED-TEAM-1110.md)
+(seções 3, 4 e 9). Migração nova `20261011120000_correcoes_red_team` (**aplicada
+no remoto em 11/10**): cadastro de clientes só para Clientes/Prazos/Financeiro/
+admin, lista mínima `clientes_agenda()` e `cadastrar_cliente_rapido()` para quem
+só tem Agenda, nome ≤ 200, nascimento ≥ 1900, link de post validado e texto da
+campanha sem "garantir". Ordem de publicação igual à §4: `supabase db push` →
+push na `main`. Testes: 152/152 JS, 449/449 SQL, 17 páginas.

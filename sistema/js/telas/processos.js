@@ -5,6 +5,7 @@
 
 import { avisar, avisarErro } from '../nucleo/avisos.js';
 import { abrirDialogo } from '../nucleo/dialogo.js';
+import { ErroCampo } from '../nucleo/formularios.js';
 import { nomeDe } from '../nucleo/estado.js';
 import { dataHora, numeroCnj, numeroCnjValido, tribunalDoNumero } from '../nucleo/formato.js';
 import { $, aoClicar, desenhar, html } from '../nucleo/html.js';
@@ -76,9 +77,11 @@ export async function formularioProcesso({ cliente_id = null, processo = null } 
         <label class="campo campo--6"><span>Órgão / vara</span><input name="orgao" value="${p.orgao ?? ''}" maxlength="200"></label>
         <label class="campo"><span>Responsável</span><select name="responsavel_id">${opcoesResponsaveis(p.responsavel_id)}</select></label>
         <label class="campo"><span>Observações</span><textarea name="observacoes" rows="3" maxlength="5000">${p.observacoes ?? ''}</textarea></label>
+        <label class="opcao campo" data-outro-cliente hidden><input type="checkbox" name="confirma_outro_cliente"> Confirmo: é o mesmo processo, com mais de uma parte atendida pelo escritório.</label>
       </div>`,
     aoAbrir: (dialogo, form) => {
       if (!fixo) ligarCampoCliente(form, ativos);
+      form.numero.addEventListener('input', () => { form.querySelector('[data-outro-cliente]').hidden = true; });
       // Ao sair do campo: confere o dígito, aplica a máscara e sugere o tribunal.
       form.numero.addEventListener('input', () => form.numero.setCustomValidity(''));
       form.numero.addEventListener('blur', () => {
@@ -92,8 +95,19 @@ export async function formularioProcesso({ cliente_id = null, processo = null } 
       });
       form.titulo.focus();
     },
-    aoEnviar: async (d) => {
+    aoEnviar: async (d, form) => {
       const registro = prepararProcesso(d, AREAS_JURIDICAS);
+      // Mesmo CNJ em outro cliente vale (litisconsórcio), mas costuma ser
+      // engano de cadastro: avisa quem já tem o número e pede confirmação.
+      if (registro.numero && !d.confirma_outro_cliente) {
+        const outros = await db.todos('processos', { select: 'id,cliente_id', filtros: [['numero', 'eq', registro.numero]] });
+        const nomes = outros.filter((o) => o.id !== processo?.id && o.cliente_id !== registro.cliente_id)
+          .map((o) => clientes.find((c) => c.id === o.cliente_id)?.nome).filter(Boolean);
+        if (nomes.length) {
+          form.querySelector('[data-outro-cliente]').hidden = false;
+          throw new ErroCampo('confirma_outro_cliente', `Este número já está cadastrado para ${nomes.join(', ')}. Confira o número ou confirme que é o mesmo processo.`);
+        }
+      }
       let salvo;
       try {
         if (processo) {

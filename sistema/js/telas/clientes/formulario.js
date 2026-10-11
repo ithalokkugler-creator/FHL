@@ -32,7 +32,7 @@ const ROTULOS = {
 
 const campo = (c, nome, rotulo, { tipo = 'text', classe = 'campo--6', max = 200, ate = '', obrigatorio = false, marcador = '' } = {}) => html`
   <label class="campo ${classe}"><span ${marcador ? html`data-rotulo="${marcador}"` : ''}>${rotulo}</span>
-    <input type="${tipo}" name="${nome}" value="${c[nome] ?? ''}" ${tipo === 'date' ? (ate ? html`max="${ate}"` : '') : html`maxlength="${max}"`} ${obrigatorio ? 'required' : ''}></label>`;
+    <input type="${tipo}" name="${nome}" value="${c[nome] ?? ''}" ${tipo === 'date' ? (ate ? html`min="1900-01-01" max="${ate}"` : '') : html`maxlength="${max}"`} ${obrigatorio ? 'required' : ''}></label>`;
 
 const longo = (c, nome, rotulo, max = 1000) => html`
   <label class="campo"><span>${rotulo}</span><textarea name="${nome}" rows="2" maxlength="${max}">${c[nome] ?? ''}</textarea></label>`;

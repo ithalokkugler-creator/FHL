@@ -13,6 +13,7 @@
 
 import { avisar, avisarErro } from '../../nucleo/avisos.js';
 import { abrirDialogo, pedirMotivo } from '../../nucleo/dialogo.js';
+import { ErroCampo } from '../../nucleo/formularios.js';
 import { nomeDe, pode } from '../../nucleo/estado.js';
 import { centavos, data, decimal, fimDoMes, hoje, inicioDoMes, lerMoeda, moeda, paraReais } from '../../nucleo/formato.js';
 import { $, aoClicar, desenhar, html } from '../../nucleo/html.js';
@@ -164,7 +165,7 @@ export default async function telaContasFinanceiras(ctx) {
     editar: (el) => depois(editarConta(contas.find((c) => c.id === el.dataset.id))),
     padrao: (el) => depois(db.rpc('definir_conta_padrao', { p_id: el.dataset.id }).then(() => avisar('Conta padrão trocada.')).then(() => true)),
     historico: (el) => abrirHistorico({ titulo: nomeConta(el.dataset.id), registros: [el.dataset.id] }),
-    transferir: () => depois(transferir(contas)),
+    transferir: () => depois(transferir(contas, saldos)),
     estornar: async (el) => {
       const motivo = await pedirMotivo({ titulo: 'Estornar transferência', texto: 'As duas pernas deixam de contar; o registro fica visível.', rotuloOk: 'Estornar' });
       if (motivo) {
@@ -212,7 +213,7 @@ function editarConta(c) {
   });
 }
 
-function transferir(contas) {
+function transferir(contas, saldos = []) {
   const dia = hoje();
   const ativas = contas.filter((c) => c.ativo);
   return abrirDialogo({
@@ -225,12 +226,19 @@ function transferir(contas) {
         <label class="campo campo--6"><span>Valor</span><input name="valor" class="num" inputmode="decimal" required autofocus></label>
         <label class="campo campo--6"><span>Data</span><input type="date" name="data" value="${dia}" max="${dia}" required></label>
         <label class="campo"><span>Justificativa</span><input name="justificativa" required maxlength="300" placeholder="Ex.: depósito do caixa no banco"></label>
+        <label class="opcao campo" data-negativo hidden><input type="checkbox" name="confirma_negativo"> Confirmo: a conta de origem fica com saldo negativo (por exemplo, um lançamento ainda não registrado).</label>
       </div>
       <p class="sub secao">Não é receita nem despesa: o resultado do mês não muda.</p>`,
-    aoEnviar: async (d) => {
+    aoEnviar: async (d, form) => {
       const valor = lerMoeda(d.valor);
       if (!(valor > 0)) throw new Error('Informe o valor.');
       if (d.origem_id === d.destino_id) throw new Error('Escolha contas diferentes.');
+      // Saldo negativo pode ser lançamento atrasado; não bloqueia, mas pede confirmação.
+      const origem = saldos.find((s) => s.id === d.origem_id);
+      if (origem && valor > centavos(origem.saldo) && !d.confirma_negativo) {
+        form.querySelector('[data-negativo]').hidden = false;
+        throw new ErroCampo('confirma_negativo', `${origem.nome} tem ${moeda(centavos(origem.saldo))}; com esta transferência fica em ${moeda(centavos(origem.saldo) - valor)}. Confira o valor ou confirme.`);
+      }
       await db.inserir('transferencias_financeiras', {
         origem_id: d.origem_id, destino_id: d.destino_id, valor: paraReais(valor), data: d.data, justificativa: d.justificativa,
       }, 'id');

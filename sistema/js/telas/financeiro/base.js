@@ -11,6 +11,7 @@ import { fatorDoPeriodo, INDICES, temMesParaCorrigir, variacoes } from '../../do
 import { gerarParcelas, nomeDaParcela, somaDasParcelas } from '../../dominio/parcelas.js';
 import { avisar } from '../../nucleo/avisos.js';
 import { abrirDialogo } from '../../nucleo/dialogo.js';
+import { ErroCampo } from '../../nucleo/formularios.js';
 import { estado, pode } from '../../nucleo/estado.js';
 import { navegar } from '../../nucleo/rotas.js';
 import { montarRecibo, saldoDepoisDe } from '../../documentos/recibo.js';
@@ -265,7 +266,7 @@ export async function receberParcela(p) {
         if (valor < calculo.saldo) {
           caixa.textContent = `Pagamento parcial: abate ${moeda(principal)} e ficam ${moeda(calculo.saldo - principal)} em aberto na parcela.`;
         } else if (passou > 0) {
-          caixa.textContent = `O valor passa ${moeda(passou)} do total atualizado (${moeda(calculo.total)}). Confira — o que passar do saldo entra como encargo.`;
+          caixa.textContent = `O valor passa ${moeda(passou)} do total atualizado (${moeda(calculo.total)}). Registre até ${moeda(calculo.total)}; a diferença entra como entrada avulsa ou como acréscimo autorizado no contrato.`;
         } else if (encargos > 0) {
           caixa.textContent = `Quita a parcela: ${moeda(principal)} de saldo e ${moeda(encargos)} de multa, juros e correção.`;
         } else {
@@ -297,6 +298,11 @@ export async function receberParcela(p) {
       const valor = lerMoeda(dados.valor);
       if (!(valor > 0)) throw new Error('Informe o valor recebido.');
       if (dados.data > hoje()) throw new Error('A data do pagamento não pode estar no futuro.');
+      // O que passa do total atualizado não vira encargo sem ninguém decidir
+      // (red team 11/10): vai como entrada avulsa ou acréscimo autorizado.
+      if (valor > calculo.total) {
+        throw new ErroCampo('valor', `O valor passa ${moeda(valor - calculo.total)} do total atualizado (${moeda(calculo.total)}). Registre até esse total e lance a diferença como entrada avulsa ou acréscimo autorizado.`);
+      }
 
       const principal = Math.min(valor, calculo.saldo);
       // O que passou do saldo, discriminado na proporção do cálculo do dia.

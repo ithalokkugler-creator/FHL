@@ -79,6 +79,7 @@ export function prepararCliente(d, id = null) {
   if (detalhes.estado_civil && !ESTADOS_CIVIS[detalhes.estado_civil]) throw new Error('Confira o estado civil.');
   if (detalhes.nascimento && !dataValida(detalhes.nascimento)) throw new Error('Confira a data de nascimento ou constituição.');
   if (detalhes.nascimento && detalhes.nascimento > hoje()) throw new Error('A data de nascimento ou constituição não pode ser posterior a hoje.');
+  if (detalhes.nascimento && detalhes.nascimento < '1900-01-01') throw new Error('Confira a data de nascimento ou constituição: anterior a 1900.');
 
   detalhes.cep = soDigitos(d.cep) || null;
   if (texto(d.cep) && (!/^[\d\s-]+$/.test(d.cep) || detalhes.cep?.length !== 8)) throw new Error('CEP precisa de 8 dígitos.');

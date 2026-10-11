@@ -49,7 +49,10 @@ test('Contrato mantém cláusulas da preparação e honorários em reais', () =>
     valor_total: '2.000,00', parcelas: 3, valor_parcela: '500', dia_vencimento: 10, exito: 30, garantia: 'nenhuma',
   });
   assert.match(s, /2\.000,00/);
-  for (const n of ['1.1.', '2.1.', '3.1.', '3.5.', '4.1.', '5.1.', '6.1.']) assert.ok(s.includes(n), n);
+  for (const n of ['1.1.', '2.1.', '3.1.', '3.2.', '3.3.', '4.1.', '5.1.', '6.1.']) assert.ok(s.includes(n), n);
+  // Subcláusulas de área que não entram não deixam buraco na numeração (red team 11/10).
+  assert.doesNotMatch(s, /3\.4\./);
+  assert.match(s, /3\.2\. O atraso no pagamento/);
   assert.match(s, /multa compensatória de 10%/);
 });
 
@@ -64,7 +67,8 @@ test('Contrato discrimina entrada, filtra cláusulas por área e usa percentual 
   assert.match(s, /entrada de R\$\s*500,00/);
   assert.match(s, /honorários de êxito de 15%/);
   assert.doesNotMatch(s, /30%|Nas ações criminais|Nas ações previdenciárias/);
-  assert.doesNotMatch(montar('contrato_honorarios', { area: 'trabalhista', modalidade: 'fixo', exito: 0 }), /3\.3\./);
+  assert.doesNotMatch(montar('contrato_honorarios', { area: 'trabalhista', modalidade: 'fixo', exito: 0 }), /Nas ações trabalhistas/);
+  assert.match(s, /3\.2\. Nas ações trabalhistas[\s\S]*3\.3\. O atraso[\s\S]*3\.4\. Os honorários de sucumbência/);
   assert.doesNotMatch(montar('contrato_honorarios', { modalidade: 'exito', exito: 20 }), /\[PARCELA\]|\[DIA\]|\[VALOR\]/);
 });
 

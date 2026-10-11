@@ -7,13 +7,24 @@
 import { abrirDialogo } from '../nucleo/dialogo.js';
 import { documento, documentoValido, limparDocumento, soDigitos, telefone } from '../nucleo/formato.js';
 import { html } from '../nucleo/html.js';
+import { pode } from '../nucleo/estado.js';
 import { db } from '../nucleo/supabase.js';
 
-export const carregarClientes = () => db.todos('clientes', {
-  select: 'id,nome,documento,telefone,email',
-  filtros: [['ativo', 'eq', true]],
-  ordem: 'nome.asc,id.asc',
-});
+/** Quem lê o cadastro de clientes (privado.le_clientes no banco). Os demais
+ *  — Agenda e Tarefas — escolhem o cliente pela lista mínima clientes_agenda. */
+export const podeLerClientes = () => pode.administrar() || pode.clientes() || pode.prazos() || pode.financeiro();
+
+export const carregarClientes = async ({ inativos = false } = {}) => {
+  if (!podeLerClientes()) {
+    const lista = await db.rpc('clientes_agenda');
+    return inativos ? lista : lista.filter((c) => c.ativo);
+  }
+  return db.todos('clientes', {
+    select: 'id,nome,documento,telefone,email,ativo',
+    filtros: inativos ? [] : [['ativo', 'eq', true]],
+    ordem: 'nome.asc,id.asc',
+  });
+};
 
 export const rotuloCliente = (c) => (c.documento ? `${c.nome} — ${documento(c.documento)}` : c.nome);
 
@@ -123,6 +134,7 @@ function formularioCliente(c) {
         observacoes: d.observacoes || null,
       };
       const colunas = 'id,nome,documento,telefone,email';
+      if (novo && !podeLerClientes()) return db.rpc('cadastrar_cliente_rapido', { p: registro });
       return novo
         ? db.inserir('clientes', registro, colunas)
         : db.alterar('clientes', [['id', 'eq', c.id]], registro, colunas);

@@ -237,6 +237,7 @@ function corpoLimpo(blocos) {
       };
       if (!cartao.url) throw new Error(`${onde}: falta o link do post.`);
       if (!/^https:\/\//i.test(cartao.url)) throw new Error(`${onde}: o link precisa começar com https://.`);
+      if (!/^https:\/\/[^\s"'<>]+$/i.test(cartao.url)) throw new Error(`${onde}: o link não pode ter espaços, aspas nem os sinais < e >.`);
       if (!cartao.imagem) throw new Error(`${onde}: falta a imagem do post.`);
       if (!cartao.legenda) throw new Error(`${onde}: falta a legenda.`);
       corpo.push([tipo, cartao]);

@@ -22,7 +22,7 @@ import { COLUNAS_CLIENTE, COLUNAS_PROCESSO } from '../../dominio/clientes.js';
 import { diasNaoUteis } from '../../dominio/feriados.js';
 import { anosDaContagem, calcularPrazo, dataDeEntrega } from '../../dominio/prazos.js';
 import { PRIORIDADES, SITUACOES_TAREFA } from '../../dominio/tarefas.js';
-import { campoCliente, ligarCampoCliente } from '../clientes.js';
+import { campoCliente, carregarClientes, ligarCampoCliente } from '../clientes.js';
 import { opcoes } from '../comum.js';
 
 // Versão das regras de contagem gravada na memória do prazo: se a regra
@@ -72,7 +72,7 @@ const camposDoBloqueio = () => html`
  */
 export async function formularioTarefa({ tarefa = null, cliente_id = null, iniciais = {}, sugerir = false } = {}) {
   const [clientes, processos, feriados, configPrazos] = await Promise.all([
-    db.todos('clientes', { select: COLUNAS_CLIENTE, ordem: 'nome.asc,id.asc' }),
+    carregarClientes({ inativos: true }),
     db.todos('processos', { select: COLUNAS_PROCESSO }),
     pode.prazos() ? db.todos('feriados', { select: 'id,data,nome,tribunal,ativo' }).catch(() => []) : [],
     pode.prazos() ? db.um('config_prazos', { select: 'entrega_dias_uteis' }).catch(() => null) : null,
@@ -143,6 +143,8 @@ export async function formularioTarefa({ tarefa = null, cliente_id = null, inici
         form.base_hora.disabled = form.fatal_hora.disabled = !prazo || !editaPrazo || !horas;
         form.base_hora.required = prazo && editaPrazo && horas;
         form.fatal_hora.required = prazo && editaPrazo && horas;
+        // Em dias o prazo vence às 23:59; o campo oculto não guarda a hora da contagem anterior.
+        if (!horas) form.fatal_hora.value = '23:59';
         if (!prazo) form.conferi.checked = false;
         limparErrosFormulario(form);
       };

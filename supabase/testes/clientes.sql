@@ -161,11 +161,14 @@ begin
   return query select 'Carimbos de detalhe não podem ser adulterados',pg_temp.recusa_cliente(format('update public.clientes_detalhes set criado_em=now() where id=%L',detalhe),'42501');
   return query select 'Processos e detalhes não podem ser apagados',pg_temp.recusa_cliente(format('delete from public.processos where id=%L',caso),'42501') and pg_temp.recusa_cliente(format('delete from public.clientes_detalhes where id=%L',detalhe),'42501');
   perform set_config('request.jwt.claims',jsonb_build_object('sub',sem_acesso)::text,true);
-  return query select 'Sem Clientes pode consultar o mínimo e os processos',exists(select 1 from public.clientes where id=cli) and exists(select 1 from public.processos where id=caso);
+  return query select 'Sem Clientes não lê o cadastro (CPF, contatos), mas usa a lista mínima e os processos',not exists(select 1 from public.clientes where id=cli) and exists(select 1 from public.clientes_agenda() where id=cli) and exists(select 1 from public.processos where id=caso);
+  return query select 'Lista mínima não traz documento nem e-mail',not exists(select 1 from pg_proc where proname='clientes_agenda' and proargnames && array['documento','email']);
   return query select 'Sem Clientes não vê dados completos ou seu histórico',not exists(select 1 from public.clientes_detalhes where id=detalhe) and not exists(select 1 from public.auditoria where tabela='clientes_detalhes' and registro_id=detalhe);
   return query select 'Sem Clientes não grava dados completos pelo RPC',pg_temp.recusa_cliente(format('select public.salvar_cliente(%L::jsonb)',q),'42501');
   perform public.salvar_cliente(jsonb_build_object('id',cli,'nome','Cadastro mínimo pela Secretária','documento','12345678909'));
-  return query select 'Sem Clientes mantém o cadastro rápido de Agenda e Financeiro',exists(select 1 from public.clientes where id=cli and nome='Cadastro mínimo pela Secretária');
+  return query select 'Sem Clientes mantém o cadastro rápido de Agenda e Financeiro',exists(select 1 from public.clientes_agenda() where id=cli and nome='Cadastro mínimo pela Secretária');
+  return query select 'Cadastro rápido pelo RPC devolve só id, nome e telefone',(public.cadastrar_cliente_rapido('{"nome":"Rápido SQL Fictício","documento":"52998224725","telefone":"41999990000"}') ?& array['id','nome','telefone']) and not (public.cadastrar_cliente_rapido('{"nome":"Rápido SQL Fictício 2"}') ? 'documento');
+  return query select 'Nome acima de 200 caracteres é recusado',pg_temp.recusa_cliente(format('select public.cadastrar_cliente_rapido(%L::jsonb)',jsonb_build_object('nome',repeat('A',201))),'23514');
   return query select 'Sem Clientes não inclui processos',pg_temp.recusa_cliente(format('insert into public.processos(cliente_id,titulo,area) values(%L,''Falso'',''civel'')',cli),'42501');
   update public.processos set situacao='suspenso' where id=caso;
   return query select 'Sem Clientes não altera processos por RLS',exists(select 1 from public.processos where id=caso and situacao='encerrado');

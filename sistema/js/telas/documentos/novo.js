@@ -245,7 +245,9 @@ export default async function telaNovoDocumento(ctx) {
     try {
       const v = ler();
       if (!v.cliente_id && form.cliente_texto.value.trim()) {
-        mostrarErroFormulario(form, new ErroCampo('cliente_texto', 'Escolha um cliente da lista ou cadastre um novo.'));
+        // Depois do evento: a validação global limpa o campo no próprio "change".
+        setTimeout(() => mostrarErroFormulario(form, new ErroCampo('cliente_texto',
+          'Escolha um cliente da lista ou cadastre um novo. A folha continua com o cliente anterior.')));
         return;
       }
       if (sujo && !await abrirDialogo({

@@ -45,7 +45,7 @@ export function descreverErroBanco(d, status) {
     return { campo: coluna, mensagem: codigo === '23505' ? `${rotulo}: já existe um registro com esse dado.`
       : codigo === '23502' ? `Preencha ${rotulo}.` : `${rotulo}: ${regra}.` };
   }
-  if (['P0001', '22023'].includes(codigo) || (codigo === '42501' && !/permission denied/i.test(texto))) {
+  if (['P0001', '22023'].includes(codigo) || (codigo === '42501' && !/permission denied|row-level security/i.test(texto))) {
     if (texto) return { mensagem: texto };
   }
   if (status === 401) return { mensagem: 'Sua sessão expirou. Entre de novo para continuar.' };

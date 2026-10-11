@@ -38,10 +38,14 @@ export const FORM_ENDPOINT = process.env.FORM_ENDPOINT ?? `${SUPABASE_URL}/funct
 
 // Endereço público do site. Vira URL absoluta no canonical, no og:image e no
 // sitemap — buscadores e redes sociais não aceitam caminho relativo ali.
-// A variável de ambiente SITE_URL sobrescreve no build: serve para testar a
-// prévia de links num endereço provisório (o da Vercel, por exemplo) antes de
-// o domínio oficial existir.
-export const DOMINIO = (process.env.SITE_URL || 'https://fonsecalisboa.com.br')  // [CONFIRMAR] domínio
+// O domínio oficial ainda não foi comprado (out/2026). Até lá, o build na
+// Vercel usa o endereço de produção que ela informa
+// (VERCEL_PROJECT_PRODUCTION_URL), para o canonical e o sitemap apontarem
+// para um site que existe. Comprado o domínio, basta definir SITE_URL na
+// Vercel (ou trocar o padrão abaixo).
+const DOMINIO_VERCEL = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+export const DOMINIO = (process.env.SITE_URL
+  || (DOMINIO_VERCEL ? `https://${DOMINIO_VERCEL}` : 'https://fonsecalisboa.com.br'))  // [CONFIRMAR] domínio
   .replace(/\/+$/, '');
 
 // Perfis oficiais nas redes. Os campos do sistema interno nunca foram
