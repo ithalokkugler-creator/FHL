@@ -347,6 +347,14 @@ atendimentos, chegada do cliente com tempo de espera, situação do atendimento 
 impressão. A tela **Hoje** junta a agenda do dia e o que pede atenção no
 Financeiro.
 
+**Hoje (12/10/2026)**, de cima para baixo pela importância: o quadro **Seu
+dia** (compromissos e tarefas numa linha do tempo só, com a marca do
+"Agora", as atrasadas em destaque e, ao lado, os lembretes de amanhã e as
+tarefas dos próximos 7 dias; filtro Tudo / Compromissos / Tarefas), o
+**Financeiro** (em atraso, a receber e a pagar em 7 dias, alertas; receber e
+pagar lado a lado, até 6 itens com "e mais N"), intimações e contatos, o aviso
+do site e, por último, aniversários.
+
 **F8 local:** no detalhe, **Pôr no Google Agenda** abre o formulário preenchido
 para a pessoa conferir e salvar. **Exportar .ics** baixa a semana inteira ou
 o mês escolhido, de um responsável ou de todos; a seleção inicial acompanha
@@ -726,7 +734,13 @@ comum. Importação direta da conta Google na Agenda continua pendente.
   data que vem primeiro — entrega ou fatal. Até 7 dias, amarelo; até 2 dias
   ou atrasada, vermelho; concluída, cancelada ou sem data, sem cor. A etiqueta
   ("Entrega em 2 dias") sai de `prazoRestante`, sobre a mesma data. Vale na
-  lista de Tarefas, em Prazos, na ficha do cliente e no "Para hoje".
+  lista de Tarefas, em Prazos, na ficha do cliente e no quadro "Seu dia".
+- **A linha da tarefa abre a descrição** (`detalheTarefa` em
+  `telas/tarefas/lista.js`): a tabela mostra duas linhas da descrição; um
+  clique em qualquer parte da linha (ou Enter/Espaço com ela em foco) abre,
+  logo abaixo, a descrição inteira em 16 px com ato, processo, contagem e quem
+  criou/alterou. Botões e links da linha continuam só com a ação deles; a
+  linha aberta continua aberta quando o filtro redesenha a tabela.
 - **Em andamento volta a pendente pelo Editar.** Concluída, não: só por
   Reabrir, que pede o motivo (o gatilho `validar_tarefa` recusa o resto).
 - **Formatação nova na barra do editor = três lugares:** a lista de
