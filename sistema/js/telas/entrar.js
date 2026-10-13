@@ -15,7 +15,6 @@ export default function telaEntrada(app, { erro, aviso } = {}) {
   desenhar(app, html`
     <div class="entrada">
       <section class="entrada__marca">
-        <img class="entrada__peixe" src="/sistema/img/marca-dagua.svg" alt="" aria-hidden="true" width="1349" height="2346">
         <img class="entrada__assinatura" src="/sistema/img/logo.svg" alt="Fonseca Lisboa Advocacia" width="1972" height="1280">
         <div>
           <p class="rotulo">Área dos advogados</p>

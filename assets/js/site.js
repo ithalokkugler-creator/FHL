@@ -20,14 +20,12 @@ window.IED = window.IED || {};
 
   /* =====================================================================
      LOADER (6.0)
-     As duas marcas do escritório se desenham lado a lado: à esquerda o
-     peixinho (a marca antiga), à direita o monograma FL, e entre eles um
-     filete que cresce do centro. Cada contorno é traçado em menta e
-     depois preenchido — as pétalas nas próprias cores; as faixas terra e
-     verde do traço do FL entram por último. Então FONSECA LISBOA se revela
-     embaixo, da esquerda, e os filetes do ADVOCACIA crescem a partir das
-     letras. Depois os painéis se separam. ~3s, só na 1ª visita da sessão;
-     com movimento reduzido nem aparece.
+     O monograma FL se desenha no centro: cada contorno é traçado em menta
+     e depois preenchido na tinta; as faixas terra e verde do traço entram
+     por último. Então FONSECA LISBOA se revela embaixo, da esquerda, e os
+     filetes do ADVOCACIA crescem a partir das letras. Depois os painéis se
+     separam. ~3s, só na 1ª visita da sessão; com movimento reduzido nem
+     aparece.
      ===================================================================== */
   function initLoader(done) {
     var el = document.querySelector('.loader');
@@ -46,10 +44,7 @@ window.IED = window.IED || {};
     document.body.classList.add('is-locked');
 
     var marcas = el.querySelector('.loader__marcas');
-    var peixe = el.querySelector('.loader__peixe');
     var fl = el.querySelector('.loader__fl');
-    var divisor = el.querySelector('.loader__divisor');
-    var tracosPeixe = peixe.querySelectorAll('.loader__traco');
     var tracosFl = fl.querySelectorAll('.loader__traco');
     var faixas = fl.querySelectorAll('.loader__faixa');
     var nome = el.querySelector('.loader__nome');
@@ -59,10 +54,9 @@ window.IED = window.IED || {};
     var panels = el.querySelectorAll('.loader__panel');
     var inner = el.querySelector('.loader__inner');
 
-    /* Os dois desenhos têm escalas muito diferentes (o peixinho mede 2346
-       unidades de altura; o FL, 792): a espessura do traço é convertida para
-       dar ~1,6px na tela nos dois. O traço do tamanho exato do contorno
-       começa todo recolhido e é "desenhado" levando o deslocamento a zero. */
+    /* A espessura do traço é convertida da escala do desenho para dar ~1,6px
+       na tela. O traço do tamanho exato do contorno começa todo recolhido e é
+       "desenhado" levando o deslocamento a zero. */
     function preparar(svg, caminhos) {
       var vb = svg.viewBox.baseVal;
       var escala = svg.getBoundingClientRect().height / vb.height || 1;
@@ -74,10 +68,8 @@ window.IED = window.IED || {};
         });
       });
     }
-    preparar(peixe, tracosPeixe);
     preparar(fl, tracosFl);
     gsap.set(faixas, { opacity: 0 });
-    gsap.set(divisor, { scaleY: 0 });
     var largura = revela.getAttribute('width');
     gsap.set(revela, { attr: { width: 0 } });
     /* Cada filete do ADVOCACIA cresce a partir do lado das letras. */
@@ -96,12 +88,9 @@ window.IED = window.IED || {};
     });
 
     tl.fromTo(marcas, { scale: 0.96 }, { scale: 1, duration: 1.9, ease: 'power2.out' }, 0)
-      .to(divisor, { scaleY: 1, duration: 0.8, ease: EASE.entrada }, 0.1)
-      .to(tracosPeixe, { strokeDashoffset: 0, duration: 0.95, ease: 'power2.inOut', stagger: 0.12 }, 0.1)
       .to(tracosFl, { strokeDashoffset: 0, duration: 1.0, ease: 'power2.inOut', stagger: 0.14 }, 0.2)
-      .to(tracosPeixe, { fillOpacity: 1, duration: 0.5, ease: 'power1.out', stagger: 0.12 }, 0.75)
       .to(tracosFl, { fillOpacity: 1, duration: 0.5, ease: 'power1.out', stagger: 0.14 }, 0.85)
-      .to([tracosPeixe, tracosFl], { strokeOpacity: 0, duration: 0.4, ease: 'power1.out' }, 1.25)
+      .to(tracosFl, { strokeOpacity: 0, duration: 0.4, ease: 'power1.out' }, 1.25)
       .to(faixas, { opacity: 1, duration: 0.5, ease: 'power1.out', stagger: 0.1 }, 1.2)
       .to(revela, { attr: { width: largura }, duration: 0.85, ease: 'power3.inOut' }, 1.35)
       .to(filetes, { scaleX: 1, duration: 0.7, ease: EASE.entrada }, 1.7)

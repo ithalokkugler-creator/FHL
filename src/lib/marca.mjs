@@ -1,4 +1,4 @@
-// As duas marcas do escritório.
+// A marca do escritório.
 //
 // FL — a logomarca da Fonseca Lisboa Advocacia: o monograma FL cruzado pelo
 // traço em três faixas, "FONSECA LISBOA" e "ADVOCACIA" entre filetes.
@@ -12,15 +12,12 @@
 //   #nome (data-caixa)        FONSECA LISBOA
 //   #advocacia (data-caixa)   #filete-esquerdo, #advocacia-letras, #filete-direito
 //
-// PEIXINHO — a marca antiga (Logo.jpg), que os advogados pediram de volta:
-// três pétalas. FONTE: assets/img/peixinho.svg (#petala-teal, -vinho, -menta).
+// Aparece no cabeçalho, no rodapé, na abertura da home, na área dos advogados,
+// nos documentos, no favicon e nas imagens de compartilhamento. O peixinho (a
+// marca antiga, Logo.jpg) foi retirado de tudo em 13/10/2026, a pedido dos
+// advogados.
 //
-// Onde cada uma aparece: o FL no cabeçalho, no rodapé, na área dos advogados,
-// nos documentos e nas imagens de compartilhamento; o peixinho na abertura da
-// home, nas marcas d'água das seções e no favicon. O peixinho NUNCA vai para os
-// documentos gerados (pedido do escritório).
-//
-// Os arquivos derivados (marca d'água, favicon, logo.png, og.png, cópias da
+// Os arquivos derivados (favicon, logo.png, og.png, cópias da
 // área dos advogados) saem de `npm run marca`.
 
 import { readFileSync } from 'node:fs';
@@ -29,7 +26,6 @@ import { join } from 'node:path';
 import { ROOT } from './assets.mjs';
 
 export const FONTE_MARCA = 'assets/img/logo.svg';
-export const FONTE_PEIXINHO = 'assets/img/peixinho.svg';
 
 /** Paleta da logomarca FL. */
 export const COR_FL = {
@@ -41,7 +37,6 @@ export const COR_FL = {
 };
 
 const fl = readFileSync(join(ROOT, FONTE_MARCA), 'utf8');
-const px = readFileSync(join(ROOT, FONTE_PEIXINHO), 'utf8');
 
 function elemento(fonte, nomeFonte, id) {
   const m = fonte.match(new RegExp(`<(path|g|rect)\\b[^>]*\\bid="${id}"[^>]*>`));
@@ -68,14 +63,6 @@ const FILETE_D = retangulo('filete-direito');
 const CX_MONO = caixa('monograma');
 const CX_NOME = caixa('nome');
 const CX_ADV = caixa('advocacia');
-
-const PETALAS = ['teal', 'vinho', 'menta'].map((nome) => {
-  const tag = elemento(px, FONTE_PEIXINHO, `petala-${nome}`);
-  return { nome, d: atributo(tag, 'd'), cor: atributo(tag, 'fill') };
-});
-const VIEWBOX_PEIXINHO = atributo(px.match(/<svg[^>]*>/)[0], 'viewBox');
-const [, , PX_L, PX_A] = VIEWBOX_PEIXINHO.split(' ').map(Number);
-const MEDIDAS_PEIXINHO = `width="${Math.round(PX_L)}" height="${Math.round(PX_A)}"`;
 
 const uniao = (...cs) => [
   Math.min(...cs.map((c) => c[0])), Math.min(...cs.map((c) => c[1])),
@@ -124,30 +111,15 @@ export function nomeSvg({ classe = '', cor = 'currentColor' } = {}) {
 }
 
 /**
- * O peixinho embutido. Sem `cor`, nas cores originais; com `cor`, as três
- * pétalas numa cor só (marca d'água).
- */
-export function peixinhoSvg({ classe = '', cor = '' } = {}) {
-  const petalas = PETALAS.map((p) => `<path fill="${cor || p.cor}" d="${p.d}"/>`).join('');
-  return `<svg${classe ? ` class="${classe}"` : ''} viewBox="${VIEWBOX_PEIXINHO}" ${MEDIDAS_PEIXINHO} aria-hidden="true" focusable="false">${petalas}</svg>`;
-}
-
-/**
- * A abertura da home. Em cima, lado a lado: o peixinho à esquerda e o FL à
- * direita, separados por um filete vertical. Os contornos (.loader__traco) são
- * desenhados a traço menta e depois preenchidos pelo site.js — as pétalas nas
- * próprias cores, o FL na tinta; as faixas terra e verde do traço do FL
- * (.loader__faixa) entram por último. Embaixo, FONSECA LISBOA com ADVOCACIA
- * entre filetes: o nome é revelado por um recorte que corre da esquerda
- * (#loader-revela).
+ * A abertura da home: o FL no centro, com os contornos (.loader__traco)
+ * desenhados a traço menta e depois preenchidos pelo site.js na tinta; as
+ * faixas terra e verde do traço (.loader__faixa) entram por último. Embaixo,
+ * FONSECA LISBOA com ADVOCACIA entre filetes: o nome é revelado por um recorte
+ * que corre da esquerda (#loader-revela).
  */
 export function aberturaLoader() {
-  const petalas = PETALAS.map((p) =>
-    `<path class="loader__traco" fill="${p.cor}" d="${p.d}"/>`).join('');
   const cx = uniao(CX_NOME, CX_ADV);
   return `<div class="loader__marcas">` +
-    `<svg class="loader__peixe" viewBox="${VIEWBOX_PEIXINHO}" ${MEDIDAS_PEIXINHO} aria-hidden="true" focusable="false">${petalas}</svg>` +
-    `<span class="loader__divisor"></span>` +
     abre(CX_MONO, { classe: 'loader__fl' }) +
     `<path class="loader__traco" d="${FL}"/><path class="loader__traco" d="${TRACO}"/>` +
     `<path class="loader__faixa" fill="${COR_FL.terra}" d="${TRACO_TERRA}"/>` +
@@ -167,7 +139,7 @@ export function aberturaLoader() {
 const arquivo = (titulo, c, corpo, { cor, m = FOLGA } = {}) =>
   `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb(c, m)}"${cor ? ` fill="${cor}"` : ''} fill-rule="evenodd">\n` +
   `<title>${titulo}</title>\n` +
-  `<!-- Gerado por npm run marca a partir de ${FONTE_MARCA} e ${FONTE_PEIXINHO}. Não editar à mão. -->\n` +
+  `<!-- Gerado por npm run marca a partir de ${FONTE_MARCA}. Não editar à mão. -->\n` +
   `${corpo}\n</svg>\n`;
 
 /**
@@ -203,12 +175,4 @@ export function arquivoLogo(cor = '#EFF2EF') {
 export function arquivoAssinatura(cor = COR_FL.carvao) {
   const [corpo, c] = horizontal();
   return arquivo('Fonseca Lisboa Advocacia', c, corpo, { cor });
-}
-
-/** O peixinho numa cor só, para as marcas d'água das seções. */
-export function arquivoMarcaDagua(cor = '#EFF2EF') {
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${VIEWBOX_PEIXINHO}" fill="${cor}">\n` +
-    `<title>Fonseca Lisboa Advocacia</title>\n` +
-    `<!-- Gerado por npm run marca a partir de ${FONTE_PEIXINHO}. Não editar à mão. -->\n` +
-    PETALAS.map((p) => `<path d="${p.d}"/>`).join('\n') + '\n</svg>\n';
 }

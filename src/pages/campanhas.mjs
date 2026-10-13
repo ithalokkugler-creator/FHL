@@ -84,7 +84,6 @@ export function buildCampanha(c) {
       </p>` : '';
 
   const hero = `  <section class="page-head campanha-hero">
-    <img class="watermark watermark--right" src="${P}assets/img/marca-dagua.svg" alt="" aria-hidden="true">
     <div class="wrap page-head__inner">${aviso}
       <p class="label" data-reveal="rise">${c.rotulo}</p>
       <h1 class="h1 page-head__title campanha-hero__title r-mask" data-reveal="mask">${c.titulo}</h1>

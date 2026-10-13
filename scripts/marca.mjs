@@ -4,12 +4,10 @@
 //
 //   npm run marca
 //
-// Regera, a partir de assets/img/logo.svg (logomarca FL) e
-// assets/img/peixinho.svg (a marca antiga) — ver src/lib/marca.mjs:
+// Regera, a partir de assets/img/logo.svg (logomarca FL) — ver src/lib/marca.mjs:
 //
-//   assets/img/marca-dagua.svg  o peixinho numa cor só — marca d'água das seções
 //   assets/img/assinatura.svg   FL + FONSECA LISBOA / ADVOCACIA, tinta clara — rodapé
-//   assets/img/favicon.png      192×192, o peixinho sobre o carvão
+//   assets/img/favicon.png      192×192, o monograma FL sobre o carvão
 //   assets/img/logo.png         512×512, o FL sobre o carvão — o `logo` do JSON-LD.
 //                               O Google mostra esse arquivo sobre fundo
 //                               branco: a tinta clara sem fundo sumiria.
@@ -18,8 +16,7 @@
 //   sistema/img/…               peças para a área dos advogados, que não passa
 //                               pelo build e não enxerga assets/: logo completa
 //                               (entrada), monograma (menu), assinatura em
-//                               carvão (documentos — nunca o peixinho), marca
-//                               d'água e favicon
+//                               carvão (documentos) e favicon
 //
 // Os PNG são fotografados pelo Chrome/Edge em modo headless, como os cartões
 // de `npm run og`. Rodar de novo só quando uma das fontes mudar.
@@ -32,7 +29,7 @@ import { AREAS } from '../src/data/areas.mjs';
 import { SLOGAN } from '../src/data/site.mjs';
 import { ROOT } from '../src/lib/assets.mjs';
 import {
-  COR_FL, arquivoAssinatura, arquivoLogo, arquivoMarcaDagua, arquivoMonograma, monogramaSvg, peixinhoSvg,
+  COR_FL, arquivoAssinatura, arquivoLogo, arquivoMonograma, monogramaSvg,
 } from '../src/lib/marca.mjs';
 import { acharNavegador, cartaoHtml, fotografar } from './og.mjs';
 
@@ -56,7 +53,6 @@ const copiar = (de, para) => {
 };
 
 function main() {
-  escrever('assets/img/marca-dagua.svg', arquivoMarcaDagua());
   escrever('assets/img/assinatura.svg', arquivoAssinatura('#EFF2EF'));
 
   const navegador = acharNavegador();
@@ -65,9 +61,9 @@ function main() {
   const tmp = mkdtempSync(join(tmpdir(), 'fl-marca-'));
   try {
     // Favicon quase de borda a borda: na aba ele tem 16px, e cada pixel de
-    // folga é pétala que some. O logo.png tem folga de sobra, porque quem o
+    // folga é traço que some. O logo.png tem folga de sobra, porque quem o
     // exibe (Google, redes) costuma recortá-lo em círculo.
-    fotografar(navegador, quadrado(192, 176, peixinhoSvg()), join(ROOT, 'assets/img/favicon.png'), tmp, [192, 192]);
+    fotografar(navegador, quadrado(192, 128, monogramaSvg()), join(ROOT, 'assets/img/favicon.png'), tmp, [192, 192]);
     console.log('  assets/img/favicon.png');
     fotografar(navegador, quadrado(512, 300, monogramaSvg()), join(ROOT, 'assets/img/logo.png'), tmp, [512, 512]);
     console.log('  assets/img/logo.png');
@@ -81,7 +77,6 @@ function main() {
   escrever('sistema/img/logo.svg', arquivoLogo());
   escrever('sistema/img/monograma.svg', arquivoMonograma());
   escrever('sistema/img/logo-documento.svg', arquivoAssinatura());
-  copiar('assets/img/marca-dagua.svg', 'sistema/img/marca-dagua.svg');
   copiar('assets/img/favicon.png', 'sistema/img/favicon.png');
   console.log('\n  Marcas em dia. Rode `npm run og -- --todas` para os cartões das páginas.\n');
 }

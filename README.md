@@ -39,7 +39,7 @@ sozinho.
 | `npm run preview` | Serve `dist/` como está, sem watch — confere o que vai ao ar |
 | `npm run check` | Valida links, âncoras, meta tags e SEO de todas as páginas |
 | `npm run og` | Gera as imagens de compartilhamento que faltam (artigos e campanhas) |
-| `npm run marca` | Regera marca d'água, assinatura do rodapé, favicon, `logo.png`, `og.png` e as peças da área dos advogados a partir de `assets/img/logo.svg` (FL) e `assets/img/peixinho.svg` |
+| `npm run marca` | Regera assinatura do rodapé, favicon, `logo.png`, `og.png` e as peças da área dos advogados a partir de `assets/img/logo.svg` (FL) |
 | `npm run clean` | Apaga `dist/` |
 | `npm run sistema:test` | Testes dos cálculos da área dos advogados — ver [`sistema/README.md`](sistema/README.md) |
 
@@ -106,7 +106,7 @@ src/
   partials/institucional.mjs  Método e números (home e escritório)
   lib/html.mjs           pageHead, nextBlock, arrowLink, descritor de página
   lib/icones.mjs         Ícones de traço em SVG inline (canais, compartilhar)
-  lib/marca.mjs          Marcas: lê logo.svg (FL) e peixinho.svg e monta os SVG embutidos
+  lib/marca.mjs          Marca: lê logo.svg (FL) e monta os SVG embutidos
   lib/seo.mjs            Canonical, Open Graph, JSON-LD
   lib/assets.mjs         Existência e dimensões de imagens
   pages/*.mjs            Uma função por página (ou por família de páginas)
@@ -132,8 +132,7 @@ assets/
   fonts/                 Galano Grotesque + Newsreader (.woff2)
   vendor/                GSAP, ScrollTrigger, Lenis
   img/logo.svg           Logomarca FL — fonte única (ver Identidade)
-  img/peixinho.svg       A marca antiga, de volta — fonte única (ver Identidade)
-  img/                   Marca d'água, assinatura, favicon, logo.png, grão, fallback do herói, OG
+  img/                   Assinatura, favicon, logo.png, grão, fallback do herói, OG
   img/og/                Imagens de compartilhamento geradas por `npm run og`
   img/publicacoes/       Imagens dos cartões de post dentro dos artigos
 
@@ -198,7 +197,10 @@ juridiquês, e a conformidade com o Provimento 205/2021.
 
 ## Identidade
 
-Duas marcas convivem desde 09/10/2026, a pedido dos advogados:
+Uma marca só: a FL. O peixinho (a marca antiga, `Logo.jpg`) voltou em
+09/10/2026 e foi **retirado de todo o site em 13/10/2026**, a pedido dos
+advogados — abertura, marcas d'água, favicon, cartões e entrada da área dos
+advogados. As seções não têm mais marca d'água.
 
 **Logomarca FL** — o monograma FL serifado cruzado pelo traço em três faixas,
 "FONSECA LISBOA" e "ADVOCACIA" entre filetes. Original: `Fonseca Lisboa Logo
@@ -209,31 +211,23 @@ tem id (`#monograma`, `#fl`, `#traco`, `#traco-terra`, `#traco-verde`, `#nome`,
 `#advocacia`, `#filete-esquerdo`, `#advocacia-letras`, `#filete-direito`) e
 caixa (`data-caixa`), e `src/lib/marca.mjs` monta tudo dali.
 
-**Peixinho** — a marca antiga (`Logo.jpg`, igual a `LogosNovas/Logo_Peixinho.jpg`):
-três setores de círculo em teal, vinho e menta — as cores do site. Desenhado em
-**`assets/img/peixinho.svg`** por medida do JPG (lados retos 809,5, arco de raio
-854,7; 99% de sobreposição com o original). **Nunca vai para os documentos
-gerados.**
-
 | Onde | Marca |
 |---|---|
 | Header | FL embutido (letras em `currentColor`, escurecem sozinhas sobre as seções claras; faixas terra/verde fixas) + filete + FONSECA LISBOA; no celular só o FL |
 | Rodapé | Assinatura horizontal FL (`assinatura.svg`) |
-| Abertura da home | Peixinho e FL desenhados lado a lado + nome FL (ver abaixo) |
-| Marca d'água | Peixinho numa cor (`marca-dagua.svg`) ampliado e recortado pela borda, 4,5% de opacidade |
-| Favicon | Peixinho sobre o carvão |
-| `logo.png` (JSON-LD), `og.png`, cartões de `npm run og` | FL (os cartões levam o peixinho de marca d'água) |
-| Área dos advogados | Entrada: logo FL completa + peixinho de marca d'água · menu: monograma FL · **documentos: só a assinatura FL** |
+| Abertura da home | FL desenhado no centro da tela + nome FL (ver abaixo) |
+| Favicon | Monograma FL sobre o carvão |
+| `logo.png` (JSON-LD), `og.png`, cartões de `npm run og` | FL |
+| Área dos advogados | Entrada: logo FL completa · menu: monograma FL · **documentos: só a assinatura FL** |
 | Retratos da equipe | O filete, na cor do advogado |
 
 Trocar a FL = regerar com `LogosNovas/FL/_fonte/gerar.py`; depois
 `npm run marca` e `npm run og -- --todas`.
 
-**Abertura (1ª visita da sessão, só na home, ~3s):** as duas marcas se
-desenham lado a lado — o peixinho à esquerda, o FL à direita, um filete
-vertical entre eles crescendo do centro. Cada contorno é traçado em menta
-(`stroke-dasharray`) e depois preenchido: as pétalas nas próprias cores, o FL
-na tinta, e as faixas terra e verde do traço entram por último. Então
+**Abertura (1ª visita da sessão, só na home, ~3s):** o monograma FL se
+desenha no centro da tela. Cada contorno é traçado em menta
+(`stroke-dasharray`) e depois preenchido na tinta, e as faixas terra e verde
+do traço entram por último. Então
 FONSECA LISBOA se revela embaixo, da esquerda (um `clipPath` que cresce), e os
 filetes do ADVOCACIA crescem a partir das letras. Depois os painéis se separam.
 Timeline em `initLoader()` de `assets/js/site.js`; marcação em `aberturaLoader()`
@@ -241,14 +235,14 @@ de `src/lib/marca.mjs`. Como passa dos 3s da rede de segurança do `<head>` em
 rede lenta, o `site.js` marca `ied-boot` ao começar e a rede deixa de agir — a
 abertura tem teto próprio (4,2s).
 
-**Cores.** As do site são as do peixinho; a FL entra em tinta clara sobre o
+**Cores.** As do site vêm da marca antiga (teal, vinho, menta); a FL entra em tinta clara sobre o
 petróleo e em petróleo sobre o claro, com as faixas do traço em cor própria:
 
 | Cor | Papel |
 |---|---|
-| `#2E615D` teal | Acento sobre fundo **claro** (6,2:1) · pétala |
-| `#A2CBB8` menta | Acento sobre fundo **escuro** (9,7:1) · cortina de menu · rim light do herói · pétala |
-| `#6E5551` vinho | Acento quente, preenchimentos · pétala |
+| `#2E615D` teal | Acento sobre fundo **claro** (6,2:1) |
+| `#A2CBB8` menta | Acento sobre fundo **escuro** (9,7:1) · cortina de menu · rim light do herói |
+| `#6E5551` vinho | Acento quente, preenchimentos |
 | `#4B3D37` terra · `#435B54` verde | Faixas do traço da FL |
 | `#202322` carvão | Fundo do favicon e do `logo.png`; tinta da FL nos documentos |
 

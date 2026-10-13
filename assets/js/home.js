@@ -106,27 +106,6 @@ window.IED = window.IED || {};
   }
 
   /* =====================================================================
-     4.4 MARCA D'ÁGUA — parallax do ampersand
-     ===================================================================== */
-  function watermarks() {
-    if (M.reduced) return;
-
-    document.querySelectorAll('.watermark').forEach(function (w) {
-      var amount = window.innerWidth < 768 ? -5 : -12;   // 40% em mobile (13)
-      gsap.to(w, {
-        yPercent: amount,
-        ease: 'none',
-        scrollTrigger: {
-          trigger: w.closest('section') || w.parentElement,
-          start: 'top bottom',
-          end: 'bottom top',
-          scrub: true
-        }
-      });
-    });
-  }
-
-  /* =====================================================================
      6.3 ATUAÇÃO — pin de 300vh
      ===================================================================== */
   function atuacao() {
@@ -396,7 +375,6 @@ window.IED = window.IED || {};
 
   function init() {
     hero();
-    watermarks();
     atuacao();
     metodo();
     numeros();

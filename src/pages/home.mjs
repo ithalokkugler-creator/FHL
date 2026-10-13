@@ -73,8 +73,6 @@ ${a.itens.slice(0, 4).map((it) => `                <li>${it}</li>`).join('\n')}
 
   <!-- MANIFESTO -->
   <section class="section manifesto">
-    <img class="watermark watermark--left" src="assets/img/marca-dagua.svg" alt="" aria-hidden="true">
-
     <div class="wrap manifesto__inner">
       <p class="label" data-reveal="rise">O Escritório</p>
 
@@ -128,8 +126,6 @@ ${numeros()}
   <section class="linguagem">
     <div class="linguagem__sticky">
       <div class="wrap linguagem__inner">
-        <img class="watermark watermark--right" src="assets/img/marca-dagua.svg" alt="" aria-hidden="true">
-
         <div class="grid">
           <div class="linguagem__head">
             <p class="label" data-reveal="rise">Linguagem</p>

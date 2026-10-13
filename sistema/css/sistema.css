@@ -4,7 +4,7 @@
    ========================================================================== */
 
 /* A identidade é a do site (assets/css/tokens.css): o monograma FL em tinta
-   clara sobre o verde-petróleo (o peixinho, a marca antiga, só na entrada), os acentos menta e teal e o raio de canto
+   clara sobre o verde-petróleo, os acentos menta e teal e o raio de canto
    binário — 0 em tudo, pílula só no botão principal. O que muda é o uso.
    Isto é tela de trabalho: clara, densa, feita para tabela e número.
 
@@ -865,19 +865,6 @@ a.lista__item:hover { background: var(--c-realce); }
   color: var(--c-ink-claro);
 }
 .entrada__marca > * { position: relative; }
-/* O peixinho — a marca antiga — tom sobre tom, recortado pela borda direita,
-   como as marcas d'água do site. Nunca nos documentos. */
-.entrada__marca > .entrada__peixe {
-  position: absolute;
-  top: 50%;
-  right: -14%;
-  width: auto;
-  height: 118%;
-  transform: translateY(-50%);
-  opacity: 0.05;
-  pointer-events: none;
-  user-select: none;
-}
 .entrada__assinatura { display: block; width: min(280px, 100%); height: auto; }
 .entrada__frase {
   max-width: 18ch;

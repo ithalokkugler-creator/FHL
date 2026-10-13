@@ -34,7 +34,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { carregarConteudo } from '../src/data/conteudo.mjs';
 import { CIDADE, RAZAO } from '../src/data/site.mjs';
 import { ROOT } from '../src/lib/assets.mjs';
-import { monogramaSvg, nomeSvg, peixinhoSvg } from '../src/lib/marca.mjs';
+import { monogramaSvg, nomeSvg } from '../src/lib/marca.mjs';
 import { OG_MANIFEST, lerOgManifest, ogImagePath } from '../src/lib/seo.mjs';
 import { allPages } from './build.mjs';
 
@@ -72,15 +72,6 @@ body {
   color: #EFF2EF;
   font-family: 'Galano Grotesque', sans-serif;
   -webkit-font-smoothing: antialiased;
-}
-.marca-dagua {
-  position: absolute;
-  top: 50%;
-  right: -120px;
-  height: 640px;
-  width: auto;
-  transform: translateY(-50%);
-  opacity: 0.06;
 }
 .marca {
   position: absolute;
@@ -141,7 +132,6 @@ body {
 </style>
 </head>
 <body>
-${peixinhoSvg({ classe: 'marca-dagua', cor: '#EFF2EF' })}
 <div class="marca">
   ${monogramaSvg({ classe: 'marca__fl' })}${nomeSvg({ classe: 'marca__nome' })}
 </div>

@@ -49,11 +49,11 @@ Estado e ordem de publicação:
 **Marca FL — 09/10/2026 (local, sem commit, migração `20261009120000_marca_fl` não aplicada):**
 com a saída do Marlon a sociedade passou a **Fonseca Lisboa Advocacia (FL)**.
 Logo definitiva: `Fonseca Lisboa Logo final.png` — vetorizada e desmembrada em
-`LogosNovas/FL/` (paleta exata em `LogosNovas/FL/paleta.svg`). Os advogados
-pediram de volta o **peixinho** (`Logo.jpg`, a marca antiga de pétalas): ele
-abre a home, faz as marcas d'água e o favicon; a FL fica no cabeçalho, rodapé,
-área dos advogados e documentos. **O peixinho nunca vai para os documentos
-gerados.** Detalhes: README §Identidade. As menções a "FHL" abaixo são
+`LogosNovas/FL/` (paleta exata em `LogosNovas/FL/paleta.svg`). O **peixinho**
+(`Logo.jpg`, a marca antiga de pétalas) voltou em 09/10 e **foi retirado de
+todo o site em 13/10/2026**, a pedido dos advogados: a abertura da home mostra
+só a FL, centrada; favicon é o monograma FL; não há mais marcas d'água.
+Detalhes: README §Identidade. As menções a "FHL" abaixo são
 histórico.
 
 ---
@@ -213,7 +213,7 @@ link para abrir no celular.
    "Fonseca Hespanha Lisboa", em `LogosNovas/`) substituiu a antiga no site e
    na área dos advogados. Ainda falta o arquivo vetorial original — o site usa
    uma vetorização do PNG (README §Identidade). **Substituída em 09/10/2026**
-   pela FL (`Fonseca Lisboa Logo final.png`), com o peixinho de volta.
+   pela FL (`Fonseca Lisboa Logo final.png`); o peixinho voltou e saiu de novo em 13/10.
 5. **SEO / tráfego** [18:30]. Pergunta genuína dele: mais interação = mais
    entrega, como no Instagram? Quer orgânico **e** pago. Merece uma resposta
    curta e honesta na próxima conversa.

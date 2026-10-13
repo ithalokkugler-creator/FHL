@@ -143,7 +143,6 @@ export function build404() {
   // existe, inclusive dentro de /atuacao/ ou /publicacoes/, onde os relativos
   // do resto do site apontariam para o lugar errado.
   const body = `  <section class="notfound">
-    <img class="watermark watermark--right" src="/assets/img/marca-dagua.svg" alt="" aria-hidden="true">
     <div class="wrap notfound__inner">
       <p class="label" data-reveal="rise">Erro 404</p>
       <h1 class="display notfound__title r-mask" data-reveal="mask">Página não encontrada</h1>
