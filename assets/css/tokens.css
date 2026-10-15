@@ -212,5 +212,17 @@
 }
 
 @media (max-width: 767px) {
-  :root { --header-h: 68px; }
+  /* Celular: a escala de espaço do desktop deixava faixas vazias entre as
+     seções e entre título e conteúdo (respiro pensado para 900px de altura
+     vira meia tela no telefone). Mesma proporção, degraus menores. */
+  :root {
+    --header-h: 68px;
+    --s-4: 28px;
+    --s-5: 40px;
+    --s-6: 56px;
+    --s-7: 96px;
+    --s-8: 128px;
+    --s-section: 64px;
+    --s-section-fn: 56px;
+  }
 }

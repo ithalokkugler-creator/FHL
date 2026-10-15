@@ -302,7 +302,7 @@
 
 @media (max-width: 900px) {
   /* Pin desligado em mobile: vira pilha vertical (6.3) */
-  .atuacao__sticky { min-height: 0; display: block; padding-block: 0; }
+  .atuacao__sticky { min-height: 0; display: block; padding-block: var(--s-4) 0; }
   .atuacao__index, .atuacao__panels { grid-column: 1 / -1; }
   .atuacao__panels { position: static; min-height: 0; }
   .atuacao__panel {
@@ -315,6 +315,8 @@
   }
   .atuacao__panel > * { transform: none; }
   .atuacao__index { display: none; }
+  /* O painel já abre com respiro próprio: o rótulo não precisa do degrau cheio. */
+  .atuacao__head { margin-bottom: 0; }
   .atuacao__panel-num { font-size: 30px; margin-bottom: 0; }
   .atuacao__panel-title { margin-bottom: var(--s-1); }
   /* Na pilha a lista alongaria demais a seção: a página da área tem tudo. */

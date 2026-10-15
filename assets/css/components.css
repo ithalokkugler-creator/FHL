@@ -250,6 +250,26 @@
   flex-shrink: 0;   /* nunca é o bloco espremido quando o espaço aperta */
 }
 .menu__meta a { color: inherit; }
+
+/* Celular: itens maiores e com área de toque de ~48px cada (antes o alvo era
+   só a linha do texto, 24px, e os seis itens ficavam colados). */
+@media (max-width: 767px) {
+  .menu__inner { justify-content: flex-start; padding-top: calc(var(--header-h) + var(--s-3)); }
+  .menu__nav { margin-bottom: var(--s-4); }
+  .menu__link {
+    display: block;
+    font-size: clamp(28px, 8.4vw, 38px);
+    line-height: 1.1;
+    padding-block: 9px;
+  }
+  .menu__meta { gap: var(--s-3); }
+  /* O botão Menu/Fechar também: 44px de alvo sem mudar o desenho. */
+  .menu-toggle { min-height: 44px; padding-inline: 8px; margin-right: -8px; }
+  .menu__meta a {
+    display: inline-block;
+    padding-block: 6px;
+  }
+}
 .menu__meta-label {
   font-size: var(--t-label);
   letter-spacing: var(--tr-label);
@@ -851,7 +871,13 @@ main:has(> .next-block:last-child) + .footer .footer__top {
    A marca sai de cena junto com o "Fale conosco": sobre o painel fica só o
    que fecha o menu.
    -------------------------------------------------------------------------- */
-.menu-open .header {
+/* `.header.is-solid.is-light-bg` (fundo claro translúcido) tem especificidade
+   maior que `.menu-open .header`: aberto o menu sobre Método/Números/Contato,
+   ficava uma faixa clara por cima da menta. Os seletores abaixo cobrem os
+   três estados do header. */
+.menu-open .header,
+.menu-open .header.is-solid,
+.menu-open .header.is-solid.is-light-bg {
   z-index: calc(var(--z-menu) + 1);
   transform: none;
   background: transparent;
