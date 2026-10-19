@@ -86,21 +86,22 @@ export const nomeDaParcela = (numero) => (numero === 0 ? 'Entrada' : `Parcela ${
 
 /**
  * Onde cada parcela está no seu plano: "2 de 10" no plano original, "1 de 3"
- * na renegociação que a criou.
+ * na renegociação que a criou — e, no fixo + êxito, "1 de 2" nas parcelas do
+ * êxito, separadas das do fixo.
  *
  * Renegociar não renumera nada — as parcelas novas continuam a contagem do
  * contrato (a 11, a 12…), e é esse número que aparece nos recebimentos e na
  * cobrança. Mostrar "11/2" ao lado dele, como a tela fazia, confundia; a
  * posição dentro do grupo é que diz a quem lê quantas faltam.
  *
- * @param {{ id: string, numero: number, origem_renegociacao_id?: string|null }[]} parcelas
+ * @param {{ id: string, numero: number, origem_renegociacao_id?: string|null, parte?: string }[]} parcelas
  * @returns {Map<string, { posicao: number, total: number }>}  a entrada fica de fora
  */
 export function posicoes(parcelas) {
   const grupos = new Map();
   for (const p of parcelas) {
     if (p.numero === 0) continue;
-    const chave = p.origem_renegociacao_id ?? 'original';
+    const chave = p.origem_renegociacao_id ?? (p.parte === 'exito' ? 'exito' : 'original');
     if (!grupos.has(chave)) grupos.set(chave, []);
     grupos.get(chave).push(p);
   }
@@ -111,4 +112,33 @@ export function posicoes(parcelas) {
     grupo.forEach((p, i) => mapa.set(p.id, { posicao: i + 1, total: grupo.length }));
   }
   return mapa;
+}
+
+/**
+ * Contrato encadeado: quando o novo começa, se começa depois de `anterior`.
+ * Um mês depois do que terminar por último — o último vencimento vigente ou
+ * a vigência, quando informada. A pessoa confere e pode mudar.
+ *
+ * @param {{ ultimo_vencimento?: string|null, data_fim?: string|null }} anterior
+ * @returns {string|null}  'AAAA-MM-DD'
+ */
+export function inicioDepoisDe({ ultimo_vencimento, data_fim } = {}) {
+  const fim = [ultimo_vencimento, data_fim].filter(Boolean).sort().at(-1);
+  return fim ? somarMeses(fim, 1) : null;
+}
+
+/**
+ * Acordo com repasse: quanto de um valor é do escritório e quanto é do
+ * cliente, pela cota do escritório. Mesma conta do banco
+ * (round(valor × cota / 100, 2), metade para cima), em centavos inteiros
+ * para não errar no último centavo: 30% de R$ 333,33 → 100,00 e 233,33.
+ *
+ * @param {number} valor  centavos
+ * @param {number} cota   percentual do escritório, até duas casas (30, 33.33)
+ * @returns {{ escritorio: number, cliente: number }}  centavos
+ */
+export function divisaoDoRepasse(valor, cota) {
+  const centesimos = Math.round(Number(cota) * 100);
+  const escritorio = Math.floor((valor * centesimos + 5000) / 10000);
+  return { escritorio, cliente: valor - escritorio };
 }

@@ -8,7 +8,7 @@ export function buildEscritorio() {
     'O Escritório',
     'Entender o caso primeiro, agir depois',
     'A Fonseca Lisboa Advocacia atende pessoas e empresas em Paranaguá e região, nas áreas ' +
-    'trabalhista, previdenciária, do consumidor e cível.'
+    'trabalhista, previdenciária, do consumidor, cível, criminal e imobiliária.'
   ) + `
 
   <section class="section">
@@ -29,10 +29,9 @@ export function buildEscritorio() {
             parte dos casos se decide, antes de qualquer peça ser escrita.
           </p>
           <p class="r-rise">
-            Além das quatro áreas principais, a equipe atua em família e sucessões,
-            direito imobiliário, criminal, ambiental, regularização fundiária e
-            direito portuário — este último, natural para um escritório
-            em Paranaguá.
+            Além das seis áreas principais, a equipe atua em família e sucessões,
+            direito ambiental, regularização fundiária e direito portuário —
+            este último, natural para um escritório em Paranaguá.
           </p>
         </div>
 
@@ -53,7 +52,7 @@ ${numeros()}
     path: 'escritorio.html',
     title: 'O Escritório — Fonseca Lisboa Advocacia',
     desc: 'Quem é a Fonseca Lisboa Advocacia: três advogados em Paranaguá, com atuação ' +
-      'trabalhista, previdenciária, do consumidor e cível.',
+      'trabalhista, previdenciária, do consumidor, cível, criminal e imobiliária.',
     body,
   });
 }

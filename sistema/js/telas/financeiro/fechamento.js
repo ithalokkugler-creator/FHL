@@ -118,6 +118,9 @@ function tela(mes, { registro, foto, lista }) {
   const admin = pode.administrar();
   const futuro = mes > inicioDoMes(hoje());
   const cotasErradas = d.modelo === 'cotas' && Math.abs(Number(d.soma_percentuais) - 100) >= 0.01;
+  // Acordo com repasse (out/2026): a parte dos clientes entra no caixa mas não
+  // é do escritório. Foto de mês fechado antes disso não tem a chave: zero.
+  const repasses = centavos(t.repasses ?? 0);
 
   return html`
     ${cabecalhoImpressao()}
@@ -137,8 +140,9 @@ function tela(mes, { registro, foto, lista }) {
 
     <div class="indicadores">
       ${indicador('Entradas', moeda(centavos(t.entradas)), plural(Number(t.recebimentos), 'recebimento', 'recebimentos'), { tom: 'ok' })}
+      ${repasses ? indicador('Repasses a clientes', moeda(repasses), `honorários do mês: ${moeda(centavos(t.entradas) - repasses)}`) : ''}
       ${indicador('Saídas', moeda(centavos(t.saidas)), t.pagamentos != null ? plural(Number(t.pagamentos), 'pagamento de despesa', 'pagamentos de despesas') : 'contas pagas no mês')}
-      ${indicador('Resultado', moeda(centavos(t.resultado)), 'entradas − saídas', { tom: Number(t.resultado) < 0 ? 'perigo' : '' })}
+      ${indicador('Resultado', moeda(centavos(t.resultado)), repasses ? 'entradas − repasses − saídas' : 'entradas − saídas', { tom: Number(t.resultado) < 0 ? 'perigo' : '' })}
     </div>
 
     <div class="grade grade--2">
@@ -150,6 +154,10 @@ function tela(mes, { registro, foto, lista }) {
             <tr><td>Multa, juros e correção recebidos</td><td class="num">${moeda(centavos(t.encargos))}</td></tr>
             <tr><td>Entradas avulsas</td><td class="num">${moeda(centavos(t.avulsas))}</td></tr>
             ${t.entradas_por_forma.map((f) => html`<tr><td class="sub">por ${f.forma}</td><td class="num sub">${moeda(centavos(f.valor))}</td></tr>`)}
+            ${repasses ? html`
+              <tr><td>Parte dos clientes (acordos)</td><td class="num">− ${moeda(repasses)}</td></tr>
+              <tr><td class="sub">repassada no mês</td><td class="num sub">${moeda(centavos(t.repasses_feitos ?? 0))}</td></tr>
+              <tr><td><strong>Honorários do mês</strong></td><td class="num"><strong>${moeda(centavos(t.entradas) - repasses)}</strong></td></tr>` : ''}
           </tbody>
         </table>
       </section>
@@ -171,7 +179,7 @@ function tela(mes, { registro, foto, lista }) {
         <a class="botao botao--pequeno" href="#/financeiro/configuracoes">Regra</a>
       </header>
       <div class="painel__corpo">
-        <p class="sub">Regra: ${MODELOS[d.modelo] ?? d.modelo}, sobre ${d.despesas_antes ? 'o resultado (depois das despesas)' : 'as entradas (antes das despesas)'} — base de ${moeda(centavos(d.base))}.</p>
+        <p class="sub">Regra: ${MODELOS[d.modelo] ?? d.modelo}, sobre ${d.despesas_antes ? 'o resultado (depois das despesas)' : `${repasses ? 'os honorários' : 'as entradas'} (antes das despesas)`} — base de ${moeda(centavos(d.base))}.${repasses ? ' A parte dos clientes nos acordos fica fora da divisão.' : ''}</p>
         ${cotasErradas ? html`<p class="nota nota--perigo">As cotas somam ${percentual(d.soma_percentuais)}, e não 100%. Ajuste em Configurações antes de fechar.</p>` : ''}
         ${Number(d.base) < 0 ? html`<p class="nota">O resultado do mês ficou negativo: os valores abaixo são quanto cabe a cada sócio cobrir.</p>` : ''}
       </div>
@@ -204,6 +212,10 @@ function tela(mes, { registro, foto, lista }) {
           <span>Contas do mês com saldo a pagar${p.contas_pagas_em_parte ? ` (${p.contas_pagas_em_parte} paga(s) em parte)` : ''}</span>
           <span class="num${p.contas_sem_baixa ? ' perigo' : ''}">${p.contas_sem_baixa} · ${moeda(centavos(p.contas_sem_baixa_valor))}</span>
         </a></li>
+        ${p.repasses_pendentes != null ? html`<li><a class="lista__item" href="#/financeiro/contratos?situacao=repasse">
+          <span>Parte de clientes recebida e não repassada até o fim do mês</span>
+          <span class="num${Number(p.repasses_pendentes) ? ' perigo' : ''}">${p.repasses_pendentes} · ${moeda(centavos(p.repasses_pendentes_valor))}</span>
+        </a></li>` : ''}
       </ul>
     </section>
 
@@ -226,6 +238,7 @@ function planilha(mes, { totais: t, divisao: d }) {
     ['  Parcelas de contratos', centavos(t.principal_parcelas)],
     ['  Multa, juros e correção', centavos(t.encargos)],
     ['  Entradas avulsas', centavos(t.avulsas)],
+    ...(Number(t.repasses) ? [['Repasses a clientes (acordos)', -centavos(t.repasses)], ['Honorários', centavos(t.honorarios)]] : []),
     ['Saídas', centavos(t.saidas)],
     ...t.saidas_por_categoria.map((c) => [`  ${c.categoria}`, centavos(c.valor)]),
     ['Resultado', centavos(t.resultado)],

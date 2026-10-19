@@ -1,7 +1,12 @@
-// ÁREAS DE ATUAÇÃO  [CONFIRMAR lista final com o escritório]
+// ÁREAS DE ATUAÇÃO
 //
 // A ordem deste array define a numeração exibida (`num`), a ordem do índice
-// em atuacao.html, do pin da home e da lista no rodapé.
+// em atuacao.html, do pin da home e da lista no rodapé. Criminal e
+// Imobiliário entraram em out/2026, a pedido do Vinícius — textos a revisar
+// pelos advogados (Vinícius no criminal, Guilherme no imobiliário).
+//
+// Área nova também vai para AREAS em sistema/js/telas/site/base.js, a lista
+// que publicações e campanhas usam na área dos advogados.
 
 export const AREAS = [
   {
@@ -82,8 +87,8 @@ export const AREAS = [
     num: '04',
     nome: 'Direito Cível',
     resumo:
-      'Contratos, cobranças, indenizações, responsabilidade civil, posse, ' +
-      'propriedade e locação.',
+      'Contratos, cobranças, indenizações, responsabilidade civil e ' +
+      'assessoria preventiva.',
     intro:
       'O direito cível é onde a maior parte dos conflitos do dia a dia se ' +
       'resolve: um contrato descumprido, uma dívida não paga, um dano que ' +
@@ -94,11 +99,64 @@ export const AREAS = [
       'Cobrança e execução de dívidas',
       'Responsabilidade civil e indenizações',
       'Danos morais e materiais',
-      'Posse, propriedade e usucapião',
-      'Locação residencial e comercial',
+      // Posse, usucapião e locação passaram para Direito Imobiliário.
+      'Assessoria preventiva e notificações extrajudiciais',
+      'Obrigações de fazer e tutelas de urgência',
     ],
     quando:
       'Antes de assinar, quando ainda dá para mudar o texto. E assim que o ' +
       'descumprimento acontece, enquanto a prova ainda é recuperável.',
+  },
+  {
+    slug: 'criminal',
+    num: '05',
+    nome: 'Direito Criminal',
+    resumo:
+      'Defesa em inquérito policial e ação penal, prisão em flagrante, ' +
+      'audiência de custódia, habeas corpus e recursos.',
+    intro:
+      'No processo penal, boa parte do caso se define nos primeiros atos: o ' +
+      'depoimento na delegacia, a audiência de custódia, a forma como a prova ' +
+      'foi colhida. Por isso a defesa técnica começa cedo — pelo que já está ' +
+      'nos autos, com orientação clara a quem é investigado e à família.',
+    itens: [
+      'Acompanhamento em delegacia e inquérito policial',
+      'Prisão em flagrante e audiência de custódia',
+      'Liberdade provisória, revogação de prisão e habeas corpus',
+      'Defesa em ação penal e no Tribunal do Júri',
+      'Acordo de não persecução penal e transação penal',
+      'Recursos criminais e assistência de acusação',
+    ],
+    quando:
+      'Ao receber intimação para depor, antes de comparecer; logo depois de ' +
+      'uma prisão ou de um mandado de busca; e assim que chegar a citação. Os ' +
+      'prazos da defesa são curtos, e o que se diz no primeiro depoimento ' +
+      'acompanha o caso até o fim.',
+  },
+  {
+    slug: 'imobiliario',
+    num: '06',
+    nome: 'Direito Imobiliário',
+    resumo:
+      'Compra e venda, análise de documentos do imóvel, locação, distrato, ' +
+      'usucapião e regularização registral.',
+    intro:
+      'O imóvel costuma ser o maior patrimônio de uma família ou de uma ' +
+      'empresa, e o problema quase sempre nasce antes da assinatura: matrícula ' +
+      'com pendência, vendedor com dívida, contrato que não diz o que as ' +
+      'partes combinaram. Atuamos na prevenção — conferindo documentos e ' +
+      'redigindo contratos — e no conflito, quando ele já existe.',
+    itens: [
+      'Análise de matrícula, certidões e documentos antes da compra',
+      'Contratos de compra e venda, permuta e promessa',
+      'Locação residencial e comercial, despejo e renovatória',
+      'Atraso na entrega de obra e distrato com construtora',
+      'Usucapião judicial e extrajudicial',
+      'Regularização de imóvel, escritura e registro',
+    ],
+    quando:
+      'Antes de assinar o contrato ou dar o sinal, quando ainda dá para ' +
+      'conferir a matrícula e mudar o texto. E assim que surgir o atraso, a ' +
+      'inadimplência ou a disputa sobre a posse — documento reunido cedo vale mais.',
   },
 ];

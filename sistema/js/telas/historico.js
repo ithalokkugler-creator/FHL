@@ -37,6 +37,7 @@ const TABELAS = {
   centros_custo: 'Centro de custo',
   contas_financeiras: 'Conta financeira',
   transferencias_financeiras: 'Transferência entre contas',
+  repasses_cliente: 'Repasse ao cliente',
   fechamentos: 'Fechamento do mês',
   fechamentos_anuais: 'Fechamento do ano',
   fechamentos_anuais_versoes: 'Versão do fechamento do ano',
@@ -152,6 +153,17 @@ const CAMPOS = {
   conferida_em: 'conferida em',
   renegociacao_id: 'renegociação',
   chegada_em: 'chegada do cliente',
+  tipo_honorario: 'honorários',
+  exito_pct: 'êxito (%)',
+  valor_exito: 'êxito apurado',
+  exito_base: 'base do êxito',
+  exito_apurado_em: 'êxito apurado em',
+  exito_apurado_por: 'êxito apurado por',
+  inicia_apos_contrato_id: 'começa depois do contrato',
+  parte: 'parte do contrato',
+  cota_escritorio_pct: 'cota do escritório (%)',
+  valor_repasse: 'parte do cliente',
+  recebimento_id: 'recebimento',
 };
 
 const nomeCampo = (c) => CAMPOS[c] ?? c.replace(/_id$/, '').replace(/_/g, ' ');
@@ -162,6 +174,7 @@ const CONTAGENS = { uteis: 'Dias úteis', corridos: 'Dias corridos', horas: 'Hor
 const VALORES = {
   prioridade: PRIORIDADES, area: AREAS_JURIDICAS, tipo_pessoa: TIPOS_PESSOA, estado_civil: ESTADOS_CIVIS,
   contagem: CONTAGENS, tipo_honorario: TIPOS_HONORARIO, tipo_avulsa: TIPOS_AVULSA, flexao: { m: 'O cliente', f: 'A cliente' },
+  parte: { fixo: 'Fixo', exito: 'Êxito' },
 };
 const TIPOS = {
   tarefas: { tarefa: 'Tarefa', prazo: 'Prazo processual' },

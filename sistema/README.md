@@ -51,6 +51,11 @@ Doze migrações (`20261008120000`–`20261008121100`) e duas funções de borda
 publicar**. Estado, ordem de publicação e decisões a confirmar:
 [HANDOFF-FINANCEIRO-DJEN.md](../HANDOFF-FINANCEIRO-DJEN.md).
 
+**19/10/2026 · fixo + êxito, contrato encadeado e acordo com repasse:** ver
+[Financeiro](#fixo--êxito-contrato-encadeado-e-acordo-com-repasse-1910). Uma
+migração (`20261019120000`), 50 verificações SQL novas
+(`supabase/testes/honorarios-repasse.sql`) e 5 testes JS.
+
 **09/10/2026 · revisão de código, banco e visual:** correções de permissões,
 captura DJEN, filtros e previsões financeiras, recibos históricos, importação,
 anexos, indisponibilidade dos serviços e seleção de cliente no editor.
@@ -289,6 +294,48 @@ contrato.
 - **Importar planilha**: modelo próprio (CSV/XLSX) → área de conferência →
   carga numa transação só. A planilha oficial do escritório ainda não chegou.
 
+### Fixo + êxito, contrato encadeado e acordo com repasse (19/10)
+
+Pedidos do Vinícius no grupo do escritório, preparados em
+[`preparacao-pedidos-advogados.md`](../preparacao-pedidos-advogados.md).
+Migração `20261019120000_honorarios_misto_repasse`.
+
+- **Fixo + êxito** (`tipo_honorario = 'misto'`): o valor fixo gera as
+  parcelas na criação; o percentual fica "a apurar". `valor_total` continua
+  sendo o fixo (é o que o contrato em Word mostra). "Apurar êxito" grava o
+  apurado em `valor_exito`, uma vez, e cria as parcelas com `parte = 'exito'`,
+  continuando a numeração. O plano confere contra fixo + êxito. Com o fixo
+  quitado e o êxito pendente, o contrato fica "a apurar" e não se arquiva.
+  Os êxitos puros já apurados ganharam `valor_exito` e a data na migração.
+- **Contrato encadeado**: em Novo contrato, se o cliente tem contrato em
+  andamento, "Começar depois dele" põe a 1ª parcela (ou a entrada) um mês
+  depois do que termina por último — último vencimento ou vigência — e grava
+  `inicia_apos_contrato_id`. A ficha mostra o anterior e os seguintes.
+- **Acordo com repasse**: a parte contrária paga o acordo ao escritório e a
+  parte do cliente é repassada. A cota do escritório é **por parcela**
+  (`cota_escritorio_pct`, 100 = tudo do escritório): entra em Novo contrato
+  (fixo marcado como acordo) ou em "Apurar êxito" (acordo inteiro, cota = o
+  percentual). Cada recebimento congela `valor_repasse` na mesma proporção,
+  multa e juros inclusive. O repasse feito é `repasses_cliente` (um ativo por
+  recebimento, estornável com motivo): sai da conta financeira e não é
+  despesa. Recebimento com repasse feito não se estorna antes do repasse.
+- **Números**: "Entradas" e "Receita recebida" continuam sendo o dinheiro que
+  entrou (bate com o banco). Honorários = recebido − repasse. O fechamento do
+  mês (resultado e divisão entre sócios), o anual, o painel e os relatórios
+  tiram a parte dos clientes. Fotos de meses fechados antes disso não têm a
+  chave `repasses` e aparecem como antes.
+- **Avisos**: repasse pendente vira alerta (perigo depois de uma semana),
+  aparece em Hoje, no fechamento e no filtro "Com repasse ao cliente pendente"
+  de Contratos. Parcela de acordo atrasada aparece em Em atraso marcada como
+  devida pela parte contrária e fica fora da mensagem de cobrança ao cliente.
+- **Documentos**: contrato de honorários do misto mostra só as parcelas do
+  fixo e a cláusula de êxito; prestação de contas já vem com o valor
+  repassado; o recibo de um recebimento de acordo diz que o escritório
+  recebeu como procurador e separa honorários da parte do cliente (texto a
+  revisar pelo escritório, como os demais modelos).
+- A data do contrato nos documentos gerados do Financeiro passou a ser a de
+  formalização (`data_contrato`), não a do cadastro.
+
 ### Divisão entre sócios (6.6)
 
 Padrão até o escritório definir: **partes iguais entre os quatro sócios, depois
@@ -475,6 +522,7 @@ quem não é sócio.
 | 20261005225741 | `tarefas_prazos` **(pendente no remoto)** | Tarefas, prazos informados manualmente, feriados cadastrados e bloqueio da Agenda |
 | 20261005225750 | `intimacoes` **(pendente no remoto)** | Registro/conferência manual e vínculos atômicos de prazo/audiência |
 | 20261005232739 | `avisos_do_dia` **(pendente no remoto)** | Contadores pessoais e por permissão, sem sobreposição de tarefas |
+| 20261019120000 | `honorarios_misto_repasse` | Fixo + êxito, contrato encadeado, cota do escritório por parcela, `valor_repasse`, `repasses_cliente` e fechamento/painel pelos honorários |
 
 As seis primeiras versões foram conferidas no projeto remoto. As oito novas
 foram geradas pela CLI e executadas somente em PostgreSQL isolado. Elas ainda

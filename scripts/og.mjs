@@ -45,8 +45,11 @@ const base64 = (rel) => readFileSync(join(ROOT, rel)).toString('base64');
  * O cartão em HTML. Fontes e imagens vão embutidas em base64 porque o
  * navegador abre o arquivo por file://, e dali não carrega fonte de outro
  * arquivo. Cores e tipografia são as de assets/css/tokens.css.
+ *
+ * `css` acrescenta regras ao fim do modelo. Vazio, o HTML sai idêntico — e o
+ * hash dos cartões já gerados não muda.
  */
-export function cartaoHtml({ label, title }) {
+export function cartaoHtml({ label, title, css = '' }) {
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -129,7 +132,7 @@ body {
   text-transform: uppercase;
   color: #9FB2AC;
 }
-</style>
+${css}</style>
 </head>
 <body>
 <div class="marca">

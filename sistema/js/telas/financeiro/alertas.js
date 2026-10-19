@@ -23,6 +23,7 @@ import { cabecalho, indicador, opcoes, plural, vazio } from '../comum.js';
 const GRUPOS = {
   parcela_vencida: 'Parcelas vencidas',
   parcela_a_vencer: 'Parcelas vencendo',
+  repasse_pendente: 'Parte de clientes a repassar (acordos)',
   despesa_vencida: 'Despesas vencidas',
   despesa_a_vencer: 'Despesas vencendo',
   despesa_sem_valor: 'Despesas sem valor',
@@ -118,7 +119,7 @@ function tela(pendencias, eventos, f) {
       ${pendencias.length ? html`
         <div class="painel__corpo alertas-grupos">
           ${Object.entries(GRUPOS).filter(([tipo]) => porTipo.has(tipo)).map(([tipo, titulo]) => html`
-            <details ${['parcela_vencida', 'plano_divergente', 'mes_aberto', 'despesa_vencida'].includes(tipo) ? 'open' : ''}>
+            <details ${['parcela_vencida', 'repasse_pendente', 'plano_divergente', 'mes_aberto', 'despesa_vencida'].includes(tipo) ? 'open' : ''}>
               <summary><strong>${titulo}</strong> · ${porTipo.get(tipo).length}${soma(tipo) ? ` · ${moeda(soma(tipo))}` : ''}</summary>
               <ul class="lista">${porTipo.get(tipo).map((p) => html`
                 <li>${p.link ? html`<a class="lista__item" href="${p.link}">${conteudo(p)}</a>` : html`<div class="lista__item">${conteudo(p)}</div>`}</li>`)}

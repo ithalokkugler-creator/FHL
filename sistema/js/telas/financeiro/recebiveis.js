@@ -21,7 +21,9 @@ import { $, $$, aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { guardarConsulta } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
 import { cabecalho, paginacao, seloParcela, vazio } from '../comum.js';
-import { apoio, atualizarParcelas, opcoes, opcoesContasFinanceiras, receberParcela, rotuloParcela, somaCentavos } from './base.js';
+import {
+  apoio, atualizarParcelas, opcoes, opcoesContasFinanceiras, receberParcela, rotuloParcela, somaCentavos, temRepasse, textoDivisao,
+} from './base.js';
 import { botoesExportar, exportar } from './exportar.js';
 
 const SITUACOES = [
@@ -63,8 +65,9 @@ export default async function telaRecebiveis(ctx) {
   }
 
   desenhar(ctx.raiz, html`
-    ${cabecalho('Recebíveis', 'Parcelas de todos os contratos', html`
-      <a class="botao" href="#/financeiro/atraso">Em atraso, por cliente</a>`)}
+    ${cabecalho('Recebíveis', 'Parcelas de todos os contratos e acordos', html`
+      <a class="botao" href="#/financeiro/atraso">Em atraso, por cliente</a>
+      ${pode.lancar() ? html`<a class="botao botao--primario" href="#/financeiro/contratos/novo">Novo contrato ou acordo</a>` : ''}`)}
     <form class="filtros" role="search">
       <label class="campo"><span>Situação</span><select name="situacao">${opcoes(SITUACOES, filtro.situacao)}</select></label>
       <label class="campo"><span>Vencimento de</span><input type="date" name="de" value="${filtro.de}"></label>
@@ -185,6 +188,8 @@ export const COLUNAS_RECEBIVEIS = [
   { titulo: 'Parcela', valor: (p) => rotuloParcela(p) },
   { titulo: 'Valor', valor: (p) => centavos(p.valor), tipo: 'moeda' },
   { titulo: 'Exigível', valor: (p) => centavos(p.exigivel ?? p.valor), tipo: 'moeda' },
+  { titulo: 'Cota do escritório (%)', valor: (p) => Number(p.cota_escritorio_pct ?? 100), tipo: 'numero' },
+  { titulo: 'Do escritório (exigível)', valor: (p) => centavos(p.exigivel_escritorio ?? p.exigivel ?? p.valor), tipo: 'moeda' },
   { titulo: 'Recebido (principal)', valor: (p) => centavos(p.pago_principal), tipo: 'moeda' },
   { titulo: 'Encargos recebidos', valor: (p) => centavos(p.pago_encargos), tipo: 'moeda' },
   { titulo: 'Saldo', valor: (p) => (ABERTAS.includes(p.situacao) ? centavos(p.saldo) : 0), tipo: 'moeda' },
@@ -228,7 +233,8 @@ function tabela(linhas, total, pagina) {
                 ${p.responsavel_id ? html`<span class="sub">${nomeDe(p.responsavel_id)}</span>` : ''}
               </td>
               <td>${rotuloParcela(p)}</td>
-              <td class="num">${moeda(centavos(p.valor))}${Number(p.ajustes_desconto) || Number(p.ajustes_acrescimo) ? html`<span class="sub">exige ${moeda(centavos(p.exigivel))}</span>` : ''}</td>
+              <td class="num">${moeda(centavos(p.valor))}${Number(p.ajustes_desconto) || Number(p.ajustes_acrescimo) ? html`<span class="sub">exige ${moeda(centavos(p.exigivel))}</span>` : ''}${temRepasse(p)
+                ? html`<span class="sub">${textoDivisao(centavos(p.exigivel), p.cota_escritorio_pct)}</span>` : ''}</td>
               <td class="num">${ABERTAS.includes(p.situacao) ? moeda(centavos(p.saldo)) : '—'}</td>
               <td>${seloParcela(p.situacao, p.parcial)}</td>
               <td class="acoes">

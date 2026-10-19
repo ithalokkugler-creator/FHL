@@ -95,7 +95,7 @@ função de borda que publica o site.
 src/
   data/site.mjs          Marca, endereço, telefone, e-mail, horário, OAB, CNPJ, domínio,
                          redes, navegação, anos de atuação, envio do formulário
-  data/areas.mjs         As 4 áreas de atuação
+  data/areas.mjs         As 6 áreas de atuação
   data/equipe.mjs        Os 4 advogados (âncora, retrato, áreas em que atendem)
   data/posts.mjs         Cópia de segurança dos artigos (a fonte é o Supabase)
   data/campanhas.mjs     Cópia de segurança das campanhas (a fonte é o Supabase)
@@ -143,8 +143,8 @@ supabase/                Banco da área dos advogados: migrações, função de 
 package.json · vercel.json
 ```
 
-As 17 páginas geradas: `index.html`, `escritorio.html`, `atuacao.html` +
-`atuacao/*.html` (4), `equipe.html`, `publicacoes.html` + `publicacoes/*.html`
+As 19 páginas geradas: `index.html`, `escritorio.html`, `atuacao.html` +
+`atuacao/*.html` (6), `equipe.html`, `publicacoes.html` + `publicacoes/*.html`
 (3), `campanhas/*.html` (1), `contato.html`, `politica-de-privacidade.html`,
 `termos-de-uso.html`, `404.html` — mais `sitemap.xml` e `robots.txt`.
 
@@ -431,9 +431,11 @@ números. A seção Linguagem mostra o texto já traduzido.
    menu e no contato, e "00.000.000/0001-00" na Política de Privacidade.
    Vazios, o rodapé lista a inscrição de cada advogado e a política omite o
    CNPJ; preenchidos, aparecem sozinhos em todos esses lugares.
-4. **E-mail e domínio oficiais.** `contato@fonsecalisboa.com.br` e
-   `fonsecalisboa.com.br` são suposições (antes, `fhladvocacia.com.br`, também
-   suposição) — não havia e-mail do escritório no arquivo.
+4. **Domínio oficial.** O e-mail já é o real, `contato@advocaciafl.com.br`
+   (confirmado pelo Vinícius em out/2026, em `sistema/js/escritorio.js`). O
+   domínio `advocaciafl.com.br` está sendo ajustado; até ele apontar para a
+   Vercel, `DOMINIO` em `src/data/site.mjs` continua com a suposição antiga
+   fora da Vercel, e na Vercel vale o endereço de produção dela.
 5. **Ensaio fotográfico.** Até ele existir, cada advogado tem um retrato
    tipográfico — iniciais em serifada e o filete da logomarca
    (`src/partials/equipe.mjs`). A foto entra pelo campo `foto` de
@@ -447,7 +449,7 @@ números. A seção Linguagem mostra o texto já traduzido.
    continua com o comportamento anterior até essa publicação.
 
 **Já resolvidos com os dados reais:** endereço (Rua Dr. Leocádio, 282 — Centro,
-Paranaguá/PR), telefone e WhatsApp, as quatro áreas de atuação, os nomes
+Paranaguá/PR), telefone, WhatsApp e e-mail, as áreas de atuação, os nomes
 completos e inscrições dos quatro advogados, o texto institucional e o slogan.
 
 **Não bloqueiam:**
@@ -460,18 +462,18 @@ completos e inscrições dos quatro advogados, o texto institucional e o slogan.
 
 ### Ressalva: áreas do site vs. áreas da equipe
 
-As quatro áreas do site agora são as **do próprio escritório**, tiradas da
-configuração do sistema interno: Trabalhista, Previdenciário, Consumidor e Cível.
-Isso resolveu a maior parte do descompasso que existia antes.
+As áreas do site são as **do próprio escritório**: as quatro da configuração do
+sistema interno (Trabalhista, Previdenciário, Consumidor e Cível) e, desde
+out/2026, **Criminal** (Vinícius) e **Imobiliário** (Guilherme), a pedido do
+Vinícius. Posse, usucapião e locação saíram do Cível para o Imobiliário, para
+as duas páginas não prometerem o mesmo. Os textos novos aguardam a revisão dos
+dois advogados.
 
-Sobra uma ponta: os perfis dos advogados declaram também **Criminal, Empresarial,
-Administrativo, Ambiental, Portuário, Imobiliário, Família e Sucessões e
-Regularização Fundiária** — competências que a página de Atuação não oferece.
-Chama atenção o **Portuário**, que num escritório de Paranaguá provavelmente é
-mais central do que a lista de quatro sugere.
-
-A decisão é do escritório: ou as quatro áreas são mesmo a vitrine e o resto fica
-no perfil de cada advogado, ou vale abrir uma quinta página de atuação.
+Sobra uma ponta: os perfis declaram também **Empresarial, Administrativo,
+Ambiental, Portuário, Família e Sucessões e Regularização Fundiária**, que a
+página de Atuação não oferece. Chama atenção o **Portuário**, que num
+escritório de Paranaguá provavelmente é central. Abrir uma página para ele é
+decisão do escritório.
 
 ---
 

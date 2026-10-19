@@ -43,6 +43,23 @@ const quadrado = (lado, altura, svg) => `<!doctype html>
 </style>
 ${svg}`;
 
+/**
+ * O og.png: as áreas no rótulo e o slogan. Até quatro áreas cabem numa linha;
+ * com mais, o rótulo vai em duas linhas equilibradas, com o filete na altura
+ * da primeira — quebrada pelo navegador, a última área sobrava sozinha.
+ */
+function cartaoPadrao() {
+  const nomes = AREAS.map((a) => a.nome.replace(/^Direito (do )?/, ''));
+  if (nomes.length <= 4) return { label: nomes.join(' · '), title: SLOGAN };
+  const meio = Math.ceil(nomes.length / 2);
+  return {
+    label: `<span>${nomes.slice(0, meio).join(' · ')}<br>${nomes.slice(meio).join(' · ')}</span>`,
+    title: SLOGAN,
+    css: '.rotulo { align-items: flex-start; line-height: 1.6; }\n' +
+      '.rotulo::before { flex: 0 0 auto; margin-top: calc(0.8em - 1px); }\n',
+  };
+}
+
 const escrever = (rel, conteudo) => {
   writeFileSync(join(ROOT, rel), conteudo, 'utf8');
   console.log(`  ${rel}`);
@@ -67,8 +84,7 @@ function main() {
     console.log('  assets/img/favicon.png');
     fotografar(navegador, quadrado(512, 300, monogramaSvg()), join(ROOT, 'assets/img/logo.png'), tmp, [512, 512]);
     console.log('  assets/img/logo.png');
-    const areas = AREAS.map((a) => a.nome.replace(/^Direito (do )?/, '')).join(' · ');
-    fotografar(navegador, cartaoHtml({ label: areas, title: SLOGAN }), join(ROOT, 'assets/img/og.png'), tmp);
+    fotografar(navegador, cartaoHtml(cartaoPadrao()), join(ROOT, 'assets/img/og.png'), tmp);
     console.log('  assets/img/og.png');
   } finally {
     try { rmSync(tmp, { recursive: true, force: true }); } catch { /* ignora */ }

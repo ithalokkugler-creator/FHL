@@ -3,12 +3,12 @@
 //
 // Configuração e listas de apoio, o valor atualizado das parcelas — com cada
 // índice buscado uma vez por tela — e os diálogos que aparecem em mais de um
-// lugar: receber, cobrar e renegociar.
+// lugar: receber, repassar, cobrar e renegociar.
 
 import { atualizar, componentesDosEncargos, memoriaParaGravar } from '../../dominio/atraso.js';
 import { mensagemDeCobranca } from '../../dominio/cobranca.js';
 import { fatorDoPeriodo, INDICES, temMesParaCorrigir, variacoes } from '../../dominio/indices.js';
-import { gerarParcelas, nomeDaParcela, somaDasParcelas } from '../../dominio/parcelas.js';
+import { divisaoDoRepasse, gerarParcelas, nomeDaParcela, somaDasParcelas } from '../../dominio/parcelas.js';
 import { avisar } from '../../nucleo/avisos.js';
 import { abrirDialogo } from '../../nucleo/dialogo.js';
 import { ErroCampo } from '../../nucleo/formularios.js';
@@ -52,6 +52,15 @@ export const esquecerApoio = () => {
 export const somaCentavos = (linhas, campo) => linhas.reduce((s, l) => s + centavos(l[campo]), 0);
 
 export const rotuloParcela = (p) => nomeDaParcela(p.numero);
+
+/** Parcela de acordo: parte dela é do cliente (cota do escritório abaixo de 100%). */
+export const temRepasse = (p) => p?.cota_escritorio_pct != null && Number(p.cota_escritorio_pct) < 100;
+
+/** "Escritório R$ 300,00 · cliente R$ 700,00" de um valor em centavos. */
+export function textoDivisao(valor, cota) {
+  const { escritorio, cliente } = divisaoDoRepasse(valor, cota);
+  return `Escritório ${moeda(escritorio)} · cliente ${moeda(cliente)}`;
+}
 
 // Contas fixas nascem quando alguém olha o mês: gerar_contas_do_mes cria as
 // que faltam. Antes só o Painel e as Contas chamavam — a tela Hoje e o
@@ -211,13 +220,20 @@ export function memoriaGravada(m) {
 // Receber (6.4 B) — dois cliques no caso comum
 // ---------------------------------------------------------------------------
 
-/** Diálogo de recebimento de uma linha de v_parcelas. Devolve true se gravou. */
+/**
+ * Diálogo de recebimento de uma linha de v_parcelas. Devolve true se gravou.
+ *
+ * Parcela de acordo (cota do escritório abaixo de 100%): a tela mostra quanto
+ * do valor é honorário e quanto é do cliente — o banco congela a mesma conta
+ * no recebimento — e deixa registrar o repasse junto, quando ele sai na hora.
+ */
 export async function receberParcela(p) {
   const [{ formas, contasFinanceiras }, [{ calculo: inicial }]] = await Promise.all([apoio(), atualizarParcelas([p])]);
   let calculo = inicial;
   let recalculo = Promise.resolve();
   let valorDigitado = false;
   const dia = hoje();
+  const acordo = temRepasse(p);
 
   return abrirDialogo({
     titulo: `Receber — ${p.cliente_nome}`,
@@ -246,6 +262,7 @@ export async function receberParcela(p) {
           <input name="observacao" maxlength="500">
         </label>
         <label class="opcao campo"><input type="checkbox" name="recibo"> Emitir o recibo deste recebimento ao salvar</label>
+        ${acordo ? html`<label class="opcao campo"><input type="checkbox" name="repassar"> Registrar também o repasse ao cliente, na mesma data e saindo da mesma conta</label>` : ''}
       </div>
       <div class="secao" data-papel="memoria"></div>
       <p class="nota nota--info" data-papel="efeito"></p>`,
@@ -263,15 +280,21 @@ export async function receberParcela(p) {
         }
         const principal = Math.min(valor, calculo.saldo);
         const encargos = valor - principal;
+        let texto;
         if (valor < calculo.saldo) {
-          caixa.textContent = `Pagamento parcial: abate ${moeda(principal)} e ficam ${moeda(calculo.saldo - principal)} em aberto na parcela.`;
+          texto = `Pagamento parcial: abate ${moeda(principal)} e ficam ${moeda(calculo.saldo - principal)} em aberto na parcela.`;
         } else if (passou > 0) {
-          caixa.textContent = `O valor passa ${moeda(passou)} do total atualizado (${moeda(calculo.total)}). Registre até ${moeda(calculo.total)}; a diferença entra como entrada avulsa ou como acréscimo autorizado no contrato.`;
+          texto = `O valor passa ${moeda(passou)} do total atualizado (${moeda(calculo.total)}). Registre até ${moeda(calculo.total)}; a diferença entra como entrada avulsa ou como acréscimo autorizado no contrato.`;
         } else if (encargos > 0) {
-          caixa.textContent = `Quita a parcela: ${moeda(principal)} de saldo e ${moeda(encargos)} de multa, juros e correção.`;
+          texto = `Quita a parcela: ${moeda(principal)} de saldo e ${moeda(encargos)} de multa, juros e correção.`;
         } else {
-          caixa.textContent = 'Quita a parcela, sem encargos.';
+          texto = 'Quita a parcela, sem encargos.';
         }
+        if (acordo && !(passou > 0)) {
+          const { escritorio, cliente } = divisaoDoRepasse(valor, p.cota_escritorio_pct);
+          texto += ` Acordo: ${moeda(escritorio)} são honorários (${percentual(p.cota_escritorio_pct)}) e ${moeda(cliente)} são do cliente, a repassar.`;
+        }
+        caixa.textContent = texto;
       };
       const redesenhar = () => {
         desenhar($('[data-papel="memoria"]', dialogo), memoria(calculo));
@@ -323,7 +346,63 @@ export async function receberParcela(p) {
         memoria_calculo: memoriaParaGravar(calculo),
       }, 'id');
       avisar(valor < calculo.saldo ? 'Pagamento parcial registrado.' : 'Recebimento registrado.');
+      if (dados.repassar) {
+        await db.rpc('registrar_repasse', {
+          p: { recebimento_id: salvo.id, data: dados.data, forma_id: dados.forma_id || null, conta_financeira_id: dados.conta_financeira_id || null },
+        }).then(() => avisar('Repasse ao cliente registrado.'))
+          .catch((erro) => avisar(`Recebimento salvo, mas o repasse não: ${erro.message}`, 'erro', 8000));
+      }
       if (dados.recibo) await emitirRecibo(salvo.id).catch((erro) => avisar(`Recebimento salvo, mas o recibo não: ${erro.message}`, 'erro', 8000));
+      return true;
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Repasse ao cliente — a parte dele num recebimento de acordo
+// ---------------------------------------------------------------------------
+
+/**
+ * Registra que a parte do cliente (`valor_repasse` de uma linha de
+ * v_recebimentos) saiu para ele. Sai da conta do escritório e não é despesa.
+ * O valor é sempre a parte inteira, gravada no recebimento. Devolve true se gravou.
+ */
+export async function registrarRepasse(r) {
+  const { formas, contasFinanceiras } = await apoio();
+  const dia = hoje();
+  return abrirDialogo({
+    titulo: `Repasse ao cliente — ${r.cliente_nome ?? 'cliente'}`,
+    rotuloOk: 'Registrar repasse',
+    corpo: html`
+      <p class="dialogo__texto">Recebimento de ${data(r.data)}, ${moeda(centavos(r.valor))}:
+        ${moeda(centavos(r.valor_escritorio))} de honorários e <strong>${moeda(centavos(r.valor_repasse))}</strong> do cliente.</p>
+      <div class="campos">
+        <label class="campo campo--4">
+          <span>Data do repasse</span>
+          <input type="date" name="data" value="${dia}" min="${r.data}" max="${dia}" required autofocus>
+        </label>
+        <label class="campo campo--4">
+          <span>Forma</span>
+          <select name="forma_id">${opcoes(formas.filter((f) => f.ativo).map((f) => [f.id, f.nome]), '', { vazio: 'Não informada' })}</select>
+        </label>
+        <label class="campo campo--4">
+          <span>Saiu da conta</span>
+          <select name="conta_financeira_id" required>${opcoesContasFinanceiras(contasFinanceiras, r.conta_financeira_id)}</select>
+        </label>
+        <label class="campo">
+          <span>Observação</span>
+          <input name="observacao" maxlength="500" placeholder="Ex.: Pix para a conta do cliente">
+        </label>
+      </div>
+      <p class="nota nota--info">O repasse sai da conta do escritório e não é despesa: não muda o resultado nem a
+        divisão entre os sócios. Guarde o comprovante em Comprovantes, no próprio recebimento.</p>`,
+    aoEnviar: async (d) => {
+      if (d.data < r.data) throw new ErroCampo('data', `O repasse não pode ser anterior ao recebimento (${data(r.data)}).`);
+      if (d.data > hoje()) throw new ErroCampo('data', 'A data do repasse não pode estar no futuro.');
+      await db.rpc('registrar_repasse', {
+        p: { recebimento_id: r.id, data: d.data, forma_id: d.forma_id || null, conta_financeira_id: d.conta_financeira_id || null, observacao: d.observacao || null },
+      });
+      avisar('Repasse ao cliente registrado.');
       return true;
     },
   });
@@ -505,6 +584,11 @@ export async function renegociarContrato(contratoId) {
 
   const itens = await atualizarParcelas(abertas);
   const dia = hoje();
+  // Fixo (100% do escritório) e acordo (parte do cliente) não se juntam numa
+  // parcela só: o banco recusa. Começam marcadas as da cota da primeira.
+  const cota = (p) => Number(p.cota_escritorio_pct ?? 100);
+  const cotas = new Set(abertas.map(cota));
+  const marcada = (p) => cota(p) === cota(abertas[0]);
 
   return abrirDialogo({
     titulo: `Renegociar — ${abertas[0].cliente_nome}`,
@@ -515,17 +599,20 @@ export async function renegociarContrato(contratoId) {
         As parcelas marcadas saem do saldo como "renegociadas" — continuam no contrato e no
         histórico — e as novas entram no lugar.
       </p>
+      ${cotas.size > 1 ? html`<p class="nota">Este contrato tem parcelas do fixo e do acordo, com cotas do escritório
+        diferentes. Renegocie cada grupo separadamente: as novas herdam a cota das marcadas.</p>` : ''}
       <div class="tabela-rolagem">
         <table class="tabela">
-          <thead><tr><th><span class="sr-only">Incluir</span></th><th>Parcela</th><th>Vencimento</th><th class="num">Saldo</th><th class="num">Atualizado hoje</th></tr></thead>
+          <thead><tr><th><span class="sr-only">Incluir</span></th><th>Parcela</th><th>Vencimento</th><th class="num">Saldo</th><th class="num">Atualizado hoje</th>${cotas.size > 1 ? html`<th class="num">Escritório</th>` : ''}</tr></thead>
           <tbody>
             ${itens.map(({ parcela: p, calculo: c }) => html`
               <tr>
-                <td><input type="checkbox" name="p_${p.id}" checked aria-label="Incluir ${rotuloParcela(p)}"></td>
+                <td><input type="checkbox" name="p_${p.id}" ${marcada(p) ? 'checked' : ''} aria-label="Incluir ${rotuloParcela(p)}"></td>
                 <td>${rotuloParcela(p)}</td>
                 <td class="num">${data(p.vencimento)}</td>
                 <td class="num">${moeda(c.saldo)}</td>
                 <td class="num">${moeda(c.total)}</td>
+                ${cotas.size > 1 ? html`<td class="num">${percentual(cota(p))}</td>` : ''}
               </tr>`)}
           </tbody>
         </table>
@@ -601,6 +688,9 @@ export async function renegociarContrato(contratoId) {
     const quantidade = Number(form.quantidade.value);
 
     if (!escolhidas.length) return { saldo, atualizado, erro: 'Marque pelo menos uma parcela.' };
+    if (new Set(escolhidas.map((i) => cota(i.parcela))).size > 1) {
+      return { saldo, atualizado, erro: 'Marque só parcelas com a mesma cota do escritório (o fixo ou o acordo).' };
+    }
     if (!(valor > 0)) return { saldo, atualizado, erro: 'Informe o valor renegociado.' };
     try {
       const novas = gerarParcelas({ total: valor, quantidade, primeiroVencimento: form.primeiro.value });

@@ -106,7 +106,7 @@ window.IED = window.IED || {};
   }
 
   /* =====================================================================
-     6.3 ATUAÇÃO — pin de 300vh
+     6.3 ATUAÇÃO — pin de 75vh por área (eram 300vh para quatro)
      ===================================================================== */
   function atuacao() {
     var sec = document.querySelector('.atuacao');
@@ -132,7 +132,8 @@ window.IED = window.IED || {};
       var st = ScrollTrigger.create({
         trigger: sec,
         start: 'top top',
-        end: '+=300%',
+        // Cada área fica o mesmo tempo na tela, quantas houver.
+        end: '+=' + items.length * 75 + '%',
         pin: sec.querySelector('.atuacao__sticky'),
         scrub: 0.6,
         onUpdate: function (self) {

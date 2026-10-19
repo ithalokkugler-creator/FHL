@@ -16,6 +16,10 @@ const REGRAS = {
   clientes_telefone_check: ['Informe o telefone com DDD e de 10 a 13 dígitos.', 'telefone'],
   clientes_nome_check: ['O nome precisa ter de 1 a 200 caracteres.', 'nome'],
   processos_cliente_numero: ['Este número de processo já está cadastrado para o cliente.', 'numero'],
+  contrato_fixo_tem_valor: ['Informe o valor fixo do contrato.', 'total'],
+  contrato_exito_tem_percentual: ['Informe o percentual de êxito.', 'exito_pct'],
+  parcelas_cota_escritorio_pct_check: ['A cota do escritório vai de 0,01% a 100%.', 'cota'],
+  repasses_cliente_ativo: ['Este recebimento já tem o repasse ao cliente registrado.', null],
 };
 
 const CAMPOS = {

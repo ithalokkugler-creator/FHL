@@ -17,7 +17,7 @@ declare
   c_maria uuid := '00000000-0000-4000-8000-000000000204';
   c_ana  uuid := '00000000-0000-4000-8000-000000000205';
   v_proc uuid := '00000000-0000-4000-8000-000000000501';
-  k_a uuid; k_b uuid; k_c uuid; k_d uuid;
+  k_a uuid; k_b uuid; k_c uuid; k_d uuid; k_e uuid; k_f uuid; k_g uuid;
   v_alug uuid; v_ener uuid; v_mat uuid; v_cafe uuid; v_oab uuid; v_net uuid;
   v_pix uuid; v_banco uuid; v_conta uuid; v_rec uuid;
   v_pg jsonb;
@@ -140,6 +140,47 @@ begin
       jsonb_build_object('numero', 1, 'vencimento', hoje - 20, 'valor', 400),
       jsonb_build_object('numero', 2, 'vencimento', hoje + 10, 'valor', 400),
       jsonb_build_object('numero', 3, 'vencimento', hoje + 40, 'valor', 400))));
+
+  -- José: fixo + êxito (o fixo em 3 vezes, uma paga; 20% de êxito a apurar)
+  -- e um contrato encadeado, que começa depois dele.
+  k_e := public.criar_contrato(jsonb_build_object(
+    'cliente_id', c_jose, 'descricao', 'Trabalhista — fixo + êxito', 'tipo_honorario', 'misto',
+    'valor_total', 1500, 'exito_pct', 20, 'responsavel_id', m_admin, 'data_contrato', hoje - 35,
+    'parcelas', jsonb_build_array(
+      jsonb_build_object('numero', 1, 'vencimento', hoje - 30, 'valor', 500),
+      jsonb_build_object('numero', 2, 'vencimento', hoje, 'valor', 500),
+      jsonb_build_object('numero', 3, 'vencimento', hoje + 30, 'valor', 500))));
+  insert into public.recebimentos (parcela_id, data, valor, valor_principal, valor_encargos, forma_id, conta_financeira_id,
+                                   valor_multa, valor_juros, valor_correcao, valor_acrescimo)
+  select id, hoje - 29, 500, 500, 0, v_pix, v_banco, 0, 0, 0, 0 from public.parcelas where contrato_id = k_e and numero = 1;
+  k_f := public.criar_contrato(jsonb_build_object(
+    'cliente_id', c_jose, 'descricao', 'Previdenciário — começa depois do trabalhista', 'valor_total', 1200,
+    'responsavel_id', m_socia, 'data_contrato', hoje - 2, 'inicia_apos_contrato_id', k_e,
+    'parcelas', jsonb_build_array(
+      jsonb_build_object('numero', 1, 'vencimento', hoje + 60, 'valor', 600),
+      jsonb_build_object('numero', 2, 'vencimento', hoje + 90, 'valor', 600))));
+
+  -- Empresa: acordo de 6.000 que a parte contrária paga ao escritório, com 30%
+  -- de honorários. A entrada já foi repassada; a 1ª parcela, ainda não.
+  k_g := public.criar_contrato(jsonb_build_object(
+    'cliente_id', c_emp, 'descricao', 'Acordo — reclamatória fictícia', 'valor_total', 6000,
+    'cota_escritorio_pct', 30, 'responsavel_id', m_admin, 'data_contrato', hoje - 25,
+    'processo', '0009876-11.2025.5.09.0322',
+    'parcelas', jsonb_build_array(
+      jsonb_build_object('numero', 0, 'vencimento', hoje - 20, 'valor', 2000),
+      jsonb_build_object('numero', 1, 'vencimento', hoje - 5, 'valor', 1000),
+      jsonb_build_object('numero', 2, 'vencimento', hoje + 25, 'valor', 1000),
+      jsonb_build_object('numero', 3, 'vencimento', hoje + 55, 'valor', 1000),
+      jsonb_build_object('numero', 4, 'vencimento', hoje + 85, 'valor', 1000))));
+  insert into public.recebimentos (parcela_id, data, valor, valor_principal, valor_encargos, forma_id, conta_financeira_id,
+                                   valor_multa, valor_juros, valor_correcao, valor_acrescimo)
+  select id, hoje - 19, 2000, 2000, 0, v_pix, v_banco, 0, 0, 0, 0 from public.parcelas where contrato_id = k_g and numero = 0
+  returning id into v_rec;
+  perform public.registrar_repasse(jsonb_build_object('recebimento_id', v_rec, 'data', hoje - 18, 'forma_id', v_pix,
+    'conta_financeira_id', v_banco, 'observacao', 'Pix fictício para a conta da empresa'));
+  insert into public.recebimentos (parcela_id, data, valor, valor_principal, valor_encargos, forma_id, conta_financeira_id,
+                                   valor_multa, valor_juros, valor_correcao, valor_acrescimo)
+  select id, hoje - 4, 1000, 1000, 0, v_pix, v_banco, 0, 0, 0, 0 from public.parcelas where contrato_id = k_g and numero = 1;
 
   insert into public.recebimentos (tipo_avulsa, cliente_id, descricao, data, valor, valor_principal, valor_encargos, forma_id)
   values ('consulta', '00000000-0000-4000-8000-000000000201', 'Consulta fictícia', hoje - 3, 250, 250, 0, v_pix);

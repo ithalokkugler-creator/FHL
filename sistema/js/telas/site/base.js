@@ -24,6 +24,8 @@ export const AREAS = [
   { slug: 'previdenciario', nome: 'Direito Previdenciário', curto: 'Previdenciário' },
   { slug: 'consumidor', nome: 'Direito do Consumidor', curto: 'Consumidor' },
   { slug: 'civel', nome: 'Direito Cível', curto: 'Cível' },
+  { slug: 'criminal', nome: 'Direito Criminal', curto: 'Criminal' },
+  { slug: 'imobiliario', nome: 'Direito Imobiliário', curto: 'Imobiliário' },
 ];
 
 /** Símbolo grande que aparece atrás do título na lista de publicações. */

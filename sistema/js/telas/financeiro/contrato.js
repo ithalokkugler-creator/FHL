@@ -7,24 +7,29 @@
 // não — para isso há Renegociar, Redistribuir, Vencimento, Ajuste e Cancelar
 // parcela, que deixam rastro do que mudou e por quê (o banco recusa mudar o
 // valor de parcela de outro jeito). O código (C001/2026) não muda nunca.
+//
+// Out/2026: fixo + êxito (o êxito se apura no fim, à parte do fixo), acordo
+// com repasse (a parte do cliente em cada recebimento, a registrar quando sai)
+// e contrato encadeado (o anterior e o seguinte, com link).
 
-import { gerarParcelas, nomeDaParcela, posicoes } from '../../dominio/parcelas.js';
+import { divisaoDoRepasse, gerarParcelas, nomeDaParcela, posicoes } from '../../dominio/parcelas.js';
 import { avisar, avisarErro } from '../../nucleo/avisos.js';
 import { abrirDialogo, pedirMotivo } from '../../nucleo/dialogo.js';
 import { membrosAtivos, nomeDe, pode } from '../../nucleo/estado.js';
 import {
-  centavos, data, dataHora, decimal, hoje, lerMoeda, moeda, paraReais, percentual, telefone,
+  centavos, data, dataHora, decimal, entre, hoje, lerMoeda, lerNumero, moeda, paraReais, percentual, telefone,
 } from '../../nucleo/formato.js';
 import { $, aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { db } from '../../nucleo/supabase.js';
 import { editarCliente } from '../clientes.js';
 import {
-  cabecalho, CANAIS, indicador, plural, seloContrato, seloParcela, TIPOS_HONORARIO, vazio,
+  cabecalho, CANAIS, indicador, plural, seloContrato, seloParcela, seloRepasse, TIPOS_HONORARIO, vazio,
 } from '../comum.js';
 import { abrirHistorico } from '../historico.js';
 import {
   apoio, atualizarParcelas, camposCriterio, concederAjuste, criterioDoContrato, criterioEmTexto, emitirRecibo, lerCriterio,
-  memoria, memoriaGravada, nomeContaFinanceira, opcoes, receberParcela, renegociarContrato, rotuloParcela,
+  memoria, memoriaGravada, nomeContaFinanceira, opcoes, receberParcela, registrarRepasse, renegociarContrato, rotuloParcela,
+  temRepasse,
 } from './base.js';
 import { abrirAnexos } from '../anexos.js';
 import { navegar } from '../../nucleo/rotas.js';
@@ -67,6 +72,16 @@ export default async function telaContrato(ctx) {
     anexos: () => abrirAnexos({ titulo: dados.contrato.codigo ?? dados.contrato.descricao, destino: { contrato_id: id }, podeGravar: pode.lancar(), categoria: 'contrato' }),
     'anexos-renegociacao': (el) => abrirAnexos({ titulo: 'renegociação', destino: { renegociacao_id: el.dataset.id }, podeGravar: pode.lancar(), categoria: 'aditivo' }),
     comprovantes: (el) => abrirAnexos({ titulo: 'recebimento', destino: { recebimento_id: el.dataset.id }, podeGravar: pode.lancar(), categoria: 'comprovante' }),
+    repassar: (el) => depois(registrarRepasse(recebimento(el))),
+    'estornar-repasse': async (el) => {
+      const r = recebimento(el);
+      const motivo = await pedirMotivo({
+        titulo: 'Estornar repasse',
+        texto: `O repasse de ${moeda(centavos(r.valor_repasse))} em ${data(r.repasse_data)} deixa de contar e a parte do cliente volta a ficar pendente. O lançamento continua no histórico.`,
+        rotuloOk: 'Estornar repasse',
+      });
+      if (motivo) depois(db.rpc('estornar_repasse', { p_id: r.repasse_id, p_motivo: motivo }).then(() => avisar('Repasse estornado.')).then(() => true));
+    },
     recibo: (el) => {
       const doc = dados.recibos.get(el.dataset.id);
       if (doc) navegar(`/documentos/${doc}`);
@@ -174,7 +189,7 @@ async function carregar(id) {
     apoio(),
   ]);
   parcelas.sort((a, b) => a.numero - b.numero);
-  const [cobrancas, recibos] = contrato ? await Promise.all([
+  const [cobrancas, recibos, anterior, seguintes] = contrato ? await Promise.all([
     db.listar('cobrancas', { select: '*', filtros: [['cliente_id', 'eq', contrato.cliente_id]], ordem: 'criado_em.desc', limite: 50 }),
     // O recibo já emitido de cada recebimento (o mais recente).
     recebimentos.length
@@ -184,14 +199,41 @@ async function carregar(id) {
         ordem: 'criado_em.asc',
       }).catch(() => [])
       : [],
-  ]) : [[], []];
+    // Contrato encadeado: o que vem antes deste e os que começam depois dele.
+    contrato.inicia_apos_contrato_id
+      ? db.um('v_contratos', { select: 'id,codigo,descricao', filtros: [['id', 'eq', contrato.inicia_apos_contrato_id]] }).catch(() => null)
+      : null,
+    db.listar('v_contratos', { select: 'id,codigo,descricao', filtros: [['inicia_apos_contrato_id', 'eq', id]], ordem: 'criado_em.asc' }).catch(() => []),
+  ]) : [[], [], null, []];
   return {
-    contrato, parcelas, recebimentos, renegociacoes, ajustes, cobrancas, apoio: suporte,
+    contrato, parcelas, recebimentos, renegociacoes, ajustes, cobrancas, apoio: suporte, anterior, seguintes,
     recibos: new Map(recibos.map((d) => [d.recebimento_id, d.id])),
   };
 }
 
-function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cobrancas, recibos, apoio: { config } }) {
+/** O número de honorários do cabeçalho e a linha de baixo, por tipo de contrato. */
+function honorarios(c) {
+  const resp = c.responsavel_id ? ` · ${nomeDe(c.responsavel_id)}` : '';
+  // Acordo: o número é o que é do escritório; o bruto vai embaixo.
+  if (c.tem_repasse) {
+    return [moeda(centavos(c.exigivel_escritorio_total)),
+      `${c.tipo_honorario === 'misto' ? 'Fixo + êxito em acordo' : 'Acordo'} · bruto de ${moeda(centavos(c.exigivel_total))}, o resto é do cliente${resp}`];
+  }
+  // Fixo + êxito: o fixo e, depois da apuração, o êxito somado.
+  if (c.tipo_honorario === 'misto') {
+    return c.valor_exito != null
+      ? [moeda(centavos(c.valor_total) + centavos(c.valor_exito)),
+        `Fixo de ${moeda(centavos(c.valor_total))} + êxito apurado de ${moeda(centavos(c.valor_exito))}${resp}`]
+      : [moeda(centavos(c.valor_total)), `Fixo + ${percentual(c.exito_pct)} de êxito a apurar${resp}`];
+  }
+  if (c.valor_total == null) return [percentual(c.exito_pct), `${TIPOS_HONORARIO.exito}${resp}`];
+  return [moeda(centavos(c.valor_total)), `${TIPOS_HONORARIO[c.tipo_honorario]}${c.exito_pct ? ` de ${percentual(c.exito_pct)}` : ''}${resp}`];
+}
+
+/** Valor da parcela ou do recebimento, com a parte do escritório embaixo quando é acordo. */
+const comCota = (valor, escritorio) => html`${moeda(centavos(valor))}<span class="sub">escritório ${moeda(centavos(escritorio))}</span>`;
+
+function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cobrancas, recibos, anterior, seguintes, apoio: { config } }) {
   // Consulta só lê; arquivado não muda sem desarquivar.
   const lanca = pode.lancar();
   const ativo = !c.cancelado_em && !c.arquivado_em && lanca;
@@ -214,7 +256,7 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
       <button type="button" class="botao" data-acao="historico">Histórico</button>
       <button type="button" class="botao" data-acao="anexos">Anexos</button>
       ${ativo ? html`<button type="button" class="botao" data-acao="editar">Editar</button>` : ''}
-      ${ativo && c.situacao === 'a_apurar' ? html`<button type="button" class="botao botao--primario" data-acao="apurar">Apurar êxito</button>` : ''}
+      ${ativo && (c.exito_pendente ?? c.situacao === 'a_apurar') ? html`<button type="button" class="botao botao--primario" data-acao="apurar">Apurar êxito</button>` : ''}
       ${ativo && abertas.length ? html`<button type="button" class="botao" data-acao="renegociar">Renegociar</button>` : ''}
       ${ativo && semRecebimento.length >= 2 ? html`<button type="button" class="botao" data-acao="redistribuir">Redistribuir valores</button>` : ''}
       ${ativo && c.situacao === 'quitado' ? html`<button type="button" class="botao" data-acao="arquivar">Arquivar</button>` : ''}
@@ -225,7 +267,10 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
       ? html`Contrato de ${data(c.data_contrato)}${c.data_fim ? html` · vigência até ${data(c.data_fim)}` : ''}${c.motivo_vencimento_anterior ? html` · vencimento anterior confirmado: ${c.motivo_vencimento_anterior}` : ''}`
       : html`<span class="perigo">Data de formalização a confirmar</span> (contrato anterior a 08/10/2026)`}
       ${lanca && !c.cancelado_em ? html` <button type="button" class="botao-link" data-acao="formalizacao">${c.data_contrato ? 'corrigir data' : 'confirmar a data'}</button>` : ''}</p>
+    ${anterior || seguintes.length ? html`<p class="sub">${anterior ? html`Começa depois de <a href="#/financeiro/contratos/${anterior.id}">${anterior.codigo ?? anterior.descricao}</a>` : ''}${anterior && seguintes.length ? ' · ' : ''}${seguintes.length ? html`Depois dele começa${seguintes.length > 1 ? 'm' : ''} ${seguintes.map((s, i) => html`${i ? ', ' : ''}<a href="#/financeiro/contratos/${s.id}">${s.codigo ?? s.descricao}</a>`)}` : ''}.</p>` : ''}
     ${Number(c.diferenca_plano) ? html`<p class="nota nota--perigo">As parcelas não fecham com o valor do contrato: diferença de ${moeda(centavos(c.diferenca_plano))}. Confira o histórico.</p>` : ''}
+    ${Number(c.repasse_pendente) > 0 ? html`<p class="nota">Parte do cliente recebida e ainda não repassada: <strong>${moeda(centavos(c.repasse_pendente))}</strong>
+      (${plural(c.repasses_pendentes, 'recebimento', 'recebimentos')}). Registre o repasse em Recebimentos, quando ele sair.</p>` : ''}
     ${c.arquivado_em ? html`<p class="nota">Arquivado em ${dataHora(c.arquivado_em)} por ${nomeDe(c.arquivado_por)}. Motivo: ${c.motivo_arquivamento}</p>` : ''}
 
     ${c.cancelado_em ? html`
@@ -234,9 +279,7 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
       </p>` : ''}
 
     <div class="indicadores">
-      ${indicador('Honorários',
-        c.valor_total != null ? moeda(centavos(c.valor_total)) : percentual(c.exito_pct),
-        `${TIPOS_HONORARIO[c.tipo_honorario]}${c.exito_pct ? ` de ${percentual(c.exito_pct)}` : ''}${c.responsavel_id ? ` · ${nomeDe(c.responsavel_id)}` : ''}`)}
+      ${indicador('Honorários', ...honorarios(c))}
       ${indicador('Recebido', moeda(centavos(c.recebido)), 'inclui multa, juros e correção recebidos', { tom: 'ok' })}
       ${indicador('Saldo em aberto', moeda(centavos(c.saldo)), !c.proximo_vencimento
         ? 'nada a vencer'
@@ -263,14 +306,15 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
                 const aberta = ['a_vencer', 'vencida'].includes(p.situacao);
                 const ajustada = Number(p.ajustes_desconto) || Number(p.ajustes_acrescimo);
                 const pos = posicao.get(p.id);
+                const daParte = p.parte === 'exito' && c.tipo_honorario === 'misto' ? 'êxito ' : '';
                 const onde = pos && (p.origem_renegociacao_id
-                  ? `${pos.posicao} de ${pos.total} da renegociação de ${dataHora(dataRenegociacao.get(p.origem_renegociacao_id)).slice(0, 10)}`
-                  : `${pos.posicao} de ${pos.total}`);
+                  ? `${daParte}${pos.posicao} de ${pos.total} da renegociação de ${dataHora(dataRenegociacao.get(p.origem_renegociacao_id)).slice(0, 10)}`
+                  : `${daParte}${pos.posicao} de ${pos.total}`);
                 return html`
                   <tr class="${['renegociada', 'cancelada'].includes(p.situacao) ? 'apagada' : ''}">
                     <td>${rotuloParcela(p)}${onde ? html`<span class="sub">${onde}</span>` : ''}</td>
                     <td class="num">${data(p.vencimento)}${p.situacao === 'vencida' ? html`<span class="sub perigo">${p.dias_atraso} dias</span>` : ''}</td>
-                    <td class="num">${moeda(centavos(p.valor))}${ajustada ? html`<span class="sub">exige ${moeda(centavos(p.exigivel))}</span>` : ''}</td>
+                    <td class="num">${temRepasse(p) ? comCota(p.valor, p.valor_escritorio) : moeda(centavos(p.valor))}${ajustada ? html`<span class="sub">exige ${moeda(centavos(p.exigivel))}</span>` : ''}</td>
                     <td class="num">${moeda(centavos(p.pago_principal) + centavos(p.pago_encargos))}</td>
                     <td class="num">${aberta ? moeda(centavos(p.saldo)) : '—'}</td>
                     <td>${seloParcela(p.situacao, p.parcial)}${p.motivo_cancelamento ? html`<span class="sub">${p.motivo_cancelamento}</span>` : ''}</td>
@@ -287,6 +331,8 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
             </tbody>
           </table>
         </div>` : vazio(c.situacao === 'a_apurar' ? 'Êxito a apurar: as parcelas nascem quando o resultado sair.' : 'Sem parcelas.')}
+      ${parcelas.length && c.tipo_honorario === 'misto' && c.exito_pendente ? html`
+        <p class="painel__rodape sub">Êxito de ${percentual(c.exito_pct)} a apurar: as parcelas dele entram aqui quando o resultado sair.</p>` : ''}
     </section>
 
     <section class="painel secao">
@@ -305,14 +351,20 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
                 <tr class="${r.estornado_em ? 'apagada' : ''}">
                   <td class="num">${data(r.data)}</td>
                   <td>${nomeDaParcela(r.parcela_numero)}${r.observacao ? html`<span class="sub">${r.observacao}</span>` : ''}</td>
-                  <td class="num">${moeda(centavos(r.valor))}</td>
+                  <td class="num">${moeda(centavos(r.valor))}${Number(r.valor_repasse) > 0 ? html`
+                    <span class="sub">escritório ${moeda(centavos(r.valor_escritorio))}</span>
+                    <span class="sub">cliente ${moeda(centavos(r.valor_repasse))}</span>
+                    ${r.estornado_em ? '' : html`<span class="sub">${seloRepasse(r.repasse_situacao)}${r.repasse_situacao === 'feito' ? ` ${data(r.repasse_data)}` : ''}</span>`}` : ''}</td>
                   <td class="num">${moeda(centavos(r.valor_principal))}</td>
                   <td class="num">${moeda(centavos(r.valor_encargos))}${r.encargos_discriminados && Number(r.valor_encargos)
                     ? html`<span class="sub">${[['correção', r.valor_correcao], ['multa', r.valor_multa], ['juros', r.valor_juros], ['acréscimo', r.valor_acrescimo]]
                       .filter(([, v]) => Number(v)).map(([n, v]) => `${n} ${moeda(centavos(v))}`).join(' · ')}</span>` : ''}</td>
-                  <td>${r.forma_nome ?? '—'}<span class="sub">${nomeContaFinanceira(r.conta_financeira_nome)}</span></td>
+                  <td>${r.forma_nome ?? '—'}<span class="sub">${nomeContaFinanceira(r.conta_financeira_nome)}</span>${r.repasse_situacao === 'feito' && !r.estornado_em
+                    ? html`<span class="sub">repasse saiu de ${nomeContaFinanceira(r.repasse_conta_financeira_nome)}</span>` : ''}</td>
                   <td>${nomeDe(r.criado_por)}<span class="sub">${dataHora(r.criado_em)}</span></td>
                   <td class="acoes">
+                    ${!r.estornado_em && lanca && r.repasse_situacao === 'pendente' ? html`<button type="button" class="botao botao--pequeno" data-acao="repassar" data-id="${r.id}">Registrar repasse</button>` : ''}
+                    ${!r.estornado_em && lanca && r.repasse_situacao === 'feito' ? html`<button type="button" class="botao botao--pequeno botao--discreto" data-acao="estornar-repasse" data-id="${r.id}">Estornar repasse</button>` : ''}
                     ${r.memoria_calculo ? html`<button type="button" class="botao botao--pequeno botao--discreto" data-acao="memoria" data-id="${r.id}">Cálculo</button>` : ''}
                     ${recibos.has(r.id) || (lanca && !r.estornado_em) ? html`<button type="button" class="botao botao--pequeno botao--discreto" data-acao="recibo" data-id="${r.id}">${recibos.has(r.id) ? 'Ver recibo' : 'Emitir recibo'}</button>` : ''}
                     <button type="button" class="botao botao--pequeno botao--discreto" data-acao="comprovantes" data-id="${r.id}">Comprovantes</button>
@@ -505,28 +557,58 @@ function redistribuir({ contrato: c, parcelas }) {
   });
 }
 
+/**
+ * Apurar o êxito — uma vez, no êxito puro e no fixo + êxito.
+ *
+ * Dois jeitos de lançar:
+ *   · Só os honorários: o cliente recebe e paga ao escritório o percentual.
+ *   · O acordo inteiro: a parte contrária paga o acordo ao escritório (entrada
+ *     e parcelas), e a parte do cliente é repassada. Cada parcela cobra o
+ *     bruto; a cota do escritório (o percentual, editável) separa o honorário.
+ */
 function apurarExito(contrato) {
   const dia = hoje();
   const fracao = Number(contrato.exito_pct) / 100;
+  const misto = contrato.tipo_honorario === 'misto';
 
   return abrirDialogo({
     titulo: 'Apurar êxito',
     rotuloOk: 'Gerar parcelas',
+    largo: true,
     corpo: html`
       <p class="dialogo__texto">
-        Honorários de ${percentual(contrato.exito_pct)} sobre o que o cliente recebeu. Informe a
-        base e o valor sai calculado — ou digite direto o valor dos honorários.
+        ${misto ? html`Além do valor fixo, honorários` : 'Honorários'} de ${percentual(contrato.exito_pct)} sobre o que o cliente recebeu.
       </p>
-      <div class="campos">
+      <fieldset class="fieldset campos">
+        <legend>Como o dinheiro chega</legend>
+        <label class="opcao campo"><input type="radio" name="modo" value="honorarios" checked>
+          O cliente recebe e paga os honorários ao escritório</label>
+        <label class="opcao campo"><input type="radio" name="modo" value="acordo">
+          A parte contrária paga o acordo ao escritório, que repassa a parte do cliente</label>
+      </fieldset>
+      <div class="campos secao">
         <label class="campo campo--6">
-          <span>Quanto o cliente recebeu</span>
+          <span data-papel="rotulo-base">Quanto o cliente recebeu</span>
           <input name="base" class="num" inputmode="decimal" autofocus>
         </label>
-        <label class="campo campo--6">
+        <label class="campo campo--6" data-modo="honorarios">
           <span>Honorários</span>
-          <input name="valor" class="num" inputmode="decimal" required>
+          <input name="valor" class="num" inputmode="decimal">
+          <span class="campo__ajuda">Sai calculado da base; pode digitar direto.</span>
         </label>
-        <label class="campo campo--6">
+        <label class="campo campo--6" data-modo="acordo" hidden>
+          <span>Cota do escritório (%)</span>
+          <input name="cota" class="num" inputmode="decimal" value="${String(Number(contrato.exito_pct)).replace('.', ',')}">
+        </label>
+        <label class="campo campo--4" data-modo="acordo" hidden>
+          <span>Entrada (opcional)</span>
+          <input name="entrada" class="num" inputmode="decimal" placeholder="0,00">
+        </label>
+        <label class="campo campo--4" data-modo="acordo" hidden>
+          <span>Data da entrada</span>
+          <input type="date" name="data_entrada" value="${dia}">
+        </label>
+        <label class="campo campo--4">
           <span>Número de parcelas</span>
           <input type="number" name="quantidade" min="1" max="120" value="1" required>
         </label>
@@ -540,9 +622,19 @@ function apurarExito(contrato) {
     aoAbrir: (dialogo, form) => {
       const previa = dialogo.querySelector('[data-papel="previa"]');
       const atualizar = () => {
+        const acordo = form.modo.value === 'acordo';
+        for (const el of dialogo.querySelectorAll('[data-modo]')) el.hidden = el.dataset.modo !== form.modo.value;
+        dialogo.querySelector('[data-papel="rotulo-base"]').textContent = acordo ? 'Valor bruto do acordo' : 'Quanto o cliente recebeu';
         try {
-          const novas = gerarParcelas({ total: lerMoeda(form.valor.value), quantidade: Number(form.quantidade.value), primeiroVencimento: form.primeiro.value });
-          previa.textContent = `${novas.length} × ${[...new Set(novas.map((n) => moeda(n.valor)))].join(' ou ')}, a partir de ${data(novas[0].vencimento)}.`;
+          const r = montar(form);
+          const valores = [...new Set(r.novas.filter((n) => n.numero > 0).map((n) => moeda(n.valor)))].join(' ou ');
+          const entrada = r.novas.find((n) => n.numero === 0);
+          const quantas = r.novas.filter((n) => n.numero > 0).length;
+          const plano = `${entrada ? `Entrada de ${moeda(entrada.valor)} em ${data(entrada.vencimento)}${quantas ? ' + ' : ''}` : ''}`
+            + (quantas ? `${quantas} × ${valores}, a partir de ${data(r.novas.find((n) => n.numero > 0).vencimento)}` : '');
+          previa.textContent = acordo
+            ? `${plano}. Do bruto de ${moeda(r.total)}: escritório (${percentual(r.cota)}) ${moeda(r.escritorio)} · cliente ${moeda(r.total - r.escritorio)}, repassado a cada recebimento.`
+            : `${plano}.`;
         } catch (falha) {
           previa.textContent = falha.message;
         }
@@ -550,26 +642,50 @@ function apurarExito(contrato) {
       form.base.addEventListener('input', () => {
         const base = lerMoeda(form.base.value);
         if (base > 0) form.valor.value = decimal(Math.round(base * fracao));
-        atualizar();
       });
-      form.addEventListener('input', (e) => {
-        if (e.target.name !== 'base') atualizar();
-      });
+      form.addEventListener('input', atualizar);
+      form.addEventListener('change', atualizar);
+      atualizar();
     },
 
-    aoEnviar: async (d) => {
-      const valor = lerMoeda(d.valor);
-      if (!(valor > 0)) throw new Error('Informe o valor dos honorários.');
-      const novas = gerarParcelas({ total: valor, quantidade: Number(d.quantidade), primeiroVencimento: d.primeiro });
+    aoEnviar: async (_, form) => {
+      const r = montar(form);
       await db.rpc('apurar_exito', {
         p: {
           contrato_id: contrato.id,
-          valor_total: paraReais(valor),
-          parcelas: novas.map((n) => ({ vencimento: n.vencimento, valor: paraReais(n.valor) })),
+          valor_total: paraReais(r.total),
+          base: r.base > 0 ? paraReais(r.base) : null,
+          ...(r.cota != null ? { cota_escritorio_pct: r.cota } : {}),
+          parcelas: r.novas.map((n) => ({ vencimento: n.vencimento, valor: paraReais(n.valor) })),
         },
       });
-      avisar('Êxito apurado. As parcelas já estão nos recebíveis.');
+      avisar(r.cota != null
+        ? 'Êxito apurado. O acordo já está nos recebíveis, com a parte do cliente separada.'
+        : 'Êxito apurado. As parcelas já estão nos recebíveis.');
       return true;
     },
   });
+
+  /** As parcelas e os números da apuração; lança erro em português. */
+  function montar(form) {
+    const base = lerMoeda(form.base.value);
+    if (form.modo.value !== 'acordo') {
+      const total = lerMoeda(form.valor.value);
+      if (!(total > 0)) throw new Error('Informe o valor dos honorários.');
+      const novas = gerarParcelas({ total, quantidade: Number(form.quantidade.value), primeiroVencimento: form.primeiro.value });
+      return { total, base, cota: null, novas };
+    }
+    if (!(base > 0)) throw new Error('Informe o valor bruto do acordo.');
+    const cota = lerNumero(form.cota.value);
+    if (!entre(cota, 0.01, 100)) throw new Error('Informe a cota do escritório, de 0,01% a 100%.');
+    const novas = gerarParcelas({
+      total: base,
+      entrada: lerMoeda(form.entrada.value) ?? 0,
+      dataEntrada: form.data_entrada.value,
+      quantidade: Number(form.quantidade.value),
+      primeiroVencimento: form.primeiro.value,
+    });
+    const escritorio = novas.reduce((s, n) => s + divisaoDoRepasse(n.valor, cota).escritorio, 0);
+    return { total: base, base, cota, novas, escritorio };
+  }
 }

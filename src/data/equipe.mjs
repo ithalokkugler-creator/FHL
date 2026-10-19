@@ -20,7 +20,7 @@ export const EQUIPE = [
     foto: '',
     tom: 'teal',
     oab: 'OAB/PR 116.072',
-    areas: ['civel', 'consumidor'],
+    areas: ['civel', 'consumidor', 'imobiliario'],
     atuacao:
       'Direito Cível, Consumidor, Imobiliário, Contratual e ' +
       'Assessoria Preventiva.',
@@ -52,7 +52,7 @@ export const EQUIPE = [
     foto: '',
     tom: 'vinho',
     oab: 'OAB/PR 105.790',
-    areas: ['trabalhista', 'previdenciario'],
+    areas: ['trabalhista', 'previdenciario', 'criminal'],
     atuacao:
       'Direito Trabalhista, Criminal, Previdenciário, Regularização ' +
       'Fundiária, Ambiental e Portuário.',

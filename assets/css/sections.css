@@ -158,7 +158,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   6.3 ATUAÇÃO — seção com pin (300vh)
+   6.3 ATUAÇÃO — seção com pin (75vh por área, em home.js)
    -------------------------------------------------------------------------- */
 .atuacao { background: var(--c-petrol); position: relative; }
 .atuacao__sticky {

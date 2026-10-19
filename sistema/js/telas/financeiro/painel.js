@@ -100,6 +100,10 @@ function tela(r, f, { contasFinanceiras, categorias }) {
   const titulo = f.periodo === 'mes' ? capitalizar(nomeDoMes(f.mes)) : f.periodo === 'ano' ? `Ano de ${f.ano}` : `${data(de)} a ${data(ate)}`;
   const taxa = i.taxa_recebimento?.valor;
   const lanca = pode.lancar();
+  // Acordos com repasse: a parte dos clientes entra no caixa e não é do escritório.
+  const repasses = v('repasses_clientes');
+  const pendente = centavos(i.repasses_clientes?.pendente ?? 0);
+  const previstaEscritorio = v('receita_prevista_escritorio');
 
   return html`
     ${cabecalho('Financeiro', html`Painel · ${titulo} · ${estado.membro.nome_curto}`, html`
@@ -121,10 +125,14 @@ function tela(r, f, { contasFinanceiras, categorias }) {
     </form>
 
     <div class="indicadores indicadores--4">
-      ${indicador('Receita prevista', moeda(v('receita_prevista')), `${plural(i.receita_prevista.quantidade, 'parcela', 'parcelas')} com vencimento no período`,
+      ${indicador('Receita prevista', moeda(v('receita_prevista')), `${plural(i.receita_prevista.quantidade, 'parcela', 'parcelas')} com vencimento no período${
+        i.receita_prevista_escritorio && previstaEscritorio !== v('receita_prevista') ? ` · ${moeda(previstaEscritorio)} do escritório` : ''}`,
         { href: `#/financeiro/recebiveis?situacao=vigentes&de=${de}&ate=${ate}${filtrosLink}` })}
       ${indicador('Receita recebida', moeda(v('receita_recebida')), `${plural(i.receita_recebida.quantidade, 'recebimento', 'recebimentos')} · ${moeda(centavos(i.receita_recebida.encargos))} de encargos`,
         { tom: v('receita_recebida') ? 'ok' : '', href: `#/financeiro/relatorios?relatorio=recebimentos&de=${de}&ate=${ate}${caixaLink}${filtrosLink}` })}
+      ${repasses || pendente ? indicador('Parte de clientes (acordos)', moeda(repasses),
+        `honorários recebidos: ${moeda(v('honorarios_recebidos'))}${pendente ? ` · ${moeda(pendente)} ainda a repassar` : ''}`,
+        { tom: pendente ? 'alerta' : '', href: `#/financeiro/relatorios?relatorio=recebimentos&repasse=com&de=${de}&ate=${ate}${caixaLink}${filtrosLink}` }) : ''}
       ${indicador('Receita a vencer', moeda(v('receita_a_vencer')), `${plural(i.receita_a_vencer.quantidade, 'parcela', 'parcelas')}${centavos(i.receita_a_vencer.vence_hoje) ? ` · ${moeda(centavos(i.receita_a_vencer.vence_hoje))} vence hoje` : ''}`,
         { href: `#/financeiro/recebiveis?situacao=a_vencer&de=${de}&ate=${ate}${filtrosLink}` })}
       ${indicador('Receita vencida', moeda(v('receita_vencida')), `${plural(i.receita_vencida.quantidade, 'parcela', 'parcelas')} do período, sem encargos`,
@@ -133,8 +141,8 @@ function tela(r, f, { contasFinanceiras, categorias }) {
         { tom: i.despesas_previstas.sem_valor ? 'alerta' : '', href: `#/financeiro/relatorios?relatorio=despesas&de=${de}&ate=${ate}${despesaLink}` })}
       ${indicador('Despesas pagas', moeda(v('despesas_pagas')), `${plural(i.despesas_pagas.quantidade, 'pagamento', 'pagamentos')} no período`,
         { href: `#/financeiro/relatorios?relatorio=pagamentos&de=${de}&ate=${ate}${caixaLink}${despesaLink}` })}
-      ${indicador('Saldo previsto', moeda(v('saldo_previsto')), 'receita prevista − despesas previstas', { tom: v('saldo_previsto') < 0 ? 'perigo' : '' })}
-      ${indicador('Saldo realizado', moeda(v('saldo_realizado')), 'recebido − pago (sem transferências)',
+      ${indicador('Saldo previsto', moeda(v('saldo_previsto')), previstaEscritorio !== v('receita_prevista') ? 'receita do escritório − despesas previstas' : 'receita prevista − despesas previstas', { tom: v('saldo_previsto') < 0 ? 'perigo' : '' })}
+      ${indicador('Saldo realizado', moeda(v('saldo_realizado')), repasses ? 'honorários recebidos − pago (sem transferências)' : 'recebido − pago (sem transferências)',
         { tom: v('saldo_realizado') < 0 ? 'perigo' : '', href: pode.fechamento() && f.periodo === 'mes' && !f.responsavel && !f.conta && !f.categoria ? `#/financeiro/fechamento?mes=${f.mes}` : '' })}
       ${indicador('Taxa de recebimento', taxa == null ? 'Não se aplica' : `${String(taxa).replace('.', ',')}%`,
         taxa == null ? 'nenhuma parcela venceu no período' : `${moeda(centavos(i.taxa_recebimento.numerador))} de ${moeda(centavos(i.taxa_recebimento.denominador))} já vencidos`,
@@ -159,7 +167,7 @@ function tela(r, f, { contasFinanceiras, categorias }) {
             <thead><tr><th>Mês</th>${SERIES.map(([, rotulo]) => html`<th class="num">${rotulo}</th>`)}<th class="num">Saldo realizado</th></tr></thead>
             <tbody>${r.serie.map((s) => html`
               <tr><td>${mesAbreviado(s.competencia)}</td>${SERIES.map(([k]) => html`<td class="num">${moeda(centavos(s[k]))}</td>`)}
-                <td class="num">${moeda(centavos(s.receita_recebida) - centavos(s.despesa_paga))}</td></tr>`)}
+                <td class="num">${moeda(centavos(s.receita_recebida) - centavos(s.repasses ?? 0) - centavos(s.despesa_paga))}</td></tr>`)}
             </tbody>
           </table>
         </div>

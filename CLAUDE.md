@@ -56,6 +56,16 @@ só a FL, centrada; favicon é o monograma FL; não há mais marcas d'água.
 Detalhes: README §Identidade. As menções a "FHL" abaixo são
 histórico.
 
+**Pedidos do grupo do escritório — 19/10/2026:** e-mail oficial
+`contato@advocaciafl.com.br`; áreas **Criminal** (Vinícius) e **Imobiliário**
+(Guilherme) no site; no Financeiro, **fixo + êxito** no mesmo contrato,
+**contrato encadeado** (começa quando outro termina) e **acordo com repasse
+ao cliente** (cota do escritório por parcela; a parte do cliente fica fora da
+divisão entre sócios). Preparação, decisões e perguntas abertas:
+[preparacao-pedidos-advogados.md](preparacao-pedidos-advogados.md); detalhes
+técnicos no `sistema/README.md`. Fotos, SMTP do e-mail novo, Google Agenda e
+domínio `advocaciafl.com.br` estão sendo ajustados pelo Ithalo.
+
 ---
 
 ## 1. Quem é quem
@@ -242,12 +252,12 @@ auto-hospedadas. Já implementado; não regredir.
 
 | Item | Situação |
 |---|---|
-| **E-mail oficial** | Site usa `contato@fhladvocacia.com.br` (suposição). O sistema dele traz `contato@casenhali.com`. **Conflito — perguntar qual é o real.** |
-| **Domínio** | `fhladvocacia.com.br` é suposição. Confirmar se já foi registrado. |
+| **E-mail oficial** | **Resolvido (out/2026):** `contato@advocaciafl.com.br`, informado pelo Vinícius no grupo do escritório. Aplicado em 19/10/2026 (`sistema/js/escritorio.js`). |
+| **Domínio** | Provável `advocaciafl.com.br` (o do e-mail). Em ajuste pelo Ithalo — até lá, `DOMINIO` segue a suposição antiga. |
 | **OAB da sociedade e CNPJ** | Vazios em `src/data/site.mjs` (o site mostrava "00.000"). Até lá, o rodapé lista a inscrição de cada advogado. Os 4 advogados são OAB/PR; a inscrição da *sociedade* não aparece em lugar nenhum. |
 | **Anos de atuação** | Era `10`, sem fonte; agora `6` (`ANOS_DE_ATUACAO`). Ele disse "estou há seis anos" [~24:30] — mas pode ser o tempo dele, não do escritório. |
 | **Redes sociais** | Os campos no sistema dele estão com URL genérica (`https://instagram.com/`). Nunca foram preenchidos. |
-| **Áreas de atuação** | O site mostra 4 (Trabalhista, Previdenciário, Consumidor, Cível), mas os perfis somam 12+, incluindo **Portuário** — que num escritório de Paranaguá provavelmente é central. Decisão dele: vitrine de 4 ou abrir uma quinta página? |
+| **Áreas de atuação** | **Seis desde out/2026:** às quatro (Trabalhista, Previdenciário, Consumidor, Cível) o Vinícius pediu Criminal e Imobiliário — textos a revisar por ele e pelo Guilherme. Os perfis somam mais, incluindo **Portuário**, que num escritório de Paranaguá provavelmente é central: abrir página para ele é decisão dele. |
 | **Licença webfont Galano Grotesque** | Bloqueia o lançamento. Ver README §Pendências. |
 
 ---
@@ -292,7 +302,7 @@ custo mensal é o critério dele. **Chegar na conversa com esse número pronto.*
 
 ## 10. Perguntas para a próxima reunião
 
-1. Qual é o e-mail e o domínio oficiais?
+1. ~~Qual é o e-mail~~ (resolvido: `contato@advocaciafl.com.br`) e o domínio oficial?
 2. Qual a inscrição da sociedade na OAB e o CNPJ?
 3. Direito Portuário entra como área do site?
 4. O que é o "Escritório Virtual" que aparece no menu do sistema?

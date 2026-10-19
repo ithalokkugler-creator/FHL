@@ -165,6 +165,11 @@ async function carregar(dia) {
       filtros: [['situacao', 'in', ['a_pagar', 'vencida', 'sem_valor']], ['vencimento', 'lte', daquiAUmaSemana]],
       ordem: 'vencimento.asc,id.asc',
     }));
+    // Acordos: a parte de clientes já recebida e ainda não repassada a eles.
+    tarefas.repasses = db.todos('v_recebimentos', {
+      select: 'id,valor_repasse',
+      filtros: [['repasse_situacao', 'eq', 'pendente']],
+    });
   }
 
   if (pode.fechamento()) {
@@ -445,6 +450,8 @@ function painelFinanceiro(dados, dia) {
   const mesPassado = somarMeses(inicioDoMes(dia), -1);
   const lembrarFechamento = pode.fechamento() && dados.movimentoMesPassado && !dados.fechamento?.fechado;
   const alertas = dados.avisos?.alertas_financeiros ?? null;
+  const repasses = dados.repasses ?? [];
+  const aRepassar = repasses.reduce((soma, r) => soma + centavos(r.valor_repasse), 0);
 
   return html`
     <section class="painel" data-painel="financeiro">
@@ -466,6 +473,10 @@ function painelFinanceiro(dados, dia) {
 
       ${lembrarFechamento
         ? html`<div class="painel__corpo fin-hoje__aviso"><p class="nota"><strong>${capitalizar(nomeDoMes(mesPassado))}</strong> ainda não foi fechado. <a href="#/financeiro/fechamento?mes=${mesPassado}">Ver fechamento</a></p></div>`
+        : ''}
+      ${aRepassar
+        ? html`<div class="painel__corpo fin-hoje__aviso"><p class="nota">Parte de clientes recebida em acordos e ainda não repassada:
+            <strong>${moeda(aRepassar)}</strong> (${plural(repasses.length, 'recebimento', 'recebimentos')}). <a href="#/financeiro/contratos?situacao=repasse">Ver contratos</a></p></div>`
         : ''}
 
       <div class="fin-hoje">

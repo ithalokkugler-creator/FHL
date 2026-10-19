@@ -94,7 +94,7 @@ ${a.itens.slice(0, 4).map((it) => `                <li>${it}</li>`).join('\n')}
     </div>
   </section>
 
-  <!-- ATUAÇÃO — pin de 300vh -->
+  <!-- ATUAÇÃO — pin de 75vh por área (home.js) -->
   <section class="atuacao">
     <div class="atuacao__sticky">
       <div class="wrap" style="width:100%">
@@ -283,7 +283,7 @@ ${contatoAside()}
     path: 'index.html',
     title: 'Fonseca Lisboa Advocacia | Paranaguá — PR',
     desc: 'Advocacia estratégica e institucional em Paranaguá. Direito Trabalhista, ' +
-      'Previdenciário, do Consumidor e Cível.',
+      'Previdenciário, do Consumidor, Cível, Criminal e Imobiliário.',
     body,
     home: true,
   });

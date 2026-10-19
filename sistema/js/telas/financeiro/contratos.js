@@ -25,7 +25,8 @@ const SITUACOES = [
   ['atencao', 'Com atenção (atraso, plano ou vigência)'],
   ['em_andamento', 'Em andamento, em dia'],
   ['renegociado', 'Renegociados'],
-  ['a_apurar', 'Êxito a apurar'],
+  ['a_apurar', 'Com êxito a apurar'],
+  ['repasse', 'Com repasse ao cliente pendente'],
   ['quitado', 'Quitados'],
   ['arquivado', 'Arquivados'],
   ['cancelado', 'Cancelados'],
@@ -73,6 +74,9 @@ export default async function telaContratos(ctx) {
     else if (filtro.situacao === 'atencao') filtros.push(['ciclo', 'eq', 'ativo'],
       ['and', `(or(vencidas.gt.0,diferenca_plano.neq.0,and(data_fim.gte.${hoje()},data_fim.lte.${somarDias(hoje(), 30)})))`]);
     else if (filtro.situacao === 'formalizacao') filtros.push(['data_contrato_origem', 'eq', 'a_confirmar'], ['ciclo', 'neq', 'cancelado']);
+    // Êxito a apurar inclui o fixo + êxito com o fixo ainda em aberto.
+    else if (filtro.situacao === 'a_apurar') filtros.push(['exito_pendente', 'is', true], ['ciclo', 'eq', 'ativo']);
+    else if (filtro.situacao === 'repasse') filtros.push(['repasse_pendente', 'gt', 0]);
     else if (filtro.situacao !== 'todos') filtros.push(['rotulo', 'eq', filtro.situacao]);
     const termo = termoDeBusca(filtro.busca);
     if (termo) filtros.push(['or', `(cliente_nome.ilike.${termo},codigo.ilike.${termo},descricao.ilike.${termo},processo.ilike.${termo})`]);
@@ -128,7 +132,14 @@ export default async function telaContratos(ctx) {
   });
 }
 
-const ROTULOS = Object.fromEntries(SITUACOES);
+const ROTULOS = { ...Object.fromEntries(SITUACOES), a_apurar: 'Êxito a apurar' };
+
+/** "Valor fixo", "Êxito 30%", "Fixo + êxito 30%" — e ", acordo" quando há repasse. */
+export const tipoDeHonorario = (c) => {
+  const pct = `${String(Number(c.exito_pct)).replace('.', ',')}%`;
+  const tipo = c.tipo_honorario === 'exito' ? `Êxito ${pct}` : c.tipo_honorario === 'misto' ? `Fixo + êxito ${pct}` : 'Valor fixo';
+  return c.tem_repasse ? `${tipo}, acordo com repasse` : tipo;
+};
 
 export const COLUNAS_EXPORTACAO = [
   { titulo: 'Código', valor: (c) => c.codigo },
@@ -136,9 +147,12 @@ export const COLUNAS_EXPORTACAO = [
   { titulo: 'Descrição', valor: (c) => c.descricao },
   { titulo: 'Processo', valor: (c) => c.processo },
   { titulo: 'Data do contrato', valor: (c) => c.data_contrato, tipo: 'data' },
-  { titulo: 'Honorários', valor: (c) => (c.tipo_honorario === 'exito' ? `Êxito ${String(c.exito_pct).replace('.', ',')}%` : 'Valor fixo') },
+  { titulo: 'Honorários', valor: tipoDeHonorario },
   { titulo: 'Valor do contrato', valor: (c) => (c.valor_total != null ? centavos(c.valor_total) : null), tipo: 'moeda' },
+  { titulo: 'Êxito apurado', valor: (c) => (c.valor_exito != null ? centavos(c.valor_exito) : null), tipo: 'moeda' },
   { titulo: 'Exigível vigente', valor: (c) => centavos(c.exigivel_total), tipo: 'moeda' },
+  { titulo: 'Do escritório (vigente)', valor: (c) => centavos(c.exigivel_escritorio_total ?? c.exigivel_total), tipo: 'moeda' },
+  { titulo: 'Repasse pendente', valor: (c) => centavos(c.repasse_pendente), tipo: 'moeda' },
   { titulo: 'Recebido', valor: (c) => centavos(c.recebido), tipo: 'moeda' },
   { titulo: 'Saldo em aberto', valor: (c) => centavos(c.saldo), tipo: 'moeda' },
   { titulo: 'Saldo vencido', valor: (c) => centavos(c.saldo_vencido), tipo: 'moeda' },
@@ -177,6 +191,9 @@ function tabela(linhas, total, pagina) {
                 ${c.tipo_honorario === 'exito' && c.valor_total == null
                   ? `${TIPOS_HONORARIO.exito} de ${percentual(c.exito_pct)}`
                   : html`<span class="num">${moeda(centavos(c.valor_total))}</span>`}
+                ${c.tipo_honorario === 'misto' ? html`<span class="sub">+ ${c.valor_exito != null ? `êxito de ${moeda(centavos(c.valor_exito))}` : `${percentual(c.exito_pct)} de êxito a apurar`}</span>` : ''}
+                ${c.tem_repasse ? html`<span class="sub">acordo · escritório ${moeda(centavos(c.exigivel_escritorio_total))}</span>` : ''}
+                ${Number(c.repasse_pendente) > 0 ? html`<span class="sub alerta">repasse pendente ${moeda(centavos(c.repasse_pendente))}</span>` : ''}
                 <span class="sub">${c.parcelas_ativas ? `${c.parcelas_ativas} ${c.parcelas_ativas === 1 ? 'parcela' : 'parcelas'}` : ''}${c.parcelas_parciais ? ` · ${c.parcelas_parciais} paga(s) em parte` : ''}</span>
               </td>
               <td class="num">${moeda(centavos(c.recebido))}</td>

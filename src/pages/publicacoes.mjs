@@ -157,7 +157,7 @@ ${items}
   return page({
     path: 'publicacoes.html',
     title: 'Publicações — Fonseca Lisboa Advocacia',
-    desc: 'Artigos da Fonseca Lisboa Advocacia sobre direito trabalhista, previdenciário, do consumidor e cível.',
+    desc: 'Artigos da Fonseca Lisboa Advocacia sobre direito trabalhista, previdenciário, do consumidor, cível, criminal e imobiliário.',
     body,
   });
 }

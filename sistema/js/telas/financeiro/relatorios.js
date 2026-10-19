@@ -54,6 +54,7 @@ export default async function telaRelatorios(ctx) {
     responsavel: q.responsavel ?? '',
     categoria: q.categoria ?? '',
     situacao: q.situacao ?? '',
+    repasse: ['com', 'pendente'].includes(q.repasse) ? q.repasse : '',
     estornados: q.estornados === '1',
     ano: /^\d{4}$/.test(q.ano ?? '') ? q.ano : String(Number(dia.slice(0, 4)) - 1),
   };
@@ -92,6 +93,8 @@ export default async function telaRelatorios(ctx) {
     ${['recebimentos', 'pagamentos'].includes(f.relatorio) ? html`
       <label class="campo"><span>Conta financeira</span><select name="conta">${opcoes([...contasFinanceiras.map((c) => [c.id, c.nome]), ['legado', 'Origem legada não informada']], f.conta, { vazio: 'Todas' })}</select></label>
       <label class="opcao"><input type="checkbox" name="estornados" ${f.estornados ? 'checked' : ''}> Incluir estornados</label>` : ''}
+    ${f.relatorio === 'recebimentos' ? html`
+      <label class="campo"><span>Acordos</span><select name="repasse">${opcoes([['', 'Todos os recebimentos'], ['com', 'Só com parte de cliente'], ['pendente', 'Só com repasse pendente']], f.repasse)}</select></label>` : ''}
     ${['receber', 'inadimplencia', 'contratos', 'recebimentos'].includes(f.relatorio) ? html`
       <label class="campo"><span>Responsável</span><select name="responsavel">${opcoes(estado.membros.map((m) => [m.id, m.nome_curto]), f.responsavel, { vazio: 'Todos' })}</select></label>` : ''}
     ${['despesas', 'pagamentos'].includes(f.relatorio) ? html`
@@ -215,11 +218,13 @@ const GERAR = {
     if (f.agrupar === 'mes') {
       const r = await db.rpc('resumo_financeiro', { p: { de: f.de, ate: f.ate } });
       let acumulado = 0;
+      // A parte dos clientes nos acordos sai do resultado: não é do escritório.
       const linhas = r.serie.map((s) => {
-        const resultado = centavos(s.receita_recebida) - centavos(s.despesa_paga);
+        const resultado = centavos(s.receita_recebida) - centavos(s.repasses ?? 0) - centavos(s.despesa_paga);
         acumulado += resultado;
         return { ...s, resultado, acumulado };
       });
+      const repasses = linhas.reduce((s, l) => s + centavos(l.repasses ?? 0), 0);
       return {
         titulo: 'Fluxo financeiro mensal',
         filtros: [['Período', periodoTexto(f)], ['Base', 'previsto: vencimento (receitas) e competência (despesas); realizado: caixa']],
@@ -227,44 +232,56 @@ const GERAR = {
           { titulo: 'Mês', valor: (l) => mesAbreviado(l.competencia) },
           { titulo: 'Receita prevista', valor: (l) => centavos(l.receita_prevista), tipo: 'moeda' },
           { titulo: 'Receita recebida', valor: (l) => centavos(l.receita_recebida), tipo: 'moeda' },
+          ...(repasses ? [{ titulo: 'Parte de clientes (acordos)', valor: (l) => centavos(l.repasses ?? 0), tipo: 'moeda' }] : []),
           { titulo: 'Despesa prevista', valor: (l) => centavos(l.despesa_prevista), tipo: 'moeda' },
           { titulo: 'Despesa paga', valor: (l) => centavos(l.despesa_paga), tipo: 'moeda' },
-          { titulo: 'Resultado (caixa)', valor: (l) => l.resultado, tipo: 'moeda' },
+          { titulo: repasses ? 'Resultado do escritório' : 'Resultado (caixa)', valor: (l) => l.resultado, tipo: 'moeda' },
           { titulo: 'Acumulado', valor: (l) => l.acumulado, tipo: 'moeda' },
         ],
         linhas,
         totais: {
           'Receita recebida': linhas.reduce((s, l) => s + centavos(l.receita_recebida), 0),
+          ...(repasses ? { 'Parte de clientes': repasses } : {}),
           'Despesa paga': linhas.reduce((s, l) => s + centavos(l.despesa_paga), 0),
           Resultado: linhas.reduce((s, l) => s + l.resultado, 0),
         },
-        aviso: 'Transferências entre contas não entram: não são receita nem despesa.',
+        aviso: `Transferências entre contas não entram: não são receita nem despesa.${repasses ? ' A parte dos clientes nos acordos sai do resultado: entra no caixa, mas é repassada.' : ''}`,
       };
     }
     const [entradas, saidas] = await Promise.all([
-      db.todos('recebimentos', { select: 'id,data,valor', filtros: [['data', 'gte', f.de], ['data', 'lte', f.ate], ['estornado_em', 'is', null]] }),
+      db.todos('recebimentos', { select: 'id,data,valor,valor_repasse', filtros: [['data', 'gte', f.de], ['data', 'lte', f.ate], ['estornado_em', 'is', null]] }),
       db.todos('pagamentos_despesa', { select: 'id,data,valor', filtros: [['data', 'gte', f.de], ['data', 'lte', f.ate], ['estornado_em', 'is', null]] }),
     ]);
     const dias = new Map();
-    for (const e of entradas) dias.set(e.data, { ...(dias.get(e.data) ?? { entradas: 0, saidas: 0 }), entradas: (dias.get(e.data)?.entradas ?? 0) + centavos(e.valor) });
-    for (const s of saidas) dias.set(s.data, { ...(dias.get(s.data) ?? { entradas: 0, saidas: 0 }), saidas: (dias.get(s.data)?.saidas ?? 0) + centavos(s.valor) });
+    const vazio0 = () => ({ entradas: 0, repasses: 0, saidas: 0 });
+    for (const e of entradas) {
+      const d = dias.get(e.data) ?? vazio0();
+      dias.set(e.data, { ...d, entradas: d.entradas + centavos(e.valor), repasses: d.repasses + centavos(e.valor_repasse ?? 0) });
+    }
+    for (const s of saidas) {
+      const d = dias.get(s.data) ?? vazio0();
+      dias.set(s.data, { ...d, saidas: d.saidas + centavos(s.valor) });
+    }
     let acumulado = 0;
     const linhas = [...dias].sort((a, b) => a[0].localeCompare(b[0])).map(([d, v]) => {
-      acumulado += v.entradas - v.saidas;
-      return { data: d, ...v, resultado: v.entradas - v.saidas, acumulado };
+      const resultado = v.entradas - v.repasses - v.saidas;
+      acumulado += resultado;
+      return { data: d, ...v, resultado, acumulado };
     });
+    const repasses = somaCentavos(entradas, 'valor_repasse');
     return {
       titulo: 'Fluxo financeiro diário',
       filtros: [['Período', periodoTexto(f)], ['Base', 'caixa (data do recebimento e do pagamento)']],
       colunas: [
         { titulo: 'Data', valor: (l) => l.data, tipo: 'data' },
         { titulo: 'Entradas', valor: (l) => l.entradas, tipo: 'moeda' },
+        ...(repasses ? [{ titulo: 'Parte de clientes', valor: (l) => l.repasses, tipo: 'moeda' }] : []),
         { titulo: 'Saídas', valor: (l) => l.saidas, tipo: 'moeda' },
         { titulo: 'Resultado', valor: (l) => l.resultado, tipo: 'moeda' },
         { titulo: 'Acumulado', valor: (l) => l.acumulado, tipo: 'moeda' },
       ],
       linhas,
-      totais: { Entradas: somaCentavos(entradas, 'valor'), Saídas: somaCentavos(saidas, 'valor') },
+      totais: { Entradas: somaCentavos(entradas, 'valor'), ...(repasses ? { 'Parte de clientes': repasses } : {}), Saídas: somaCentavos(saidas, 'valor') },
     };
   },
 
@@ -345,12 +362,16 @@ const GERAR = {
     else if (f.conta) filtros.push(['conta_financeira_id', 'eq', f.conta]);
     const termo = termoDeBusca(f.busca);
     if (termo) filtros.push(['or', `(cliente_nome.ilike.${termo},contrato_descricao.ilike.${termo},descricao.ilike.${termo})`]);
+    if (f.repasse === 'com') filtros.push(['valor_repasse', 'gt', 0]);
+    if (f.repasse === 'pendente') filtros.push(['repasse_situacao', 'eq', 'pendente']);
     const linhas = await db.todos('v_recebimentos', { select: '*', filtros, ordem: 'data.asc,criado_em.asc,id.asc' });
     const validos = linhas.filter((r) => !r.estornado_em);
+    const repasses = somaCentavos(validos, 'valor_repasse');
     return {
       titulo: 'Recebimentos',
       filtros: [['Período (caixa)', periodoTexto(f)], ['Conta', f.conta ? (f.conta === 'legado' ? 'origem legada' : contasFinanceiras.find((c) => c.id === f.conta)?.nome) : 'todas'],
-        ['Estornados', f.estornados ? 'incluídos (riscados)' : 'fora'], ...filtroBusca(f)],
+        ['Estornados', f.estornados ? 'incluídos (riscados)' : 'fora'],
+        ...(f.repasse ? [['Acordos', f.repasse === 'com' ? 'só com parte de cliente' : 'só com repasse pendente']] : []), ...filtroBusca(f)],
       colunas: [
         { titulo: 'Data', valor: (r) => r.data, tipo: 'data' },
         { titulo: 'Cliente', valor: (r) => r.cliente_nome },
@@ -364,12 +385,18 @@ const GERAR = {
         { titulo: 'Acréscimo', valor: (r) => (r.encargos_discriminados ? centavos(r.valor_acrescimo) : null), tipo: 'moeda' },
         { titulo: 'Encargos (total)', valor: (r) => centavos(r.valor_encargos), tipo: 'moeda' },
         { titulo: 'Valor', valor: (r) => centavos(r.valor), tipo: 'moeda' },
+        { titulo: 'Do escritório', valor: (r) => centavos(r.valor_escritorio ?? r.valor), tipo: 'moeda' },
+        { titulo: 'Do cliente (repasse)', valor: (r) => centavos(r.valor_repasse ?? 0), tipo: 'moeda' },
+        { titulo: 'Repasse', valor: (r) => (r.repasse_situacao === 'feito' ? `feito em ${data(r.repasse_data)}` : r.repasse_situacao === 'pendente' ? 'pendente' : null) },
         { titulo: 'Lançado por', valor: (r) => nomeDe(r.criado_por) },
         { titulo: 'Estorno', valor: (r) => (r.estornado_em ? `${dataHora(r.estornado_em)} — ${r.motivo_estorno}` : null) },
       ],
       linhas,
-      totais: { Recebido: somaCentavos(validos, 'valor'), Principal: somaCentavos(validos, 'valor_principal'), Encargos: somaCentavos(validos, 'valor_encargos') },
-      aviso: 'Recebimentos anteriores a 08/10/2026 não discriminam multa, juros e correção (aparece só o total de encargos).',
+      totais: {
+        Recebido: somaCentavos(validos, 'valor'), Principal: somaCentavos(validos, 'valor_principal'), Encargos: somaCentavos(validos, 'valor_encargos'),
+        ...(repasses ? { 'Do cliente (repasse)': repasses, Honorários: somaCentavos(validos, 'valor') - repasses } : {}),
+      },
+      aviso: 'Recebimentos anteriores a 08/10/2026 não discriminam multa, juros e correção (aparece só o total de encargos). Nos acordos, a parte do cliente entra no caixa e é repassada: não é honorário.',
     };
   },
 
@@ -476,6 +503,7 @@ const GERAR = {
       linhas: foto.posicao ?? [],
       totais: {
         'Receitas previstas': centavos(t.receitas_previstas), 'Receitas recebidas': centavos(t.receitas_recebidas),
+        ...(Number(t.repasses_clientes) ? { 'Parte de clientes (acordos)': centavos(t.repasses_clientes) } : {}),
         'Despesas previstas': centavos(t.despesas_previstas), 'Despesas pagas': centavos(t.despesas_pagas),
         'Vencido em 31/12': centavos(t.vencido_no_corte), 'A vencer em 31/12': centavos(t.a_vencer_no_corte),
       },
@@ -485,6 +513,7 @@ const GERAR = {
           { titulo: 'Mês', valor: (m) => mesAbreviado(m.competencia) },
           { titulo: 'Fechado', valor: (m) => (m.fechado ? 'sim' : 'não') },
           { titulo: 'Entradas', valor: (m) => centavos(m.entradas), tipo: 'moeda' },
+          { titulo: 'Parte de clientes', valor: (m) => centavos(m.repasses ?? 0), tipo: 'moeda' },
           { titulo: 'Saídas', valor: (m) => centavos(m.saidas), tipo: 'moeda' },
           { titulo: 'Resultado', valor: (m) => centavos(m.resultado), tipo: 'moeda' },
         ],
@@ -522,7 +551,7 @@ const GERAR = {
 async function copiaOperacional() {
   const tabelas = ['clientes', 'membros', 'categorias', 'formas_pagamento', 'config_financeiro',
     'contratos', 'parcelas', 'recebimentos', 'renegociacoes', 'cobrancas', 'contas', 'contas_recorrentes',
-    'pagamentos_despesa', 'contas_financeiras', 'transferencias_financeiras', 'ajustes_financeiros',
+    'pagamentos_despesa', 'contas_financeiras', 'transferencias_financeiras', 'ajustes_financeiros', 'repasses_cliente',
     'fornecedores', 'centros_custo', 'anexos', 'anexos_versoes'];
   if (pode.fechamento()) tabelas.push('fechamentos', 'divisao_cotas', 'fechamentos_anuais', 'fechamentos_anuais_versoes');
   if (pode.agenda()) tabelas.push('config_agenda', 'compromissos');

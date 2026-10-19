@@ -4,6 +4,10 @@
 // "Tem muito dinheiro perdido na praça… eu fiquei quase um ano sem cobrar o
 // cliente." Cada cliente com o valor já atualizado, a memória do cálculo, a
 // última cobrança registrada e as três saídas: cobrar, receber, renegociar.
+//
+// Parcela de acordo (com repasse) atrasada é dívida da parte contrária, não do
+// cliente: aparece aqui para não ser esquecida, mas fica fora da mensagem de
+// cobrança ao cliente — cobra-se pelo processo.
 
 import { avisarErro } from '../../nucleo/avisos.js';
 import { abrirDialogo } from '../../nucleo/dialogo.js';
@@ -14,8 +18,11 @@ import { db } from '../../nucleo/supabase.js';
 import { cabecalho, CANAIS, indicador, plural, vazio } from '../comum.js';
 import {
   apoio, atualizarParcelas, criterioEmTexto, memoria, prepararCobranca, receberParcela,
-  renegociarContrato, rotuloParcela,
+  renegociarContrato, rotuloParcela, temRepasse,
 } from './base.js';
+
+/** Só o que o próprio cliente deve entra na mensagem de cobrança a ele. */
+const doCliente = (g) => ({ ...g, itens: g.itens.filter((i) => !temRepasse(i.parcela)) });
 
 export default async function telaEmAtraso(ctx) {
   let grupos = [];
@@ -33,7 +40,7 @@ export default async function telaEmAtraso(ctx) {
 
   return aoClicar(ctx.raiz, {
     cobrar: async (botao) => {
-      if (await prepararCobranca(grupoDe(botao.dataset.cliente))) await mostrar().catch(avisarErro);
+      if (await prepararCobranca(doCliente(grupoDe(botao.dataset.cliente)))) await mostrar().catch(avisarErro);
     },
     receber: async (botao) => {
       if (await receberParcela(itemDe(botao.dataset.id).parcela)) await mostrar().catch(avisarErro);
@@ -132,6 +139,7 @@ function tela({ grupos, config, indisponivel }) {
 function cartao(g) {
   const contratos = [...new Map(g.itens.map((i) => [i.parcela.contrato_id, i.parcela.contrato_descricao])).entries()];
   const c = g.ultimaCobranca;
+  const cobravel = doCliente(g).itens.length > 0;
 
   return html`
     <section class="painel">
@@ -145,7 +153,9 @@ function cartao(g) {
         </div>
         <div class="grupo-botoes">
           <strong class="num">${moeda(g.total)}</strong>
-          <button type="button" class="botao botao--primario botao--pequeno" data-acao="cobrar" data-cliente="${g.cliente_id}">Preparar mensagem</button>
+          ${cobravel
+            ? html`<button type="button" class="botao botao--primario botao--pequeno" data-acao="cobrar" data-cliente="${g.cliente_id}">Preparar mensagem</button>`
+            : html`<span class="sub">Acordo: quem deve é a parte contrária</span>`}
         </div>
       </header>
       <div class="tabela-rolagem">
@@ -161,7 +171,8 @@ function cartao(g) {
             ${g.itens.map(({ parcela: p, calculo: k }) => html`
               <tr>
                 <td><a href="#/financeiro/contratos/${p.contrato_id}">${p.contrato_descricao}</a></td>
-                <td>${rotuloParcela(p)}${p.parcial ? html`<span class="sub">paga em parte</span>` : ''}</td>
+                <td>${rotuloParcela(p)}${p.parcial ? html`<span class="sub">paga em parte</span>` : ''}${temRepasse(p)
+                  ? html`<span class="sub">acordo · devida pela parte contrária, fora da mensagem ao cliente</span>` : ''}</td>
                 <td class="num">${data(p.vencimento)}</td>
                 <td class="num">${k.dias}</td>
                 <td class="num">${moeda(k.saldo)}</td>

@@ -32,7 +32,7 @@ select (select coalesce(sum(total), 0) from public.__antes_reembolsos)
            where pago_por_id is not null and reembolsado_em is null and estornado_em is null),
        'L06 reembolso pendente aos sócios é o mesmo', null
 union all
-select count(*) = 2 and bool_and(codigo ~ '^C[0-9]{3}/[0-9]{4}$') and count(distinct codigo) = 2,
+select count(*) = 3 and bool_and(codigo ~ '^C[0-9]{3}/[0-9]{4}$') and count(distinct codigo) = 3,
        'L07 contratos antigos (inclusive o cancelado) ganharam código único',
        string_agg(codigo, ', ')
   from public.contratos
@@ -51,4 +51,25 @@ select (select count(*) from public.auditoria where acao = 'migrou' and tabela =
        'L11 cada pagamento migrado ficou no histórico como "migrou"', null
 union all
 select (select data_pagamento from public.contas where descricao = 'Internet de setembro') = '2026-10-01',
-       'L12 a quitação continua com a data do pagamento', null;
+       'L12 a quitação continua com a data do pagamento', null
+-- Migração de 19/10 (fixo + êxito e acordo com repasse).
+union all
+select count(*) = 2 and bool_and(p.parte = 'exito'),
+       'L13 as parcelas do êxito já apurado ficaram marcadas como do êxito', count(*)::text
+  from public.parcelas p join public.contratos c on c.id = p.contrato_id
+ where c.descricao = 'Êxito legado'
+union all
+select c.valor_exito = 600 and c.exito_apurado_em is not null and v.situacao = 'ativo'
+       and not v.exito_pendente and v.diferenca_plano = 0,
+       'L14 o êxito já apurado ganhou valor e data da apuração, e o plano continua fechando',
+       v.situacao || ':' || coalesce(c.valor_exito::text, '-') || ':' || v.diferenca_plano
+  from public.contratos c join public.v_contratos v on v.id = c.id
+ where c.descricao = 'Êxito legado'
+union all
+select bool_and(p.parte = 'fixo' and p.cota_escritorio_pct = 100),
+       'L15 as parcelas dos contratos fixos continuam do fixo e 100% do escritório', null
+  from public.parcelas p join public.contratos c on c.id = p.contrato_id
+ where c.tipo_honorario = 'fixo'
+union all
+select count(*) = 0, 'L16 nenhum recebimento antigo ganhou parte de cliente a repassar', count(*)::text
+  from public.recebimentos where valor_repasse <> 0;

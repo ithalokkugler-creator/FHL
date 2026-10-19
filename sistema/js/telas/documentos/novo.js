@@ -43,9 +43,15 @@ async function dadosDoContrato(id) {
   if (!c) throw new Error('Contrato não encontrado ou sem acesso.');
 
   const parcelas = parcelasTodas.filter((p) => !['cancelada', 'renegociada'].includes(p.situacao));
-  const normais = parcelas.filter((p) => p.numero !== 0);
-  const entrada = parcelas.find((p) => p.numero === 0);
-  const pago = recebimentos.filter((r) => !r.estornado_em).reduce((soma, r) => soma + centavos(r.valor), 0);
+  // No fixo + êxito, o contrato de honorários descreve só o fixo: as parcelas
+  // do êxito nascem da apuração.
+  const doFixo = parcelas.filter((p) => p.parte !== 'exito');
+  const normais = doFixo.filter((p) => p.numero !== 0);
+  const entrada = doFixo.find((p) => p.numero === 0);
+  const validos = recebimentos.filter((r) => !r.estornado_em);
+  const pago = validos.reduce((soma, r) => soma + centavos(r.valor), 0);
+  // Acordo: o que já foi repassado ao cliente vai pronto para a prestação de contas.
+  const repassado = validos.filter((r) => r.repasse_situacao === 'feito').reduce((soma, r) => soma + centavos(r.valor_repasse), 0);
 
   return {
     clienteId: c.cliente_id,
@@ -58,8 +64,10 @@ async function dadosDoContrato(id) {
       dia_vencimento: normais[0]?.vencimento.slice(8) || '',
       modalidade: c.tipo_honorario,
       exito: c.exito_pct ?? 0,
-      data_contrato: hoje(new Date(c.criado_em)),
+      // A data em que o contrato foi formalizado; sem ela (antigo), a do cadastro.
+      data_contrato: c.data_contrato ?? hoje(new Date(c.criado_em)),
       total_pago: decimal(pago),
+      ...(repassado ? { valor_repassado: decimal(repassado) } : {}),
       financeiro: { parcelas, recebimentos, contrato: c, criterio: Object.fromEntries(
         ['multa_pct', 'juros_mes_pct', 'correcao', 'carencia_dias'].map((k) => [k, c[k] ?? config?.[k]])) },
     },

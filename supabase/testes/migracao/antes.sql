@@ -37,6 +37,17 @@ select public.criar_contrato(jsonb_build_object(
   'parcelas', jsonb_build_array(jsonb_build_object('numero', 1, 'vencimento', '2026-09-01', 'valor', 100))));
 update public.contratos set cancelado_em = now(), motivo_cancelamento = 'Desistiu' where descricao = 'Contrato cancelado';
 
+-- Êxito já apurado no formato antigo: a migração de 19/10 marca as parcelas
+-- como do êxito e grava o valor e a data da apuração.
+select public.criar_contrato(jsonb_build_object(
+  'cliente_id', (select id from public.clientes where nome = 'Cliente Legado'),
+  'descricao', 'Êxito legado', 'tipo_honorario', 'exito', 'exito_pct', 30));
+select public.apurar_exito(jsonb_build_object(
+  'contrato_id', (select id from public.contratos where descricao = 'Êxito legado'), 'valor_total', 600,
+  'parcelas', jsonb_build_array(
+    jsonb_build_object('vencimento', '2026-11-10', 'valor', 300),
+    jsonb_build_object('vencimento', '2026-12-10', 'valor', 300))));
+
 insert into public.contas (descricao, categoria_id, valor, vencimento, data_pagamento, forma_id)
 values ('Aluguel de agosto', (select id from public.categorias where nome = 'Aluguel'), 1500, '2026-08-05', '2026-08-05',
         (select id from public.formas_pagamento where nome = 'Pix'));

@@ -19,9 +19,9 @@ export function buildAtuacaoIndex() {
 
   const body = pageHead(
     'Atuação',
-    'Quatro frentes de atuação',
-    'Trabalhista, previdenciário, consumidor e cível: as questões que mais chegam ' +
-    'ao escritório, do fim de um contrato de trabalho à negativa de um benefício do INSS.'
+    'Seis frentes de atuação',
+    'Trabalhista, previdenciário, consumidor, cível, criminal e imobiliário: as questões ' +
+    'que mais chegam ao escritório, do fim de um contrato de trabalho à compra de um imóvel.'
   ) + `
 
   <section class="section">
@@ -37,7 +37,7 @@ ${items}
   return page({
     path: 'atuacao.html',
     title: 'Atuação — Fonseca Lisboa Advocacia',
-    desc: 'Direito Trabalhista, Previdenciário, do Consumidor e Cível em Paranaguá — PR.',
+    desc: 'Direito Trabalhista, Previdenciário, do Consumidor, Cível, Criminal e Imobiliário em Paranaguá — PR.',
     body,
   });
 }

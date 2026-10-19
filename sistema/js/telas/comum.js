@@ -158,7 +158,14 @@ const SITUACOES_CONTA = {
 };
 export const seloConta = (s) => selo(SITUACOES_CONTA[s] ?? [s, '']);
 
-export const TIPOS_HONORARIO = { fixo: 'Valor fixo', exito: 'Êxito' };
+export const TIPOS_HONORARIO = { fixo: 'Valor fixo', exito: 'Êxito', misto: 'Fixo + êxito' };
+
+/** Parte do cliente num recebimento de acordo: a fazer, feita ou nenhuma. */
+const SITUACOES_REPASSE = {
+  pendente: ['Repasse pendente', 'alerta'],
+  feito: ['Repassado', 'ok'],
+};
+export const seloRepasse = (s) => (SITUACOES_REPASSE[s] ? selo(SITUACOES_REPASSE[s]) : '');
 
 export const TIPOS_AVULSA = {
   consulta: 'Consulta',

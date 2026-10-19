@@ -110,6 +110,7 @@ img { max-width: 100%; display: block; }
 .sub { display: block; font-size: 12px; color: var(--c-texto-m); }
 .forte { font-weight: 700; }
 .perigo { color: var(--c-perigo); }
+.alerta { color: var(--c-alerta); }
 .ok { color: var(--c-ok); }
 
 .rotulo {

@@ -95,6 +95,8 @@ function tela(ano, { registro, previa, versoes, foto, aprovada }, abas) {
   const t = foto.totais;
   const abertos = previa.pendencias.meses_abertos ?? [];
   const terminou = `${ano}-12-31` < hoje();
+  // Acordos com repasse (out/2026): versão aprovada antes disso não tem a chave.
+  const repasses = centavos(t.repasses_clientes ?? 0);
 
   return html`
     ${cabecalhoImpressao()}
@@ -122,11 +124,11 @@ function tela(ano, { registro, previa, versoes, foto, aprovada }, abas) {
 
     <div class="indicadores indicadores--4">
       ${indicador('Receitas previstas', moeda(centavos(t.receitas_previstas)), 'parcelas que venceram no ano')}
-      ${indicador('Receitas recebidas', moeda(centavos(t.receitas_recebidas)), 'caixa do ano', { tom: 'ok' })}
+      ${indicador('Receitas recebidas', moeda(centavos(t.receitas_recebidas)), repasses ? `caixa do ano · ${moeda(repasses)} eram de clientes (acordos)` : 'caixa do ano', { tom: 'ok' })}
       ${indicador('Despesas previstas', moeda(centavos(t.despesas_previstas)), 'competência do ano')}
       ${indicador('Despesas pagas', moeda(centavos(t.despesas_pagas)), 'caixa do ano')}
       ${indicador('Saldo previsto', moeda(centavos(t.saldo_previsto)), 'receitas − despesas previstas')}
-      ${indicador('Saldo realizado', moeda(centavos(t.saldo_realizado)), 'recebido − pago', { tom: Number(t.saldo_realizado) < 0 ? 'perigo' : '' })}
+      ${indicador('Saldo realizado', moeda(centavos(t.saldo_realizado)), repasses ? 'recebido − repasses − pago' : 'recebido − pago', { tom: Number(t.saldo_realizado) < 0 ? 'perigo' : '' })}
       ${indicador('Vencido em 31/12', moeda(centavos(t.vencido_no_corte)), `${plural(t.contratos_com_pendencia, 'contrato', 'contratos')} com pendência`, { tom: Number(t.vencido_no_corte) ? 'perigo' : '' })}
       ${indicador('Taxa de recebimento', t.taxa_recebimento == null ? 'Não se aplica' : `${String(t.taxa_recebimento).replace('.', ',')}%`, 'do que venceu no ano, quanto entrou até 31/12')}
     </div>
@@ -136,11 +138,11 @@ function tela(ano, { registro, previa, versoes, foto, aprovada }, abas) {
         <header class="painel__topo"><h2 class="painel__titulo">Mês a mês</h2></header>
         <div class="tabela-rolagem">
           <table class="tabela">
-            <thead><tr><th>Mês</th><th>Fechamento</th><th class="num">Entradas</th><th class="num">Saídas</th><th class="num">Resultado</th></tr></thead>
+            <thead><tr><th>Mês</th><th>Fechamento</th><th class="num">Entradas</th>${repasses ? html`<th class="num">Repasses</th>` : ''}<th class="num">Saídas</th><th class="num">Resultado</th></tr></thead>
             <tbody>${(foto.meses ?? []).map((m) => html`
               <tr><td><a href="#/financeiro/fechamento?mes=${m.competencia}">${mesAbreviado(m.competencia)}</a></td>
                 <td>${m.fechado ? html`<span class="selo selo--ok">Fechado</span>` : html`<span class="selo selo--alerta">Aberto</span>`}</td>
-                <td class="num">${moeda(centavos(m.entradas))}</td><td class="num">${moeda(centavos(m.saidas))}</td>
+                <td class="num">${moeda(centavos(m.entradas))}</td>${repasses ? html`<td class="num">${moeda(centavos(m.repasses ?? 0))}</td>` : ''}<td class="num">${moeda(centavos(m.saidas))}</td>
                 <td class="num">${moeda(centavos(m.resultado))}</td></tr>`)}
             </tbody>
           </table>

@@ -89,7 +89,8 @@ export function validarComplementos(modeloId, d) {
 function pagamentoContrato(d) {
   const tipo = modalidade(d);
   const exito = dado(d.exito, 'ÊXITO');
-  const parcelas = parcelasValidas(d);
+  // No fixo + êxito, a tabela é a do valor fixo; o êxito é a cláusula abaixo.
+  const parcelas = parcelasValidas(d).filter((p) => p.parte !== 'exito');
   const fixo = tipo !== 'exito';
   const entrada = lerMoeda(d.entrada);
   const aVista = entrada > 0 && entrada === lerMoeda(d.valor_total);
@@ -107,9 +108,12 @@ function saldoPrestacao(d) {
   const fonte = d.financeiro?.contrato;
   if (d.financeiro) {
     if (fonte?.tipo_honorario === 'exito' && fonte.situacao === 'a_apurar') return html`<p>Os honorários de êxito ainda estão a apurar. Este demonstrativo não declara quitação.</p>`;
+    // Fixo + êxito com o êxito por apurar: o saldo do fixo, e o aviso.
+    const exitoPendente = fonte?.tipo_honorario === 'misto' && fonte.exito_pendente
+      ? ' Os honorários de êxito ainda estão a apurar; este demonstrativo não declara quitação.' : '';
     if (parcelas.every((p) => p.saldo != null) && parcelas.length) {
       const saldo = parcelas.reduce((s, p) => s + Math.max(0, centavos(p.saldo)), 0);
-      return html`<p><strong>Saldo de principal em aberto:</strong> ${moeda(saldo)}${saldo > 0 ? ', sem os encargos de atraso ainda não recebidos' : ''}.</p>`;
+      return html`<p><strong>Saldo de principal em aberto:</strong> ${moeda(saldo)}${saldo > 0 ? ', sem os encargos de atraso ainda não recebidos' : ''}.${exitoPendente}</p>`;
     }
     return html`<p>Este demonstrativo registra os lançamentos disponíveis; não declara quitação do contrato.</p>`;
   }

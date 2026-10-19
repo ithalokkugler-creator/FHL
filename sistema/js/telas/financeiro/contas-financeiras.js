@@ -24,7 +24,10 @@ import { abrirHistorico } from '../historico.js';
 import { esquecerApoio, opcoesContasFinanceiras } from './base.js';
 
 const TIPOS = { caixa: 'Caixa', corrente: 'Conta corrente', poupanca: 'Poupança', digital: 'Conta digital', aplicacao: 'Aplicação', outra: 'Outra' };
-const ORIGENS = { recebimento: 'Recebimento', pagamento: 'Pagamento de despesa', reembolso_socio: 'Reembolso a sócio', transferencia: 'Transferência' };
+const ORIGENS = {
+  recebimento: 'Recebimento', pagamento: 'Pagamento de despesa', reembolso_socio: 'Reembolso a sócio',
+  transferencia: 'Transferência', repasse_cliente: 'Repasse ao cliente (acordo)',
+};
 const POR_PAGINA = 100;
 
 export default async function telaContasFinanceiras(ctx) {

@@ -9,8 +9,12 @@
 //
 // A redação segue o padrão dos outros documentos e fica sujeita à mesma
 // revisão do escritório (§7.8 da preparação de novas funções).
+//
+// Acordo com repasse (out/2026): quem paga é a parte contrária, e o escritório
+// recebe como procurador do cliente. O recibo diz isso e separa os honorários
+// da parte do cliente — repassada ou a repassar, na data da emissão.
 
-import { centavos, data, documento, moeda } from '../nucleo/formato.js';
+import { centavos, data, documento, moeda, percentual } from '../nucleo/formato.js';
 import { html } from '../nucleo/html.js';
 import { valorPorExtenso } from '../dominio/extenso.js';
 import { nomeDaParcela } from '../dominio/parcelas.js';
@@ -46,9 +50,14 @@ export function montarRecibo({ recebimento: r, parcela, contrato, cliente, saldo
       : [['Multa, juros e correção', centavos(r.valor_encargos)]]),
   ].filter(([, v]) => v > 0);
 
+  const repasse = centavos(r.valor_repasse);
   const corpo = html`
-    <p>Recebemos de <strong>${dado(cliente.nome?.toUpperCase(), 'CLIENTE')}</strong>${comDoc}, a importância de
+    <p>Recebemos${repasse > 0 ? ', na qualidade de procuradores de' : ' de'} <strong>${dado(cliente.nome?.toUpperCase(), 'CLIENTE')}</strong>${comDoc}, a importância de
       <strong>${moeda(valor)}</strong> (${valorPorExtenso(valor)}), referente a ${referente}, paga em ${data(r.data)}${r.forma_nome ? `, por ${r.forma_nome}` : ''}.</p>
+    ${repasse > 0 ? html`
+      <p>Deste valor, <strong>${moeda(valor - repasse)}</strong> correspondem aos honorários advocatícios
+        (${percentual(r.cota_escritorio_pct)}) e <strong>${moeda(repasse)}</strong> (${valorPorExtenso(repasse)}) pertencem
+        ao(à) cliente, ${r.repasse_data ? `repassados em ${data(r.repasse_data)}` : 'a serem repassados'}.</p>` : ''}
     ${composicao.length > 1 ? html`
       <table class="doc-tabela">
         <tbody>
