@@ -25,7 +25,7 @@ import { abrirDialogo } from '../../nucleo/dialogo.js';
 import { avisar } from '../../nucleo/avisos.js';
 import { estado, membrosAtivos } from '../../nucleo/estado.js';
 import {
-  data, decimal, entre, hoje, lerMoeda, lerNumero, moeda, paraReais, percentual, somarMeses,
+  ateDuasCasas, data, decimal, entre, hoje, lerMoeda, lerNumero, moeda, paraReais, percentual, somarMeses,
 } from '../../nucleo/formato.js';
 import { $, $$, desenhar, html, lerFormulario } from '../../nucleo/html.js';
 import { navegar } from '../../nucleo/rotas.js';
@@ -199,12 +199,14 @@ export default async function telaNovoContrato(ctx) {
   const caixaEncadeado = $('[data-papel="encadeado"]', form);
   let parcelas = [];
   let anteriores = [];
+  let encadeamento = null; // { antes, definidas }: as datas antes e depois do encadear
+  let avisoParcelas = ''; // por que as parcelas não puderam ser geradas
 
   /** Cota do escritório em vigor: só no fixo marcado como acordo. */
   const cotaAtual = () => {
     if (form.tipo.value !== 'fixo' || !form.acordo.checked) return null;
     const cota = lerNumero(form.cota.value);
-    return entre(cota, 0.01, 99.99) ? cota : null;
+    return entre(cota, 0.01, 99.99) && ateDuasCasas(cota) ? cota : null;
   };
 
   ligarCampoCliente(form, clientes, { aoMudar: (cliente) => mostrarAnteriores(cliente) });
@@ -237,7 +239,7 @@ export default async function telaNovoContrato(ctx) {
     const resumo = $('[data-papel="resumo-acordo"]', form);
     const total = lerMoeda(form.total.value);
     if (cota == null || !(total > 0)) {
-      resumo.textContent = 'Informe o valor bruto e a cota do escritório (de 0,01% a 99,99%).';
+      resumo.textContent = 'Informe o valor bruto e a cota do escritório (de 0,01% a 99,99%, até duas casas decimais).';
       return;
     }
     const escritorio = parcelas.reduce((s, p) => s + divisaoDoRepasse(p.valor, cota).escritorio, 0);
@@ -269,6 +271,7 @@ export default async function telaNovoContrato(ctx) {
       parcelas = [];
       aviso = falha.message;
     }
+    avisoParcelas = aviso;
 
     const quantas = parcelas.filter((p) => p.numero > 0).length;
     desenhar(corpoParcelas, parcelas.length
@@ -279,7 +282,7 @@ export default async function telaNovoContrato(ctx) {
             <td><input class="num" inputmode="decimal" data-i="${i}" data-campo="valor" value="${decimal(p.valor)}" aria-label="Valor"></td>
             <td class="num" data-papel="escritorio" data-i="${i}" hidden></td>
           </tr>`)
-      : html`<tr><td colspan="3" class="sub">Preencha o valor total para ver as parcelas.</td></tr>`);
+      : html`<tr><td colspan="3" class="sub">${aviso || 'Preencha o valor total para ver as parcelas.'}</td></tr>`);
     atualizarSoma(aviso);
   };
 
@@ -287,9 +290,23 @@ export default async function telaNovoContrato(ctx) {
   // Contrato encadeado
   // ---------------------------------------------------------------------------
 
+  // As datas de antes do "Começar depois dele": desfeito o vínculo (ou trocado
+  // o cliente), voltam — senão o contrato saía sem vínculo e com a 1ª parcela
+  // na data do contrato anterior do outro cliente.
+  function desfazerEncadeamento() {
+    if (encadeamento) {
+      for (const campo of ['primeiro', 'data_entrada']) {
+        if (form[campo].value === encadeamento.definidas[campo]) form[campo].value = encadeamento.antes[campo];
+      }
+      encadeamento = null;
+      gerar();
+    }
+    form.inicia_apos_contrato_id.value = '';
+  }
+
   /** Os contratos em andamento do cliente escolhido, com o atalho. */
   async function mostrarAnteriores(cliente) {
-    form.inicia_apos_contrato_id.value = '';
+    desfazerEncadeamento();
     anteriores = [];
     caixaEncadeado.hidden = true;
     if (!cliente) return;
@@ -325,6 +342,7 @@ export default async function telaNovoContrato(ctx) {
       const anterior = anteriores.find((c) => c.id === caixaEncadeado.querySelector('[name="anterior"]').value);
       const inicio = anterior && inicioDepoisDe(anterior);
       if (!inicio) return;
+      const antes = encadeamento?.antes ?? { primeiro: form.primeiro.value, data_entrada: form.data_entrada.value };
       form.inicia_apos_contrato_id.value = anterior.id;
       // Com entrada, ela vai para o início; as parcelas, um mês depois.
       const comEntrada = (lerMoeda(form.entrada.value) ?? 0) > 0;
@@ -334,6 +352,7 @@ export default async function telaNovoContrato(ctx) {
       } else {
         form.primeiro.value = inicio;
       }
+      encadeamento = { antes, definidas: { primeiro: form.primeiro.value, data_entrada: form.data_entrada.value } };
       gerar();
       const feito = $('[data-papel="encadeado-feito"]', caixaEncadeado);
       desenhar(feito, html`Começa depois de <strong>${anterior.codigo ?? anterior.descricao}</strong>${form.tipo.value === 'exito'
@@ -343,7 +362,7 @@ export default async function telaNovoContrato(ctx) {
       feito.hidden = false;
     }
     if (e.target.closest('[data-papel="desfazer-encadeado"]')) {
-      form.inicia_apos_contrato_id.value = '';
+      desfazerEncadeamento();
       $('[data-papel="encadeado-feito"]', caixaEncadeado).hidden = true;
     }
   });
@@ -438,13 +457,14 @@ export default async function telaNovoContrato(ctx) {
     let percentualExito = null;
     if (d.tipo === 'exito' || d.tipo === 'misto') {
       percentualExito = lerNumero(d.exito_pct);
-      if (!entre(percentualExito, 0.01, 100)) throw new ErroCampo('exito_pct', 'Informe o percentual de êxito, entre 0 e 100.');
+      if (!entre(percentualExito, 0.01, 100)) throw new ErroCampo('exito_pct', 'Informe o percentual de êxito, maior que zero e até 100.');
+      if (!ateDuasCasas(percentualExito)) throw new ErroCampo('exito_pct', 'O percentual de êxito aceita até duas casas decimais (ex.: 12,5 ou 33,33).');
     }
     if (d.tipo === 'exito') return { ...contrato, exito_pct: percentualExito, parcelas: [] };
 
     const total = lerMoeda(d.total);
     if (!(total > 0)) throw new ErroCampo('total', d.tipo === 'fixo' && d.acordo ? 'Informe o valor bruto do acordo.' : 'Informe o valor total.');
-    if (!parcelas.length) throw new ErroCampo('quantidade', 'Confira entrada, número de parcelas e vencimento.');
+    if (!parcelas.length) throw new ErroCampo('quantidade', avisoParcelas || 'Confira entrada, número de parcelas e vencimento.');
     const incorreta = parcelas.findIndex((p) => !p.vencimento || !(p.valor > 0));
     if (incorreta >= 0) {
       const campo = parcelas[incorreta].vencimento ? 'valor' : 'vencimento';
@@ -461,6 +481,7 @@ export default async function telaNovoContrato(ctx) {
     if (d.tipo === 'fixo' && d.acordo) {
       cota = lerNumero(d.cota);
       if (!entre(cota, 0.01, 99.99)) throw new ErroCampo('cota', 'Informe a cota do escritório, de 0,01% a 99,99%. Se tudo é do escritório, desmarque o acordo.');
+      if (!ateDuasCasas(cota)) throw new ErroCampo('cota', 'A cota do escritório aceita até duas casas decimais (ex.: 30 ou 33,33).');
     }
 
     return {

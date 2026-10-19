@@ -9,7 +9,7 @@
 import { avisarErro } from '../nucleo/avisos.js';
 import { abrirDialogo } from '../nucleo/dialogo.js';
 import { estado, nomeDe } from '../nucleo/estado.js';
-import { data, dataHora, hoje, instante, somarDias } from '../nucleo/formato.js';
+import { centavos, data, dataHora, hoje, instante, moeda, somarDias } from '../nucleo/formato.js';
 import { $, aoClicar, desenhar, html } from '../nucleo/html.js';
 import { guardarConsulta } from '../nucleo/rotas.js';
 import { db } from '../nucleo/supabase.js';
@@ -164,6 +164,7 @@ const CAMPOS = {
   cota_escritorio_pct: 'cota do escritório (%)',
   valor_repasse: 'parte do cliente',
   recebimento_id: 'recebimento',
+  observacao: 'observação',
 };
 
 const nomeCampo = (c) => CAMPOS[c] ?? c.replace(/_id$/, '').replace(/_/g, ' ');
@@ -235,9 +236,23 @@ function mudancasCorpo(antes, depois) {
   return mudancas.length > 4 ? [...mudancas.slice(0, 4), `e mais ${mudancas.length - 4} mudança(s)`] : mudancas;
 }
 
+// Campos em reais: aparecem como dinheiro, não como número cru ("5000").
+const DINHEIRO = new Set(['exito_base', 'saldo_anterior', 'total_na_data']);
+const ehDinheiro = (campo) => campo === 'valor' || (/^valor_/.test(campo) && !/_pct$/.test(campo)) || DINHEIRO.has(campo);
+
+// Criação não tem "antes": destes registros, o que mais importa aparece na
+// própria linha (quanto saiu, quando e de onde, no repasse ao cliente).
+const RESUMO_CRIACAO = {
+  repasses_cliente: ['valor', 'data', 'observacao'],
+  recebimentos: ['valor', 'data', 'valor_repasse'],
+  contratos: ['tipo_honorario', 'valor_total', 'exito_pct'],
+  ajustes_financeiros: ['valor', 'motivo'],
+};
+
 function legivel(campo, v, tabela) {
   if (v == null || v === '') return '—';
   if (typeof v === 'boolean') return v ? 'sim' : 'não';
+  if (ehDinheiro(campo) && (typeof v === 'number' || /^-?\d+(\.\d+)?$/.test(v))) return moeda(centavos(v));
   if (campo === 'participantes' && Array.isArray(v)) return v.map(nomeDe).join(' + ') || '—';
   if (Array.isArray(v) && v.every((x) => typeof x === 'string')) return v.join(', ') || '—';
   if (typeof v === 'object') return encurtar(textos(v).filter(Boolean).join(' · ') || '—');
@@ -261,7 +276,10 @@ export function itemHistorico(a) {
           ? html`<ul class="historico__campos">${a.campos.map((c) => (c === 'corpo' && [a.antes?.[c], a.depois?.[c]].some((v) => Array.isArray(v) && v.every(ehBloco))
             ? html`<li>conteúdo:<ul>${mudancasCorpo(a.antes?.[c], a.depois?.[c]).map((m) => html`<li>${m}</li>`)}</ul></li>`
             : html`<li>${nomeCampo(c)}: <s>${legivel(c, a.antes?.[c], a.tabela)}</s> → ${legivel(c, a.depois?.[c], a.tabela)}</li>`))}</ul>`
-          : ''}
+          : a.acao === 'criou' && RESUMO_CRIACAO[a.tabela] && a.depois
+            ? html`<ul class="historico__campos">${RESUMO_CRIACAO[a.tabela].filter((c) => a.depois[c] != null && a.depois[c] !== '' && !(c === 'valor_repasse' && !Number(a.depois[c])))
+              .map((c) => html`<li>${nomeCampo(c)}: ${legivel(c, a.depois[c], a.tabela)}</li>`)}</ul>`
+            : ''}
       </span>
     </li>`;
 }

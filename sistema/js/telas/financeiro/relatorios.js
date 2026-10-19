@@ -349,8 +349,9 @@ const GERAR = {
       filtros: [...filtroBusca(f), ['Posição em', data(hoje())]],
       colunas: COLUNAS_CONTRATOS,
       linhas,
-      totais: { 'Exigível vigente': somaCentavos(linhas, 'exigivel_total'), Recebido: somaCentavos(linhas, 'recebido'), 'Saldo em aberto': somaCentavos(linhas, 'saldo') },
-      aviso: 'Para a posição numa data passada (como 31/12), use o relatório Fechamento anual.',
+      totais: { 'Exigível vigente': somaCentavos(linhas, 'exigivel_total'), 'Recebido (com encargos)': somaCentavos(linhas, 'recebido'), 'Saldo em aberto': somaCentavos(linhas, 'saldo') },
+      aviso: 'O recebido inclui multa, juros e correção pagos; o saldo em aberto é só o principal — por isso exigível − recebido não precisa dar o saldo. '
+        + 'Para a posição numa data passada (como 31/12), use o relatório Fechamento anual.',
     };
   },
 

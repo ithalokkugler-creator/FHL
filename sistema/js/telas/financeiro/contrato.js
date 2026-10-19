@@ -17,7 +17,7 @@ import { avisar, avisarErro } from '../../nucleo/avisos.js';
 import { abrirDialogo, pedirMotivo } from '../../nucleo/dialogo.js';
 import { membrosAtivos, nomeDe, pode } from '../../nucleo/estado.js';
 import {
-  centavos, data, dataHora, decimal, entre, hoje, lerMoeda, lerNumero, moeda, paraReais, percentual, telefone,
+  ateDuasCasas, centavos, data, dataHora, decimal, entre, hoje, lerMoeda, lerNumero, moeda, paraReais, percentual, telefone,
 } from '../../nucleo/formato.js';
 import { $, aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { db } from '../../nucleo/supabase.js';
@@ -169,13 +169,21 @@ export default async function telaContrato(ctx) {
         .then(() => avisar('Contrato cancelado.')).then(() => true));
     },
 
-    historico: () => abrirHistorico({
-      titulo: dados.contrato.descricao,
-      registros: [
-        id, dados.contrato.cliente_id,
-        ...dados.parcelas.map((p) => p.id), ...dados.recebimentos.map((r) => r.id), ...dados.renegociacoes.map((r) => r.id),
-      ],
-    }),
+    historico: async () => {
+      // Os repasses ao cliente, inclusive os estornados, entram no histórico do contrato.
+      const comRepasse = dados.recebimentos.filter((r) => Number(r.valor_repasse) > 0).map((r) => r.id);
+      const repasses = comRepasse.length
+        ? await db.todos('repasses_cliente', { select: 'id', filtros: [['recebimento_id', 'in', comRepasse]] }).catch(() => [])
+        : [];
+      return abrirHistorico({
+        titulo: dados.contrato.descricao,
+        registros: [
+          id, dados.contrato.cliente_id,
+          ...dados.parcelas.map((p) => p.id), ...dados.recebimentos.map((r) => r.id), ...dados.renegociacoes.map((r) => r.id),
+          ...repasses.map((r) => r.id),
+        ],
+      });
+    },
   });
 }
 
@@ -201,9 +209,9 @@ async function carregar(id) {
       : [],
     // Contrato encadeado: o que vem antes deste e os que começam depois dele.
     contrato.inicia_apos_contrato_id
-      ? db.um('v_contratos', { select: 'id,codigo,descricao', filtros: [['id', 'eq', contrato.inicia_apos_contrato_id]] }).catch(() => null)
+      ? db.um('v_contratos', { select: 'id,codigo,descricao,cancelado_em', filtros: [['id', 'eq', contrato.inicia_apos_contrato_id]] }).catch(() => null)
       : null,
-    db.listar('v_contratos', { select: 'id,codigo,descricao', filtros: [['inicia_apos_contrato_id', 'eq', id]], ordem: 'criado_em.asc' }).catch(() => []),
+    db.listar('v_contratos', { select: 'id,codigo,descricao,cancelado_em', filtros: [['inicia_apos_contrato_id', 'eq', id]], ordem: 'criado_em.asc' }).catch(() => []),
   ]) : [[], [], null, []];
   return {
     contrato, parcelas, recebimentos, renegociacoes, ajustes, cobrancas, apoio: suporte, anterior, seguintes,
@@ -267,10 +275,10 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
       ? html`Contrato de ${data(c.data_contrato)}${c.data_fim ? html` · vigência até ${data(c.data_fim)}` : ''}${c.motivo_vencimento_anterior ? html` · vencimento anterior confirmado: ${c.motivo_vencimento_anterior}` : ''}`
       : html`<span class="perigo">Data de formalização a confirmar</span> (contrato anterior a 08/10/2026)`}
       ${lanca && !c.cancelado_em ? html` <button type="button" class="botao-link" data-acao="formalizacao">${c.data_contrato ? 'corrigir data' : 'confirmar a data'}</button>` : ''}</p>
-    ${anterior || seguintes.length ? html`<p class="sub">${anterior ? html`Começa depois de <a href="#/financeiro/contratos/${anterior.id}">${anterior.codigo ?? anterior.descricao}</a>` : ''}${anterior && seguintes.length ? ' · ' : ''}${seguintes.length ? html`Depois dele começa${seguintes.length > 1 ? 'm' : ''} ${seguintes.map((s, i) => html`${i ? ', ' : ''}<a href="#/financeiro/contratos/${s.id}">${s.codigo ?? s.descricao}</a>`)}` : ''}.</p>` : ''}
+    ${anterior || seguintes.length ? html`<p class="sub">${anterior ? html`Começa depois de <a href="#/financeiro/contratos/${anterior.id}">${anterior.codigo ?? anterior.descricao}</a>${anterior.cancelado_em ? ' (cancelado)' : ''}` : ''}${anterior && seguintes.length ? ' · ' : ''}${seguintes.length ? html`Depois dele começa${seguintes.length > 1 ? 'm' : ''} ${seguintes.map((s, i) => html`${i ? ', ' : ''}<a href="#/financeiro/contratos/${s.id}">${s.codigo ?? s.descricao}</a>${s.cancelado_em ? ' (cancelado)' : ''}`)}` : ''}.</p>` : ''}
     ${Number(c.diferenca_plano) ? html`<p class="nota nota--perigo">As parcelas não fecham com o valor do contrato: diferença de ${moeda(centavos(c.diferenca_plano))}. Confira o histórico.</p>` : ''}
     ${Number(c.repasse_pendente) > 0 ? html`<p class="nota">Parte do cliente recebida e ainda não repassada: <strong>${moeda(centavos(c.repasse_pendente))}</strong>
-      (${plural(c.repasses_pendentes, 'recebimento', 'recebimentos')}). Registre o repasse em Recebimentos, quando ele sair.</p>` : ''}
+      (${plural(c.repasses_pendentes, 'recebimento', 'recebimentos')}).${lanca ? ' Registre o repasse em Recebimentos, quando ele sair.' : ''}</p>` : ''}
     ${c.arquivado_em ? html`<p class="nota">Arquivado em ${dataHora(c.arquivado_em)} por ${nomeDe(c.arquivado_por)}. Motivo: ${c.motivo_arquivamento}</p>` : ''}
 
     ${c.cancelado_em ? html`
@@ -364,7 +372,7 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
                   <td>${nomeDe(r.criado_por)}<span class="sub">${dataHora(r.criado_em)}</span></td>
                   <td class="acoes">
                     ${!r.estornado_em && lanca && r.repasse_situacao === 'pendente' ? html`<button type="button" class="botao botao--pequeno" data-acao="repassar" data-id="${r.id}">Registrar repasse</button>` : ''}
-                    ${!r.estornado_em && lanca && r.repasse_situacao === 'feito' ? html`<button type="button" class="botao botao--pequeno botao--discreto" data-acao="estornar-repasse" data-id="${r.id}">Estornar repasse</button>` : ''}
+                    ${!r.estornado_em && lanca && !c.arquivado_em && r.repasse_situacao === 'feito' ? html`<button type="button" class="botao botao--pequeno botao--discreto" data-acao="estornar-repasse" data-id="${r.id}">Estornar repasse</button>` : ''}
                     ${r.memoria_calculo ? html`<button type="button" class="botao botao--pequeno botao--discreto" data-acao="memoria" data-id="${r.id}">Cálculo</button>` : ''}
                     ${recibos.has(r.id) || (lanca && !r.estornado_em) ? html`<button type="button" class="botao botao--pequeno botao--discreto" data-acao="recibo" data-id="${r.id}">${recibos.has(r.id) ? 'Ver recibo' : 'Emitir recibo'}</button>` : ''}
                     <button type="button" class="botao botao--pequeno botao--discreto" data-acao="comprovantes" data-id="${r.id}">Comprovantes</button>
@@ -678,6 +686,7 @@ function apurarExito(contrato) {
     if (!(base > 0)) throw new Error('Informe o valor bruto do acordo.');
     const cota = lerNumero(form.cota.value);
     if (!entre(cota, 0.01, 100)) throw new Error('Informe a cota do escritório, de 0,01% a 100%.');
+    if (!ateDuasCasas(cota)) throw new Error('A cota do escritório aceita até duas casas decimais (ex.: 30 ou 33,33).');
     const novas = gerarParcelas({
       total: base,
       entrada: lerMoeda(form.entrada.value) ?? 0,

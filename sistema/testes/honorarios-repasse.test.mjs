@@ -23,6 +23,18 @@ test('Repasse: multa e juros entram na mesma proporção (1.050 → 315 + 735)',
   assert.deepEqual(divisaoDoRepasse(105000, 30), { escritorio: 31500, cliente: 73500 });
 });
 
+test('Repasse: pagamento em partes fecha com a parcela inteira, no centavo', () => {
+  // Três de R$ 111,11 a 30%: 33,33 + 33,34 + 33,33 = 100,00 (e não 99,99).
+  const primeiro = divisaoDoRepasse(11111, 30);
+  const segundo = divisaoDoRepasse(11111, 30, { valor: 11111, escritorio: primeiro.escritorio });
+  const terceiro = divisaoDoRepasse(11111, 30, { valor: 22222, escritorio: primeiro.escritorio + segundo.escritorio });
+  assert.deepEqual([primeiro.escritorio, segundo.escritorio, terceiro.escritorio], [3333, 3334, 3333]);
+  assert.equal(primeiro.escritorio + segundo.escritorio + terceiro.escritorio, divisaoDoRepasse(33333, 30).escritorio);
+  // Nunca negativo nem acima do valor recebido.
+  assert.deepEqual(divisaoDoRepasse(1, 30, { valor: 100, escritorio: 40 }), { escritorio: 0, cliente: 1 });
+  assert.deepEqual(divisaoDoRepasse(1, 30, { valor: 100, escritorio: 0 }), { escritorio: 1, cliente: 0 });
+});
+
 test('Encadeado: o novo começa um mês depois do que termina por último', () => {
   assert.equal(inicioDepoisDe({ ultimo_vencimento: '2026-12-15' }), '2027-01-15');
   // A vigência informada, se for depois do último vencimento, manda.

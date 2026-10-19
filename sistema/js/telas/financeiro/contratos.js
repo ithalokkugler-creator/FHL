@@ -149,7 +149,8 @@ export const COLUNAS_EXPORTACAO = [
   { titulo: 'Data do contrato', valor: (c) => c.data_contrato, tipo: 'data' },
   { titulo: 'Honorários', valor: tipoDeHonorario },
   { titulo: 'Valor do contrato', valor: (c) => (c.valor_total != null ? centavos(c.valor_total) : null), tipo: 'moeda' },
-  { titulo: 'Êxito apurado', valor: (c) => (c.valor_exito != null ? centavos(c.valor_exito) : null), tipo: 'moeda' },
+  // Em acordo, o êxito apurado é o bruto: a parte do escritório está em "Do escritório".
+  { titulo: 'Êxito apurado (bruto, se acordo)', valor: (c) => (c.valor_exito != null ? centavos(c.valor_exito) : null), tipo: 'moeda' },
   { titulo: 'Exigível vigente', valor: (c) => centavos(c.exigivel_total), tipo: 'moeda' },
   { titulo: 'Do escritório (vigente)', valor: (c) => centavos(c.exigivel_escritorio_total ?? c.exigivel_total), tipo: 'moeda' },
   { titulo: 'Repasse pendente', valor: (c) => centavos(c.repasse_pendente), tipo: 'moeda' },
@@ -191,7 +192,7 @@ function tabela(linhas, total, pagina) {
                 ${c.tipo_honorario === 'exito' && c.valor_total == null
                   ? `${TIPOS_HONORARIO.exito} de ${percentual(c.exito_pct)}`
                   : html`<span class="num">${moeda(centavos(c.valor_total))}</span>`}
-                ${c.tipo_honorario === 'misto' ? html`<span class="sub">+ ${c.valor_exito != null ? `êxito de ${moeda(centavos(c.valor_exito))}` : `${percentual(c.exito_pct)} de êxito a apurar`}</span>` : ''}
+                ${c.tipo_honorario === 'misto' ? html`<span class="sub">+ ${c.valor_exito != null ? `${c.tem_repasse ? 'acordo de êxito, bruto, de' : 'êxito de'} ${moeda(centavos(c.valor_exito))}` : `${percentual(c.exito_pct)} de êxito a apurar`}</span>` : ''}
                 ${c.tem_repasse ? html`<span class="sub">acordo · escritório ${moeda(centavos(c.exigivel_escritorio_total))}</span>` : ''}
                 ${Number(c.repasse_pendente) > 0 ? html`<span class="sub alerta">repasse pendente ${moeda(centavos(c.repasse_pendente))}</span>` : ''}
                 <span class="sub">${c.parcelas_ativas ? `${c.parcelas_ativas} ${c.parcelas_ativas === 1 ? 'parcela' : 'parcelas'}` : ''}${c.parcelas_parciais ? ` · ${c.parcelas_parciais} paga(s) em parte` : ''}</span>

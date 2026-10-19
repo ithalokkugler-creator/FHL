@@ -228,12 +228,23 @@ export function memoriaGravada(m) {
  * no recebimento — e deixa registrar o repasse junto, quando ele sai na hora.
  */
 export async function receberParcela(p) {
-  const [{ formas, contasFinanceiras }, [{ calculo: inicial }]] = await Promise.all([apoio(), atualizarParcelas([p])]);
+  const acordo = temRepasse(p);
+  const [{ formas, contasFinanceiras }, [{ calculo: inicial }], anteriores] = await Promise.all([
+    apoio(), atualizarParcelas([p]),
+    // Acordo pago em partes: a divisão é sobre o acumulado da parcela, como no banco.
+    acordo ? db.todos('recebimentos', {
+      select: 'valor,valor_repasse',
+      filtros: [['parcela_id', 'eq', p.id], ['estornado_em', 'is', null]],
+    }) : [],
+  ]);
+  const anterior = anteriores.reduce((a, r) => ({
+    valor: a.valor + centavos(r.valor),
+    escritorio: a.escritorio + centavos(r.valor) - centavos(r.valor_repasse),
+  }), { valor: 0, escritorio: 0 });
   let calculo = inicial;
   let recalculo = Promise.resolve();
   let valorDigitado = false;
   const dia = hoje();
-  const acordo = temRepasse(p);
 
   return abrirDialogo({
     titulo: `Receber — ${p.cliente_nome}`,
@@ -262,7 +273,7 @@ export async function receberParcela(p) {
           <input name="observacao" maxlength="500">
         </label>
         <label class="opcao campo"><input type="checkbox" name="recibo"> Emitir o recibo deste recebimento ao salvar</label>
-        ${acordo ? html`<label class="opcao campo"><input type="checkbox" name="repassar"> Registrar também o repasse ao cliente, na mesma data e saindo da mesma conta</label>` : ''}
+        ${acordo ? html`<label class="opcao campo" data-papel="repassar"><input type="checkbox" name="repassar"> Registrar também o repasse ao cliente, na mesma data e saindo da mesma conta</label>` : ''}
       </div>
       <div class="secao" data-papel="memoria"></div>
       <p class="nota nota--info" data-papel="efeito"></p>`,
@@ -291,8 +302,14 @@ export async function receberParcela(p) {
           texto = 'Quita a parcela, sem encargos.';
         }
         if (acordo && !(passou > 0)) {
-          const { escritorio, cliente } = divisaoDoRepasse(valor, p.cota_escritorio_pct);
-          texto += ` Acordo: ${moeda(escritorio)} são honorários (${percentual(p.cota_escritorio_pct)}) e ${moeda(cliente)} são do cliente, a repassar.`;
+          const { escritorio, cliente } = divisaoDoRepasse(valor, p.cota_escritorio_pct, anterior);
+          texto += cliente > 0
+            ? ` Acordo: ${moeda(escritorio)} são honorários (${percentual(p.cota_escritorio_pct)}) e ${moeda(cliente)} são do cliente, a repassar.`
+            : ` Acordo: todo o valor fica com o escritório (${percentual(p.cota_escritorio_pct)}); não há parte do cliente a repassar.`;
+          // Sem parte do cliente, não há repasse a registrar.
+          const opcao = $('[data-papel="repassar"]', dialogo);
+          opcao.hidden = cliente <= 0;
+          if (cliente <= 0) form.repassar.checked = false;
         }
         caixa.textContent = texto;
       };
@@ -585,10 +602,15 @@ export async function renegociarContrato(contratoId) {
   const itens = await atualizarParcelas(abertas);
   const dia = hoje();
   // Fixo (100% do escritório) e acordo (parte do cliente) não se juntam numa
-  // parcela só: o banco recusa. Começam marcadas as da cota da primeira.
+  // parcela só, nem parcela do fixo com parcela do êxito: o banco recusa.
+  // Começam marcadas as do mesmo grupo (parte e cota) da primeira.
   const cota = (p) => Number(p.cota_escritorio_pct ?? 100);
+  const parte = (p) => (p.parte === 'exito' ? 'exito' : 'fixo');
+  const grupo = (p) => `${parte(p)}|${cota(p)}`;
   const cotas = new Set(abertas.map(cota));
-  const marcada = (p) => cota(p) === cota(abertas[0]);
+  const partes = new Set(abertas.map(parte));
+  const grupos = new Set(abertas.map(grupo));
+  const marcada = (p) => grupo(p) === grupo(abertas[0]);
 
   return abrirDialogo({
     titulo: `Renegociar — ${abertas[0].cliente_nome}`,
@@ -599,11 +621,13 @@ export async function renegociarContrato(contratoId) {
         As parcelas marcadas saem do saldo como "renegociadas" — continuam no contrato e no
         histórico — e as novas entram no lugar.
       </p>
-      ${cotas.size > 1 ? html`<p class="nota">Este contrato tem parcelas do fixo e do acordo, com cotas do escritório
-        diferentes. Renegocie cada grupo separadamente: as novas herdam a cota das marcadas.</p>` : ''}
+      ${grupos.size > 1 ? html`<p class="nota">${partes.size > 1
+        ? 'Este contrato tem parcelas do fixo e do êxito.'
+        : 'Este contrato tem parcelas do fixo e do acordo, com cotas do escritório diferentes.'}
+        Renegocie cada grupo separadamente: as novas herdam a parte e a cota das marcadas.</p>` : ''}
       <div class="tabela-rolagem">
         <table class="tabela">
-          <thead><tr><th><span class="sr-only">Incluir</span></th><th>Parcela</th><th>Vencimento</th><th class="num">Saldo</th><th class="num">Atualizado hoje</th>${cotas.size > 1 ? html`<th class="num">Escritório</th>` : ''}</tr></thead>
+          <thead><tr><th><span class="sr-only">Incluir</span></th><th>Parcela</th><th>Vencimento</th><th class="num">Saldo</th><th class="num">Atualizado hoje</th>${partes.size > 1 ? html`<th>Parte</th>` : ''}${cotas.size > 1 ? html`<th class="num">Escritório</th>` : ''}</tr></thead>
           <tbody>
             ${itens.map(({ parcela: p, calculo: c }) => html`
               <tr>
@@ -612,6 +636,7 @@ export async function renegociarContrato(contratoId) {
                 <td class="num">${data(p.vencimento)}</td>
                 <td class="num">${moeda(c.saldo)}</td>
                 <td class="num">${moeda(c.total)}</td>
+                ${partes.size > 1 ? html`<td>${parte(p) === 'exito' ? 'Êxito' : 'Fixo'}</td>` : ''}
                 ${cotas.size > 1 ? html`<td class="num">${percentual(cota(p))}</td>` : ''}
               </tr>`)}
           </tbody>
@@ -688,6 +713,9 @@ export async function renegociarContrato(contratoId) {
     const quantidade = Number(form.quantidade.value);
 
     if (!escolhidas.length) return { saldo, atualizado, erro: 'Marque pelo menos uma parcela.' };
+    if (new Set(escolhidas.map((i) => parte(i.parcela))).size > 1) {
+      return { saldo, atualizado, erro: 'Marque só parcelas do fixo ou só parcelas do êxito: as novas herdam a parte das marcadas.' };
+    }
     if (new Set(escolhidas.map((i) => cota(i.parcela))).size > 1) {
       return { saldo, atualizado, erro: 'Marque só parcelas com a mesma cota do escritório (o fixo ou o acordo).' };
     }

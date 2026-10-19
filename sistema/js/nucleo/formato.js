@@ -35,6 +35,10 @@ export const decimal = (c) => fmtDecimal.format(Math.round(c) / 100);
 
 export const percentual = (p) => `${fmtPercentual.format(Number(p ?? 0))}%`;
 
+/** Percentual com no máximo duas casas (12,5 ou 33,33; não 33,333): o banco
+ *  guarda duas, e arredondar calado mudaria o número combinado. */
+export const ateDuasCasas = (n) => Number.isFinite(n) && Math.abs(n * 100 - Math.round(n * 100)) < 1e-9;
+
 /** Texto digitado → centavos. Aceita "1.234,56", "1234,56", "R$ 1.234,56" e
  *  "1234.56". Vazio → null; inválido → NaN. */
 export function lerMoeda(texto) {

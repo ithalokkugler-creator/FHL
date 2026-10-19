@@ -88,7 +88,8 @@ export function validarComplementos(modeloId, d) {
 
 function pagamentoContrato(d) {
   const tipo = modalidade(d);
-  const exito = dado(d.exito, 'ÊXITO');
+  // 12,5% e não "12.5%": o número vem do banco com ponto.
+  const exito = numeroValido(d.exito) && d.exito !== '' ? percentual(d.exito).replace('%', '') : dado(d.exito, 'ÊXITO');
   // No fixo + êxito, a tabela é a do valor fixo; o êxito é a cláusula abaixo.
   const parcelas = parcelasValidas(d).filter((p) => p.parte !== 'exito');
   const fixo = tipo !== 'exito';
@@ -101,6 +102,18 @@ function pagamentoContrato(d) {
     ${parcelas.length ? html`<table class="doc-tabela"><thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor</th></tr></thead><tbody>${parcelas.map((p) => html`<tr><td>${p.numero === 0 ? 'Entrada' : `Parcela ${p.numero}`}</td><td>${data(p.vencimento)}</td><td>${moeda(centavos(p.valor))}</td></tr>`)}</tbody></table>` : ''}` : ''}
     ${tipo !== 'fixo' ? html`${fixo ? 'Além dos honorários fixos, serão devidos' : 'Os honorários serão de'} ${exito}% sobre o proveito econômico, condicionados à apuração do resultado.${tipo === 'exito' ? ' Não há cobrança fixa adicional nesta modalidade.' : ''}` : 'Não foram pactuados honorários de êxito.'}
     Observam-se o art. 22 do Estatuto da OAB e o art. 85, §14, do CPC.`;
+}
+
+/** Na prestação de contas, o fixo + êxito já apurado conta inteiro: as
+ *  parcelas listadas e o total pago incluem as do êxito. */
+function totalContratado(d) {
+  const c = d.financeiro?.contrato;
+  if (c?.tipo_honorario === 'misto' && c.valor_exito != null) {
+    const fixo = centavos(c.valor_total);
+    const exito = centavos(c.valor_exito);
+    return html`${moeda(fixo + exito)} (fixo de ${moeda(fixo)} + êxito apurado de ${moeda(exito)})`;
+  }
+  return dinheiro(d.valor_total, 'VALOR');
 }
 
 function saldoPrestacao(d) {
@@ -340,7 +353,7 @@ const prestacaoContas = modelo({
     <p><em>Demonstrativo de parcelas pagas, vencidas e vincendas, até o presente momento:</em></p>
     <table class="doc-tabela"><thead><tr><th>Data de vencimento - valor da parcela</th><th>Data de pagamento - valor pago</th></tr></thead><tbody>
       ${linhas}
-      <tr><td><strong>Total contratado:</strong> ${dinheiro(ctx.dados.valor_total, 'VALOR')}</td><td><strong>Total pago:</strong> ${dinheiro(ctx.dados.total_pago, 'VALOR PAGO')}</td></tr>
+      <tr><td><strong>Total contratado:</strong> ${totalContratado(ctx.dados)}</td><td><strong>Total pago:</strong> ${dinheiro(ctx.dados.total_pago, 'VALOR PAGO')}</td></tr>
     </tbody></table>
     ${saldoPrestacao(ctx.dados)}
     <p><em>Demonstrativo de valor pago ao(à) contratante, na data de assinatura deste termo:</em></p>

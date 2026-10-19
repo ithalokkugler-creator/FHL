@@ -54,7 +54,11 @@ publicar**. Estado, ordem de publicação e decisões a confirmar:
 **19/10/2026 · fixo + êxito, contrato encadeado e acordo com repasse:** ver
 [Financeiro](#fixo--êxito-contrato-encadeado-e-acordo-com-repasse-1910). Uma
 migração (`20261019120000`), 50 verificações SQL novas
-(`supabase/testes/honorarios-repasse.sql`) e 5 testes JS.
+(`supabase/testes/honorarios-repasse.sql`) e 5 testes JS. Na mesma noite, sete
+testadores na prévia local acharam erros nessas funções; as correções estão em
+`20261019180000_correcoes_cacada` e em
+[Correções de 19/10](#correções-da-caça-a-bugs-1910) (17 verificações SQL e 1
+teste JS novos — **158/158 JS e 520/520 SQL**).
 
 **09/10/2026 · revisão de código, banco e visual:** correções de permissões,
 captura DJEN, filtros e previsões financeiras, recibos históricos, importação,
@@ -336,6 +340,34 @@ Migração `20261019120000_honorarios_misto_repasse`.
 - A data do contrato nos documentos gerados do Financeiro passou a ser a de
   formalização (`data_contrato`), não a do cadastro.
 
+#### Correções da caça a bugs (19/10)
+
+Migração `20261019180000_correcoes_cacada` (só regras e consultas; nenhum dado
+muda) e telas:
+
+- **Histórico**: o cadastro de cliente (CPF, e-mail, telefone) só aparece a
+  quem lê Clientes, como na própria tabela. O histórico do contrato inclui os
+  repasses; criações mostram valor e data; valores aparecem em reais.
+- **Renegociação**: parcelas do fixo e do êxito não se renegociam juntas (as
+  novas viravam "fixo" e o contrato de honorários listava o êxito como fixo).
+  O diálogo marca só o grupo da primeira e mostra a coluna Parte.
+- **Acordo pago em partes**: a parte do escritório sai do acumulado da
+  parcela (3 × 111,11 a 30% = 33,33 + 33,34 + 33,33 = 100,00). A prévia do
+  diálogo de receber faz a mesma conta e esconde "registrar o repasse" quando
+  a parte do cliente é zero.
+- **Duas casas**: cota, percentual de êxito e valores com mais de duas casas
+  são recusados (antes, 99,999% virava 100% e o acordo perdia o repasse). Base
+  de êxito negativa, também.
+- **Repasse em contrato arquivado** não se estorna sem desarquivar.
+- **Fechamento anual**: saldo previsto = receita prevista do escritório −
+  despesas previstas, como no painel (somava a parte dos clientes). Versões
+  já aprovadas ficam como foram.
+- **Telas**: Em atraso separa o acordo (devido pela parte contrária) do total
+  do cliente; fechar o mês avisa a parte de clientes não repassada; "Começar
+  depois dele" desfeito (ou outro cliente) devolve as datas; seguintes
+  cancelados aparecem marcados; prestação de contas do misto apurado soma fixo
+  + êxito; "12,5%" com vírgula no contrato de honorários.
+
 ### Divisão entre sócios (6.6)
 
 Padrão até o escritório definir: **partes iguais entre os quatro sócios, depois
@@ -523,6 +555,7 @@ quem não é sócio.
 | 20261005225750 | `intimacoes` **(pendente no remoto)** | Registro/conferência manual e vínculos atômicos de prazo/audiência |
 | 20261005232739 | `avisos_do_dia` **(pendente no remoto)** | Contadores pessoais e por permissão, sem sobreposição de tarefas |
 | 20261019120000 | `honorarios_misto_repasse` | Fixo + êxito, contrato encadeado, cota do escritório por parcela, `valor_repasse`, `repasses_cliente` e fechamento/painel pelos honorários |
+| 20261019180000 | `correcoes_cacada` | Correções da caça a bugs de 19/10: histórico de clientes, renegociação fixo × êxito, centavo do acordo em partes, duas casas, repasse em arquivado, saldo previsto anual |
 
 As seis primeiras versões foram conferidas no projeto remoto. As oito novas
 foram geradas pela CLI e executadas somente em PostgreSQL isolado. Elas ainda

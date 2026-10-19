@@ -90,9 +90,16 @@ async function carregar() {
     porCliente.get(p.cliente_id).itens.push(item);
   }
 
+  // O total é o que o próprio cliente deve (o mesmo da mensagem de cobrança);
+  // o acordo atrasado, devido pela parte contrária, vem à parte.
+  const soma = (itens, campo) => itens.reduce((s, i) => s + i.calculo[campo], 0);
   const grupos = [...porCliente.values()]
-    .map((g) => ({ ...g, total: g.itens.reduce((s, i) => s + i.calculo.total, 0), saldo: g.itens.reduce((s, i) => s + i.calculo.saldo, 0) }))
-    .sort((a, b) => b.total - a.total);
+    .map((g) => {
+      const doProprio = doCliente(g).itens;
+      const acordo = g.itens.filter((i) => temRepasse(i.parcela));
+      return { ...g, total: soma(doProprio, 'total'), saldo: soma(doProprio, 'saldo'), acordo: soma(acordo, 'total') };
+    })
+    .sort((a, b) => (b.total + b.acordo) - (a.total + a.acordo));
 
   return { grupos, config, indisponivel: itens.some((i) => i.calculo.indice?.indisponivel) };
 }
@@ -114,6 +121,7 @@ async function cobrancasDe(clientes) {
 function tela({ grupos, config, indisponivel }) {
   const total = grupos.reduce((s, g) => s + g.total, 0);
   const saldo = grupos.reduce((s, g) => s + g.saldo, 0);
+  const acordos = grupos.reduce((s, g) => s + g.acordo, 0);
   const parcelas = grupos.reduce((s, g) => s + g.itens.length, 0);
   const nuncaCobrados = grupos.filter((g) => !g.ultimaCobranca).length;
 
@@ -121,7 +129,8 @@ function tela({ grupos, config, indisponivel }) {
     ${cabecalho('Em atraso', 'Valores atualizados até hoje, por cliente', html`<a class="botao" href="#/financeiro/recebiveis?situacao=vencida">Ver como lista</a>`)}
 
     <div class="indicadores">
-      ${indicador('Total atualizado', moeda(total), `saldo de ${moeda(saldo)} + ${moeda(total - saldo)} de encargos`, { tom: total ? 'perigo' : '' })}
+      ${indicador('Total atualizado', moeda(total), `devido pelos clientes: saldo de ${moeda(saldo)} + ${moeda(total - saldo)} de encargos`
+        + (acordos ? `; mais ${moeda(acordos)} em acordos, devidos pela parte contrária` : ''), { tom: total ? 'perigo' : '' })}
       ${indicador('Clientes', String(grupos.length), plural(parcelas, 'parcela vencida', 'parcelas vencidas'))}
       ${indicador('Sem cobrança registrada', String(nuncaCobrados),
         nuncaCobrados === 1 ? 'cliente nunca cobrado pelo sistema' : 'clientes nunca cobrados pelo sistema',
@@ -152,7 +161,8 @@ function cartao(g) {
           </p>
         </div>
         <div class="grupo-botoes">
-          <strong class="num">${moeda(g.total)}</strong>
+          ${cobravel ? html`<strong class="num">${moeda(g.total)}</strong>` : ''}
+          ${g.acordo ? html`<span class="sub">${cobravel ? '+ ' : ''}${moeda(g.acordo)} em acordo</span>` : ''}
           ${cobravel
             ? html`<button type="button" class="botao botao--primario botao--pequeno" data-acao="cobrar" data-cliente="${g.cliente_id}">Preparar mensagem</button>`
             : html`<span class="sub">Acordo: quem deve é a parte contrária</span>`}

@@ -133,12 +133,21 @@ export function inicioDepoisDe({ ultimo_vencimento, data_fim } = {}) {
  * (round(valor × cota / 100, 2), metade para cima), em centavos inteiros
  * para não errar no último centavo: 30% de R$ 333,33 → 100,00 e 233,33.
  *
+ * Pagamento em partes da mesma parcela: a conta é sobre o acumulado, menos o
+ * que o escritório já ficou — três pagamentos de R$ 111,11 a 30% dão
+ * 33,33 + 33,34 + 33,33 = 100,00, como a parcela inteira, e não 99,99.
+ *
  * @param {number} valor  centavos
  * @param {number} cota   percentual do escritório, até duas casas (30, 33.33)
+ * @param {{ valor?: number, escritorio?: number }} [anterior]  o que a parcela
+ *   já recebeu (centavos, sem estornados) e quanto disso ficou com o escritório
  * @returns {{ escritorio: number, cliente: number }}  centavos
  */
-export function divisaoDoRepasse(valor, cota) {
+export function divisaoDoRepasse(valor, cota, anterior = {}) {
   const centesimos = Math.round(Number(cota) * 100);
-  const escritorio = Math.floor((valor * centesimos + 5000) / 10000);
+  const antes = anterior.valor ?? 0;
+  const jaDoEscritorio = anterior.escritorio ?? 0;
+  const acumulado = Math.floor(((antes + valor) * centesimos + 5000) / 10000);
+  const escritorio = Math.min(valor, Math.max(0, acumulado - jaDoEscritorio));
   return { escritorio, cliente: valor - escritorio };
 }

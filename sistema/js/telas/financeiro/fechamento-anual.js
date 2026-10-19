@@ -97,6 +97,8 @@ function tela(ano, { registro, previa, versoes, foto, aprovada }, abas) {
   const terminou = `${ano}-12-31` < hoje();
   // Acordos com repasse (out/2026): versão aprovada antes disso não tem a chave.
   const repasses = centavos(t.repasses_clientes ?? 0);
+  // Versões aprovadas antes da correção de 19/10/2026 não têm a receita prevista do escritório.
+  const escritorioPrevisto = t.receitas_previstas_escritorio != null ? centavos(t.receitas_previstas_escritorio) : null;
 
   return html`
     ${cabecalhoImpressao()}
@@ -123,14 +125,15 @@ function tela(ano, { registro, previa, versoes, foto, aprovada }, abas) {
     ${registro?.reaberto_em && !fechado ? html`<p class="nota">Reaberto em ${dataHora(registro.reaberto_em)} por ${nomeDe(registro.reaberto_por)}: ${registro.motivo_reabertura}</p>` : ''}
 
     <div class="indicadores indicadores--4">
-      ${indicador('Receitas previstas', moeda(centavos(t.receitas_previstas)), 'parcelas que venceram no ano')}
+      ${indicador('Receitas previstas', moeda(centavos(t.receitas_previstas)), escritorioPrevisto != null && escritorioPrevisto !== centavos(t.receitas_previstas)
+        ? `parcelas com vencimento no ano · ${moeda(escritorioPrevisto)} do escritório` : 'parcelas com vencimento no ano')}
       ${indicador('Receitas recebidas', moeda(centavos(t.receitas_recebidas)), repasses ? `caixa do ano · ${moeda(repasses)} eram de clientes (acordos)` : 'caixa do ano', { tom: 'ok' })}
-      ${indicador('Despesas previstas', moeda(centavos(t.despesas_previstas)), 'competência do ano')}
+      ${indicador('Despesas previstas', moeda(centavos(t.despesas_previstas)), 'contas lançadas com competência no ano')}
       ${indicador('Despesas pagas', moeda(centavos(t.despesas_pagas)), 'caixa do ano')}
-      ${indicador('Saldo previsto', moeda(centavos(t.saldo_previsto)), 'receitas − despesas previstas')}
+      ${indicador('Saldo previsto', moeda(centavos(t.saldo_previsto)), escritorioPrevisto != null ? 'receita do escritório − despesas previstas' : 'receitas − despesas previstas')}
       ${indicador('Saldo realizado', moeda(centavos(t.saldo_realizado)), repasses ? 'recebido − repasses − pago' : 'recebido − pago', { tom: Number(t.saldo_realizado) < 0 ? 'perigo' : '' })}
       ${indicador('Vencido em 31/12', moeda(centavos(t.vencido_no_corte)), `${plural(t.contratos_com_pendencia, 'contrato', 'contratos')} com pendência`, { tom: Number(t.vencido_no_corte) ? 'perigo' : '' })}
-      ${indicador('Taxa de recebimento', t.taxa_recebimento == null ? 'Não se aplica' : `${String(t.taxa_recebimento).replace('.', ',')}%`, 'do que venceu no ano, quanto entrou até 31/12')}
+      ${indicador('Taxa de recebimento', t.taxa_recebimento == null ? 'Não se aplica' : `${String(t.taxa_recebimento).replace('.', ',')}%`, 'do que vence no ano, quanto entrou até 31/12')}
     </div>
 
     <div class="grade grade--2">

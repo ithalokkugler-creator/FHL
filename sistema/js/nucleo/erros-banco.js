@@ -20,6 +20,11 @@ const REGRAS = {
   contrato_exito_tem_percentual: ['Informe o percentual de êxito.', 'exito_pct'],
   parcelas_cota_escritorio_pct_check: ['A cota do escritório vai de 0,01% a 100%.', 'cota'],
   repasses_cliente_ativo: ['Este recebimento já tem o repasse ao cliente registrado.', null],
+  repasses_cliente_forma_id_fkey: ['Escolha uma forma de pagamento da lista.', 'forma_id'],
+  repasses_cliente_conta_financeira_id_fkey: ['Escolha uma conta financeira da lista.', 'conta_financeira_id'],
+  renegociacoes_valor_renegociado_check: ['O valor renegociado precisa ser maior que zero.', null],
+  contratos_valor_exito_check: ['O valor do êxito apurado precisa ser maior que zero.', 'valor'],
+  parcelas_valor_check: ['O valor de cada parcela precisa ser maior que zero.', null],
 };
 
 const CAMPOS = {
@@ -61,6 +66,7 @@ export function descreverErroBanco(d, status) {
     '22P02': 'Um valor está em formato inválido. Confira os números, datas e seleções do cadastro.',
     22007: 'Uma data ou hora está em formato inválido. Selecione novamente a data e o horário.',
     22008: 'A data ou hora informada não existe. Confira dia, mês, ano e horário.',
+    22003: 'Um número passa do tamanho que o campo aceita. Confira os valores digitados.',
     42501: 'Seu acesso não permite esta ação. Peça ao administrador para conferir suas permissões.',
   };
   return { mensagem: mensagens[codigo] || (status >= 500

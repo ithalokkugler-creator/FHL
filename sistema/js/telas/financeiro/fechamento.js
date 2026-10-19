@@ -26,6 +26,12 @@ const abas = (atual, mes) => html`
     <a href="#/financeiro/fechamento?aba=anual" ${atual === 'anual' ? html`aria-current="page"` : ''}>Anual (exercício)</a>
   </nav>`;
 
+/** "a, b e c". */
+const juntar = (itens) => {
+  const v = itens.filter(Boolean);
+  return v.length > 1 ? `${v.slice(0, -1).join(', ')} e ${v.at(-1)}` : (v[0] ?? '');
+};
+
 export default async function telaFechamento(ctx) {
   if (ctx.consulta.aba === 'anual') return telaFechamentoAnual(ctx, abas('anual'));
   // Por padrão, o mês que acabou de passar: é esse que se fecha.
@@ -62,11 +68,13 @@ export default async function telaFechamento(ctx) {
             lançado, alterado ou estornado sem reabrir o mês. O resultado e a divisão ficam
             gravados como estão agora.
           </p>
-          ${p.parcelas_vencidas || p.contas_sem_baixa ? html`
-            <p class="nota"><strong>Há pendências:</strong> ${[
+          ${p.parcelas_vencidas || p.contas_sem_baixa || p.repasses_pendentes ? html`
+            <p class="nota"><strong>Há pendências:</strong> ${juntar([
               p.parcelas_vencidas ? `${plural(p.parcelas_vencidas, 'parcela vencida', 'parcelas vencidas')} sem baixa (${moeda(centavos(p.parcelas_vencidas_saldo))})` : '',
               p.contas_sem_baixa ? `${plural(p.contas_sem_baixa, 'conta do mês', 'contas do mês')} sem pagamento` : '',
-            ].filter(Boolean).join(' e ')}. Se forem lançamentos esquecidos, lance antes de fechar.</p>` : ''}`,
+              // Dinheiro do cliente: o fechamento não trava, mas avisa.
+              p.repasses_pendentes ? `${moeda(centavos(p.repasses_pendentes_valor))} de clientes recebidos em acordos e ainda não repassados` : '',
+            ])}. Se forem lançamentos esquecidos, lance antes de fechar.</p>` : ''}`,
         aoEnviar: async () => {
           await db.rpc('fechar_mes', { p_competencia: mes });
           return true;
