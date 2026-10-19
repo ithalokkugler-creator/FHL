@@ -337,7 +337,8 @@ O que `src/lib/seo.mjs` põe em todas as páginas:
 - **Cidade no título das áreas** ("Direito Trabalhista em Paranaguá"), que é
   como se procura advogado.
 
-**Domínio.** `DOMINIO` em `src/data/site.mjs` ainda é suposição. Para testar a
+**Domínio.** `advocaciafl.com.br`, no ar desde 19/10/2026 (`DOMINIO` em
+`src/data/site.mjs`; o `.vercel.app` redireciona para ele). Para testar a
 prévia de links num endereço provisório, gere com a variável `SITE_URL`:
 `SITE_URL=https://endereco-provisorio npm run build` — no PowerShell,
 `$env:SITE_URL="https://endereco-provisorio"; npm run build`.
@@ -431,11 +432,9 @@ números. A seção Linguagem mostra o texto já traduzido.
    menu e no contato, e "00.000.000/0001-00" na Política de Privacidade.
    Vazios, o rodapé lista a inscrição de cada advogado e a política omite o
    CNPJ; preenchidos, aparecem sozinhos em todos esses lugares.
-4. **Domínio oficial.** O e-mail já é o real, `contato@advocaciafl.com.br`
-   (confirmado pelo Vinícius em out/2026, em `sistema/js/escritorio.js`). O
-   domínio `advocaciafl.com.br` está sendo ajustado; até ele apontar para a
-   Vercel, `DOMINIO` em `src/data/site.mjs` continua com a suposição antiga
-   fora da Vercel, e na Vercel vale o endereço de produção dela.
+4. ~~**Domínio oficial.**~~ Resolvido em 19/10/2026: `advocaciafl.com.br`,
+   o mesmo do e-mail `contato@advocaciafl.com.br`. Falta cadastrar no Google
+   Search Console (ver Domínio, acima).
 5. **Ensaio fotográfico.** Até ele existir, cada advogado tem um retrato
    tipográfico — iniciais em serifada e o filete da logomarca
    (`src/partials/equipe.mjs`). A foto entra pelo campo `foto` de

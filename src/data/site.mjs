@@ -38,14 +38,14 @@ export const FORM_ENDPOINT = process.env.FORM_ENDPOINT ?? `${SUPABASE_URL}/funct
 
 // Endereço público do site. Vira URL absoluta no canonical, no og:image e no
 // sitemap — buscadores e redes sociais não aceitam caminho relativo ali.
-// O domínio oficial ainda não foi comprado (out/2026). Até lá, o build na
+// Domínio oficial desde 19/10/2026: advocaciafl.com.br (o mesmo do e-mail),
+// ligado na Vercel — o endereço .vercel.app redireciona para ele. O build na
 // Vercel usa o endereço de produção que ela informa
-// (VERCEL_PROJECT_PRODUCTION_URL), para o canonical e o sitemap apontarem
-// para um site que existe. Comprado o domínio, basta definir SITE_URL na
-// Vercel (ou trocar o padrão abaixo).
+// (VERCEL_PROJECT_PRODUCTION_URL), que já é este; SITE_URL ainda manda, se
+// definida. Fora da Vercel (build local), vale o padrão abaixo.
 const DOMINIO_VERCEL = process.env.VERCEL_PROJECT_PRODUCTION_URL;
 export const DOMINIO = (process.env.SITE_URL
-  || (DOMINIO_VERCEL ? `https://${DOMINIO_VERCEL}` : 'https://fonsecalisboa.com.br'))  // [CONFIRMAR] domínio
+  || (DOMINIO_VERCEL ? `https://${DOMINIO_VERCEL}` : 'https://advocaciafl.com.br'))
   .replace(/\/+$/, '');
 
 // Perfis oficiais nas redes. Os campos do sistema interno nunca foram

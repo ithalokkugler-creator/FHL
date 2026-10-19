@@ -63,8 +63,8 @@ histórico.
 ao cliente** (cota do escritório por parcela; a parte do cliente fica fora da
 divisão entre sócios). Preparação, decisões e perguntas abertas:
 [preparacao-pedidos-advogados.md](preparacao-pedidos-advogados.md); detalhes
-técnicos no `sistema/README.md`. Fotos, SMTP do e-mail novo, Google Agenda e
-domínio `advocaciafl.com.br` estão sendo ajustados pelo Ithalo.
+técnicos no `sistema/README.md`. Domínio `advocaciafl.com.br` no ar desde 19/10/2026; fotos, SMTP do e-mail
+novo e Google Agenda estão sendo ajustados pelo Ithalo.
 
 ---
 
@@ -253,7 +253,7 @@ auto-hospedadas. Já implementado; não regredir.
 | Item | Situação |
 |---|---|
 | **E-mail oficial** | **Resolvido (out/2026):** `contato@advocaciafl.com.br`, informado pelo Vinícius no grupo do escritório. Aplicado em 19/10/2026 (`sistema/js/escritorio.js`). |
-| **Domínio** | Provável `advocaciafl.com.br` (o do e-mail). Em ajuste pelo Ithalo — até lá, `DOMINIO` segue a suposição antiga. |
+| **Domínio** | **Resolvido (19/10/2026):** `advocaciafl.com.br`, ligado na Vercel pelo Ithalo; o `.vercel.app` redireciona para ele e é o padrão de `DOMINIO`. |
 | **OAB da sociedade e CNPJ** | Vazios em `src/data/site.mjs` (o site mostrava "00.000"). Até lá, o rodapé lista a inscrição de cada advogado. Os 4 advogados são OAB/PR; a inscrição da *sociedade* não aparece em lugar nenhum. |
 | **Anos de atuação** | Era `10`, sem fonte; agora `6` (`ANOS_DE_ATUACAO`). Ele disse "estou há seis anos" [~24:30] — mas pode ser o tempo dele, não do escritório. |
 | **Redes sociais** | Os campos no sistema dele estão com URL genérica (`https://instagram.com/`). Nunca foram preenchidos. |
@@ -302,7 +302,7 @@ custo mensal é o critério dele. **Chegar na conversa com esse número pronto.*
 
 ## 10. Perguntas para a próxima reunião
 
-1. ~~Qual é o e-mail~~ (resolvido: `contato@advocaciafl.com.br`) e o domínio oficial?
+1. ~~Qual é o e-mail e o domínio oficial?~~ (resolvidos: `contato@advocaciafl.com.br` e `advocaciafl.com.br`)
 2. Qual a inscrição da sociedade na OAB e o CNPJ?
 3. Direito Portuário entra como área do site?
 4. O que é o "Escritório Virtual" que aparece no menu do sistema?
