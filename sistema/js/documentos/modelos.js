@@ -95,12 +95,39 @@ function pagamentoContrato(d) {
   const fixo = tipo !== 'exito';
   const entrada = lerMoeda(d.entrada);
   const aVista = entrada > 0 && entrada === lerMoeda(d.valor_total);
+  // Acordo (o valor fixo é o que a parte contrária paga): os honorários são a
+  // cota do escritório em cada parcela, e o resto é do cliente. Antes, o
+  // documento dizia que o cliente pagaria o acordo inteiro ao escritório.
+  if (ehAcordo(d)) return pagamentoAcordo(d, parcelas, exito, tipo);
   const condicoes = parcelas.length ? ', conforme as parcelas abaixo'
     : aVista ? ', à vista, integralmente como entrada'
       : html`${entrada > 0 ? html`, com entrada de ${dinheiro(d.entrada, 'ENTRADA')} e saldo` : ', parcelado'} em ${dado(d.parcelas, 'N.º')} vez(es) de ${dinheiro(d.valor_parcela, 'PARCELA')}, com vencimento todo dia ${dado(d.dia_vencimento, 'DIA')}`;
   return html`${fixo ? html`O contratante pagará aos contratados ${dinheiro(d.valor_total, 'VALOR')}${condicoes}.
     ${parcelas.length ? html`<table class="doc-tabela"><thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor</th></tr></thead><tbody>${parcelas.map((p) => html`<tr><td>${p.numero === 0 ? 'Entrada' : `Parcela ${p.numero}`}</td><td>${data(p.vencimento)}</td><td>${moeda(centavos(p.valor))}</td></tr>`)}</tbody></table>` : ''}` : ''}
     ${tipo !== 'fixo' ? html`${fixo ? 'Além dos honorários fixos, serão devidos' : 'Os honorários serão de'} ${exito}% sobre o proveito econômico, condicionados à apuração do resultado.${tipo === 'exito' ? ' Não há cobrança fixa adicional nesta modalidade.' : ''}` : 'Não foram pactuados honorários de êxito.'}
+    Observam-se o art. 22 do Estatuto da OAB e o art. 85, §14, do CPC.`;
+}
+
+/** Contrato do Financeiro em que o valor fixo é um acordo: parte de cada
+ *  parcela é do cliente (cota do escritório abaixo de 100%). */
+function ehAcordo(d) {
+  const parcelas = parcelasValidas(d).filter((p) => p.parte !== 'exito');
+  return modalidade(d) !== 'exito' && parcelas.length > 0 && parcelas.every((p) => Number(p.cota_escritorio_pct ?? 100) < 100);
+}
+
+/** Contrato de honorários de um acordo com repasse: a cota do escritório em
+ *  cada parcela que a parte contrária paga; o resto pertence ao cliente. */
+function pagamentoAcordo(d, parcelas, exito, tipo) {
+  const bruto = parcelas.reduce((s, p) => s + centavos(p.valor), 0);
+  const escritorio = parcelas.reduce((s, p) => s + centavos(p.valor_escritorio ?? 0), 0);
+  const cotas = [...new Set(parcelas.map((p) => percentual(p.cota_escritorio_pct)))].join(' / ');
+  const encargos = [...new Set(parcelas.filter((p) => p.cota_encargos_pct != null && Number(p.cota_encargos_pct) !== Number(p.cota_escritorio_pct))
+    .map((p) => percentual(p.cota_encargos_pct)))];
+  return html`Os honorários correspondem a ${cotas} do valor do acordo, de ${moeda(bruto)}, isto é, ${moeda(escritorio)}, que os
+    contratados receberão de cada parcela paga pela parte contrária${encargos.length ? `, além de ${encargos.join(' / ')} da multa, dos juros e da correção monetária que ela pagar em atraso` : ''},
+    conforme a tabela abaixo. O restante de cada parcela pertence ao(à) contratante e lhe será repassado, salvo se pago diretamente a ele(a) pela parte contrária.
+    <table class="doc-tabela"><thead><tr><th>Parcela</th><th>Vencimento</th><th>Valor do acordo</th><th>Honorários</th></tr></thead><tbody>${parcelas.map((p) => html`<tr><td>${p.numero === 0 ? 'Entrada' : `Parcela ${p.numero}`}</td><td>${data(p.vencimento)}</td><td>${moeda(centavos(p.valor))}</td><td>${moeda(centavos(p.valor_escritorio ?? 0))}</td></tr>`)}</tbody></table>
+    ${tipo !== 'fixo' ? html`Além disso, serão devidos ${exito}% sobre o proveito econômico, condicionados à apuração do resultado.` : 'Não foram pactuados outros honorários de êxito.'}
     Observam-se o art. 22 do Estatuto da OAB e o art. 85, §14, do CPC.`;
 }
 
@@ -197,11 +224,12 @@ const contratoHonorarios = modelo({
         d.area === 'trabalhista' && modalidade(d) !== 'fixo' && numeroValido(d.exito) && Number(d.exito) > 0 ? html`Nas ações trabalhistas, em caso de pagamento por parcelamento, o contratante autoriza que os contratados adiantem os honorários de êxito de ${exito}% em parcela única na primeira prestação, ou procedam à dedução necessária para saldar os honorários.` : null,
         d.area === 'previdenciario' ? html`Nas ações previdenciárias, se os valores retroativos forem suficientes, os honorários serão pagos em parcela única; sendo insuficientes, proceder-se-á ao desconto máximo viável, permanecendo saldo remanescente em pagamento mensal.` : null,
       ].filter(Boolean);
-      const atraso = html`O atraso no pagamento ensejará vencimento antecipado das demais parcelas e cobrança do saldo devido${criterio ? html`, multa de ${percentual(criterio.multa_pct)}, juros simples de ${percentual(criterio.juros_mes_pct)} ao mês proporcionais aos dias de atraso (divisor 30), ${criterio.correcao === 'nenhuma' ? 'sem correção monetária' : `correção pelo ${({ ipca: 'IPCA', inpc: 'INPC', igpm: 'IGP-M' })[criterio.correcao] || '[ÍNDICE]'}`}, com carência de ${criterio.carencia_dias} dia(s)` : ', correção monetária, juros de 1% ao mês e multa compensatória de 10%'}.`;
+      // No acordo quem paga as parcelas é a parte contrária: não há atraso do contratante a prever.
+      const atraso = ehAcordo(d) ? null : html`O atraso no pagamento ensejará vencimento antecipado das demais parcelas e cobrança do saldo devido${criterio ? html`, multa de ${percentual(criterio.multa_pct)}, juros simples de ${percentual(criterio.juros_mes_pct)} ao mês proporcionais aos dias de atraso (divisor 30), ${criterio.correcao === 'nenhuma' ? 'sem correção monetária' : `correção pelo ${({ ipca: 'IPCA', inpc: 'INPC', igpm: 'IGP-M' })[criterio.correcao] || '[ÍNDICE]'}`}, com carência de ${criterio.carencia_dias} dia(s)` : ', correção monetária, juros de 1% ao mês e multa compensatória de 10%'}.`;
       return html`
     <div><strong>3. Honorários advocatícios</strong> — 3.1. ${pagamentoContrato(d)}</div>
     ${[...itens, atraso, 'Os honorários de sucumbência não excluem os honorários aqui pactuados, por possuírem natureza distinta.']
-      .map((texto, i) => html`<p>3.${i + 2}. ${texto}</p>`)}`;
+      .filter(Boolean).map((texto, i) => html`<p>3.${i + 2}. ${texto}</p>`)}`;
     })()}
     <p><strong>4. Garantia</strong> — 4.1. Garantia selecionada: <strong>${garantia}</strong>. Salvo detalhamento específico, o contrato não possui outras garantias pessoais/fidejussórias ou reais.</p>
     <p><strong>5. Obrigações</strong> — 5.1. O contratante compromete-se a prestar informações, documentos, indicar testemunhas e manter seus dados atualizados. Declara ciência de que a advocacia não assegura certeza de sucesso, constituindo meio de acesso à justiça, não promessa de resultado.</p>

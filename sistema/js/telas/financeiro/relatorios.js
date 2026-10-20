@@ -363,7 +363,8 @@ const GERAR = {
     else if (f.conta) filtros.push(['conta_financeira_id', 'eq', f.conta]);
     const termo = termoDeBusca(f.busca);
     if (termo) filtros.push(['or', `(cliente_nome.ilike.${termo},contrato_descricao.ilike.${termo},descricao.ilike.${termo})`]);
-    if (f.repasse === 'com') filtros.push(['valor_repasse', 'gt', 0]);
+    // Parte de cliente repassada ou paga direto a ele: as duas são de acordo.
+    if (f.repasse === 'com') filtros.push(['or', '(valor_repasse.gt.0,valor_direto_cliente.gt.0)']);
     if (f.repasse === 'pendente') filtros.push(['repasse_situacao', 'eq', 'pendente']);
     const linhas = await db.todos('v_recebimentos', { select: '*', filtros, ordem: 'data.asc,criado_em.asc,id.asc' });
     const validos = linhas.filter((r) => !r.estornado_em);

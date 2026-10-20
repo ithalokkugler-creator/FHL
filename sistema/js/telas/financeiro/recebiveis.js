@@ -263,6 +263,7 @@ async function receberEmLote(parcelas) {
   const dia = hoje();
   const [{ formas, contasFinanceiras }, itens] = await Promise.all([apoio(), atualizarParcelas(parcelas, dia)]);
   const total = itens.reduce((s, i) => s + i.calculo.total, 0);
+  const deAcordo = itens.filter((i) => temRepasse(i.parcela)).length;
   let resultado = null;
 
   await abrirDialogo({
@@ -271,6 +272,8 @@ async function receberEmLote(parcelas) {
     largo: true,
     corpo: html`
       <p class="dialogo__texto">Cada parcela recebe o valor atualizado de hoje (saldo + multa, juros e correção, se vencida), com a memória do cálculo. Confira antes de registrar.</p>
+      ${deAcordo ? html`<p class="nota">${deAcordo === 1 ? 'Uma parcela é de acordo: entra inteira' : `${deAcordo} parcelas são de acordo: entram inteiras`} na conta,
+        e a parte do cliente fica a repassar. Se a parte contrária pagou o cliente direto, receba essa parcela sozinha, pelo botão Receber.</p>` : ''}
       <div class="tabela-rolagem">
         <table class="tabela">
           <thead><tr><th>Cliente</th><th>Parcela</th><th>Vencimento</th><th class="num">Saldo</th><th class="num">A receber hoje</th><th>Resultado</th></tr></thead>

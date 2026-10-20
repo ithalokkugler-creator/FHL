@@ -64,7 +64,8 @@ teste JS novos — **158/158 JS e 520/520 SQL**).
 direto a ele e cota própria em multa e juros — ver
 [Respostas dos advogados](#respostas-dos-advogados-2010). Migração
 `20261020120000`, 23 verificações SQL e 3 testes JS novos — **160/160 JS e
-543/543 SQL**.
+543/543 SQL**. Revisão (`20261020150000`): contrato de honorários de acordo,
+redistribuição por grupo e painel — **161/161 JS e 546/546 SQL**.
 
 **09/10/2026 · revisão de código, banco e visual:** correções de permissões,
 captura DJEN, filtros e previsões financeiras, recibos históricos, importação,
@@ -367,6 +368,21 @@ Migração `20261020120000_acordo_direto_encargos`.
   do acordo e os encargos pela cota deles, sempre sobre o acumulado da
   parcela. A renegociação herda as duas cotas e não junta cotas diferentes.
 
+Revisão no mesmo dia (migração `20261020150000_revisao_acordo`):
+
+- **Contrato de honorários de um acordo** dizia que o cliente pagaria o acordo
+  inteiro ao escritório. Agora: os honorários são a cota de cada parcela paga
+  pela parte contrária (tabela com o valor do acordo e os honorários), o resto
+  é do cliente, e sai a cláusula de atraso do contratante (quem paga é a
+  parte contrária).
+- **Redistribuir valores**: cada grupo (fixo ou êxito, e as cotas) mantém a
+  própria soma — valor não passa do fixo (100% do escritório) para o acordo
+  do êxito. O diálogo mostra os grupos; o banco confere o mesmo.
+- **Painel**: a parte de clientes mostra também o que foi pago direto a eles.
+  O relatório de recebimentos "só com parte de cliente" inclui os diretos; a
+  baixa em lote avisa quando há parcela de acordo; "pago direto" sem parte
+  do cliente no pagamento não é gravado como direto.
+
 #### Correções da caça a bugs (19/10)
 
 Migração `20261019180000_correcoes_cacada` (só regras e consultas; nenhum dado
@@ -584,6 +600,7 @@ quem não é sócio.
 | 20261019120000 | `honorarios_misto_repasse` | Fixo + êxito, contrato encadeado, cota do escritório por parcela, `valor_repasse`, `repasses_cliente` e fechamento/painel pelos honorários |
 | 20261019180000 | `correcoes_cacada` | Correções da caça a bugs de 19/10: histórico de clientes, renegociação fixo × êxito, centavo do acordo em partes, duas casas, repasse em arquivado, saldo previsto anual |
 | 20261020120000 | `acordo_direto_encargos` | Acordo: parte do cliente paga direto a ele (`direto_ao_cliente`, `valor_direto_cliente`) e cota própria do escritório em multa e juros (`parcelas.cota_encargos_pct`) |
+| 20261020150000 | `revisao_acordo` | Painel com o pago direto a clientes (`resumo_financeiro`) e redistribuição que mantém a soma de cada grupo de parcelas |
 
 As seis primeiras versões foram conferidas no projeto remoto. As oito novas
 foram geradas pela CLI e executadas somente em PostgreSQL isolado. Elas ainda

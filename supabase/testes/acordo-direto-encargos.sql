@@ -233,6 +233,35 @@ begin
     select bool_and(valor + valor_direto_cliente = valor_principal + valor_encargos) into v_txt from public.recebimentos;
     res := res || pg_temp.t(v_txt = 'true', 'E13 em todo recebimento, caixa + direto ao cliente = principal + encargos', v_txt);
 
+    -- ============ 3 · revisão (20261020150000): painel e redistribuição ============
+    etapa := 'revisão';
+    -- Direto a clientes em outubro: D08 (420) + E08 (750); o D01 foi estornado.
+    j := public.resumo_financeiro(jsonb_build_object('de', '2026-10-01', 'ate', '2026-10-31'));
+    res := res || pg_temp.t((j -> 'indicadores' -> 'repasses_clientes' ->> 'direto')::numeric = 1170,
+      'V01 painel: mostra o que foi pago direto a clientes no período (sem estornados)', j -> 'indicadores' -> 'repasses_clientes');
+
+    c_mix := public.criar_contrato(jsonb_build_object(
+      'cliente_id', v_cli, 'descricao', 'Misto para redistribuir', 'tipo_honorario', 'misto', 'valor_total', 1000, 'exito_pct', 30,
+      'data_contrato', '2026-08-01',
+      'parcelas', jsonb_build_array(jsonb_build_object('numero', 1, 'vencimento', '2026-12-01', 'valor', 500),
+                                    jsonb_build_object('numero', 2, 'vencimento', '2027-01-01', 'valor', 500))));
+    perform public.apurar_exito(jsonb_build_object('contrato_id', c_mix, 'valor_total', 1000, 'cota_escritorio_pct', 30,
+      'parcelas', jsonb_build_array(jsonb_build_object('vencimento', '2027-02-01', 'valor', 500),
+                                    jsonb_build_object('vencimento', '2027-03-01', 'valor', 500))));
+    -- Tira 100 do fixo (100% do escritório) e põe no acordo do êxito (30%).
+    select jsonb_agg(jsonb_build_object('id', id, 'valor', case numero when 1 then 400 when 3 then 600 else valor end) order by numero)
+      into v_ids from public.parcelas where contrato_id = c_mix;
+    v_txt := pg_temp.erro(format($q$select public.redistribuir_parcelas(jsonb_build_object('contrato_id', %L, 'motivo', 'trocar',
+      'parcelas', %L::jsonb))$q$, c_mix, v_ids));
+    res := res || pg_temp.t(v_txt like '%cada grupo mantém a própria soma%',
+      'V02 redistribuir não passa valor do fixo para o acordo do êxito', v_txt);
+    -- Dentro do fixo, pode.
+    select jsonb_agg(jsonb_build_object('id', id, 'valor', case numero when 1 then 400 when 2 then 600 else valor end) order by numero)
+      into v_ids from public.parcelas where contrato_id = c_mix;
+    perform public.redistribuir_parcelas(jsonb_build_object('contrato_id', c_mix, 'motivo', 'cliente pediu', 'parcelas', v_ids));
+    select string_agg(numero || ':' || valor, ',' order by numero) into v_txt from public.parcelas where contrato_id = c_mix;
+    res := res || pg_temp.t(v_txt = '1:400.00,2:600.00,3:500.00,4:500.00', 'V03 redistribuir dentro do mesmo grupo continua valendo', v_txt);
+
     raise exception 'FIM_DOS_TESTES';
   exception when others then
     if sqlerrm <> 'FIM_DOS_TESTES' then

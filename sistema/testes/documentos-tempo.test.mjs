@@ -197,3 +197,24 @@ test('Relatório guarda relatos somente quando solicitado e omite timer em andam
   assert.match(s, /<p class="doc-nota">/);
   assert.match(String(montarRelatorio({ ...ctx, incluirRelato: true })), /SEGREDO INTERNO/);
 });
+
+test('Contrato de honorários de acordo: honorários são a cota, não o acordo inteiro', () => {
+  const parcela = (numero, vencimento) => ({
+    id: `p${numero}`, numero, vencimento, valor: '1000.00', valor_escritorio: '300.00', parte: 'fixo',
+    cota_escritorio_pct: '30.00', cota_encargos_pct: '50.00', situacao: 'a_vencer',
+  });
+  const s = montar('contrato_honorarios', {
+    modalidade: 'fixo', valor_total: '3.000,00', exito: 0,
+    financeiro: {
+      parcelas: [parcela(1, '2026-11-10'), parcela(2, '2026-12-10'), parcela(3, '2027-01-10')], recebimentos: [],
+      contrato: { tipo_honorario: 'fixo', tem_repasse: true }, criterio: { multa_pct: 10, juros_mes_pct: 1, correcao: 'ipca', carencia_dias: 0 },
+    },
+  });
+  assert.match(s, /Os honorários correspondem a 30% do valor do acordo, de R\$\s*3\.000,00, isto é, R\$\s*900,00/);
+  assert.match(s, /além de 50% da multa, dos juros e da correção monetária/);
+  assert.match(s, /<th>Honorários<\/th>/);
+  assert.doesNotMatch(s, /O contratante pagará aos contratados/);
+  // Quem paga é a parte contrária: sem cláusula de atraso do contratante.
+  assert.doesNotMatch(s, /O atraso no pagamento ensejará/);
+  assert.match(s, /3\.2\. Os honorários de sucumbência/);
+});

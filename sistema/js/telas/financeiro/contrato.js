@@ -530,17 +530,26 @@ function redistribuir({ contrato: c, parcelas }) {
   const livres = parcelas.filter((p) => ['a_vencer', 'vencida'].includes(p.situacao)
     && Number(p.pago_principal) === 0 && Number(p.ajustes_desconto) === 0 && Number(p.ajustes_acrescimo) === 0);
   const total = livres.reduce((s, p) => s + centavos(p.valor), 0);
+  // Fixo e êxito, e cotas do escritório diferentes, não trocam valor entre si:
+  // cada grupo mantém a própria soma (o banco confere o mesmo).
+  const cota = (p) => Number(p.cota_escritorio_pct ?? 100);
+  const grupo = (p) => `${p.parte === 'exito' ? 'exito' : 'fixo'}|${cota(p)}|${Number(p.cota_encargos_pct ?? cota(p))}`;
+  const rotuloGrupo = (p) => `${p.parte === 'exito' ? 'Êxito' : 'Fixo'}${cota(p) < 100 ? ` · acordo, ${percentual(cota(p))} do escritório` : ''}`;
+  const grupos = [...new Map(livres.map((p) => [grupo(p), { rotulo: rotuloGrupo(p), total: 0 }])).entries()];
+  for (const p of livres) grupos.find(([g]) => g === grupo(p))[1].total += centavos(p.valor);
   return abrirDialogo({
     titulo: 'Redistribuir valores entre parcelas',
     largo: true,
     corpo: html`
       <p class="dialogo__texto">Muda valor e vencimento de parcelas em aberto, sem recebimento, mantendo a soma
         (${moeda(total)}) — o contrato continua fechando com o valor total. Para mudar o total, use Renegociar.</p>
+      ${grupos.length > 1 ? html`<p class="nota">Cada grupo mantém a própria soma: ${grupos.map(([, g]) => `${g.rotulo}, ${moeda(g.total)}`).join('; ')}.
+        Valor não passa do fixo para o êxito, nem entre cotas do escritório diferentes.</p>` : ''}
       <div class="tabela-rolagem">
         <table class="tabela parcelas-editor">
           <thead><tr><th>Parcela</th><th>Vencimento</th><th class="num">Valor</th></tr></thead>
           <tbody>${livres.map((p) => html`
-            <tr><td>${rotuloParcela(p)}</td>
+            <tr><td>${rotuloParcela(p)}${grupos.length > 1 ? html`<span class="sub">${rotuloGrupo(p)}</span>` : ''}</td>
               <td><input type="date" name="v_${p.id}" value="${p.vencimento}" aria-label="Vencimento"></td>
               <td><input class="num" inputmode="decimal" name="valor_${p.id}" value="${decimal(centavos(p.valor))}" aria-label="Valor"></td></tr>`)}
           </tbody>
@@ -563,6 +572,10 @@ function redistribuir({ contrato: c, parcelas }) {
       if (novas.some((n) => !(n.valor > 0) || !n.vencimento)) throw new Error('Toda parcela precisa de data e valor maior que zero.');
       const s = novas.reduce((t, n) => t + n.valor, 0);
       if (s !== total) throw new Error(`A soma (${moeda(s)}) precisa continuar ${moeda(total)}.`);
+      for (const [g, { rotulo, total: doGrupo }] of grupos) {
+        const nova = novas.filter((n) => grupo(livres.find((x) => x.id === n.id)) === g).reduce((t, n) => t + n.valor, 0);
+        if (nova !== doGrupo) throw new Error(`As parcelas do grupo "${rotulo}" precisam continuar somando ${moeda(doGrupo)} (agora: ${moeda(nova)}).`);
+      }
       const mudaram = novas.filter((n) => {
         const p = livres.find((x) => x.id === n.id);
         return n.valor !== centavos(p.valor) || n.vencimento !== p.vencimento;
@@ -709,6 +722,9 @@ function apurarExito(contrato) {
     const cotaEncargos = form.cota_encargos.value.trim() ? lerNumero(form.cota_encargos.value) : null;
     if (cotaEncargos != null && (!entre(cotaEncargos, 0, 100) || !ateDuasCasas(cotaEncargos))) {
       throw new Error('A cota em multa e juros vai de 0% a 100%, com até duas casas decimais — ou deixe vazio para usar a do acordo.');
+    }
+    if (cotaEncargos != null && cota >= 100) {
+      throw new Error('Com 100% do acordo para o escritório, multa e juros também são dele: deixe vazio o campo de multa e juros.');
     }
     const novas = gerarParcelas({
       total: base,

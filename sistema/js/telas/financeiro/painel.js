@@ -103,6 +103,8 @@ function tela(r, f, { contasFinanceiras, categorias }) {
   // Acordos com repasse: a parte dos clientes entra no caixa e não é do escritório.
   const repasses = v('repasses_clientes');
   const pendente = centavos(i.repasses_clientes?.pendente ?? 0);
+  // Acordo em que a parte contrária pagou a parte do cliente direto a ele: fora do caixa.
+  const direto = centavos(i.repasses_clientes?.direto ?? 0);
   const previstaEscritorio = v('receita_prevista_escritorio');
 
   return html`
@@ -130,8 +132,8 @@ function tela(r, f, { contasFinanceiras, categorias }) {
         { href: `#/financeiro/recebiveis?situacao=vigentes&de=${de}&ate=${ate}${filtrosLink}` })}
       ${indicador('Receita recebida', moeda(v('receita_recebida')), `${plural(i.receita_recebida.quantidade, 'recebimento', 'recebimentos')} · ${moeda(centavos(i.receita_recebida.encargos))} de encargos`,
         { tom: v('receita_recebida') ? 'ok' : '', href: `#/financeiro/relatorios?relatorio=recebimentos&de=${de}&ate=${ate}${caixaLink}${filtrosLink}` })}
-      ${repasses || pendente ? indicador('Parte de clientes (acordos)', moeda(repasses),
-        `honorários recebidos: ${moeda(v('honorarios_recebidos'))}${pendente ? ` · ${moeda(pendente)} ainda a repassar` : ''}`,
+      ${repasses || pendente || direto ? indicador('Parte de clientes (acordos)', moeda(repasses),
+        `honorários recebidos: ${moeda(v('honorarios_recebidos'))}${pendente ? ` · ${moeda(pendente)} ainda a repassar` : ''}${direto ? ` · ${moeda(direto)} pagos direto a clientes, fora do caixa` : ''}`,
         { tom: pendente ? 'alerta' : '', href: `#/financeiro/relatorios?relatorio=recebimentos&repasse=com&de=${de}&ate=${ate}${caixaLink}${filtrosLink}` }) : ''}
       ${indicador('Receita a vencer', moeda(v('receita_a_vencer')), `${plural(i.receita_a_vencer.quantidade, 'parcela', 'parcelas')}${centavos(i.receita_a_vencer.vence_hoje) ? ` · ${moeda(centavos(i.receita_a_vencer.vence_hoje))} vence hoje` : ''}`,
         { href: `#/financeiro/recebiveis?situacao=a_vencer&de=${de}&ate=${ate}${filtrosLink}` })}

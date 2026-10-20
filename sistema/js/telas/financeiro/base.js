@@ -371,6 +371,9 @@ export async function receberParcela(p) {
       const principal = Math.min(valor, calculo.saldo);
       // O que passou do saldo, discriminado na proporção do cálculo do dia.
       const k = componentesDosEncargos(calculo, valor - principal);
+      // "Direto ao cliente" só quando há parte do cliente neste pagamento.
+      const direto = acordo && dados.destino === 'direto'
+        && divisaoDoRecebimento({ principal, encargos: valor - principal }, cotas, anterior).cliente > 0;
       const salvo = await db.inserir('recebimentos', {
         parcela_id: p.id,
         data: dados.data,
@@ -386,12 +389,12 @@ export async function receberParcela(p) {
         observacao: dados.observacao || null,
         memoria_calculo: memoriaParaGravar(calculo),
         // Acordo: a parte do cliente foi direto a ele; o banco guarda no caixa só a do escritório.
-        ...(acordo && dados.destino === 'direto' ? { direto_ao_cliente: true } : {}),
+        ...(direto ? { direto_ao_cliente: true } : {}),
       }, 'id,valor,valor_direto_cliente');
       avisar(Number(salvo.valor_direto_cliente) > 0
         ? `Recebimento registrado: ${moeda(centavos(salvo.valor))} na conta do escritório e ${moeda(centavos(salvo.valor_direto_cliente))} pagos direto ao cliente.`
         : valor < calculo.saldo ? 'Pagamento parcial registrado.' : 'Recebimento registrado.');
-      if (dados.repassar && dados.destino !== 'direto') {
+      if (dados.repassar && !direto) {
         await db.rpc('registrar_repasse', {
           p: { recebimento_id: salvo.id, data: dados.data, forma_id: dados.forma_id || null, conta_financeira_id: dados.conta_financeira_id || null },
         }).then(() => avisar('Repasse ao cliente registrado.'))
