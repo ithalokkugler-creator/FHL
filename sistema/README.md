@@ -60,6 +60,12 @@ testadores na prévia local acharam erros nessas funções; as correções estã
 [Correções de 19/10](#correções-da-caça-a-bugs-1910) (17 verificações SQL e 1
 teste JS novos — **158/158 JS e 520/520 SQL**).
 
+**20/10/2026 · respostas dos advogados:** acordo com a parte do cliente paga
+direto a ele e cota própria em multa e juros — ver
+[Respostas dos advogados](#respostas-dos-advogados-2010). Migração
+`20261020120000`, 23 verificações SQL e 3 testes JS novos — **160/160 JS e
+543/543 SQL**.
+
 **09/10/2026 · revisão de código, banco e visual:** correções de permissões,
 captura DJEN, filtros e previsões financeiras, recibos históricos, importação,
 anexos, indisponibilidade dos serviços e seleção de cliente no editor.
@@ -340,6 +346,27 @@ Migração `20261019120000_honorarios_misto_repasse`.
 - A data do contrato nos documentos gerados do Financeiro passou a ser a de
   formalização (`data_contrato`), não a do cadastro.
 
+#### Respostas dos advogados (20/10)
+
+Migração `20261020120000_acordo_direto_encargos`.
+
+- **Parte do cliente paga direto a ele.** "Na maioria das vezes" o dinheiro
+  do acordo cai na conta do escritório — mas depende do processo. O diálogo
+  de receber parcela de acordo pergunta como a parte contrária pagou. Com
+  "direto a ele", o recebimento guarda no `valor` só o que entrou no caixa
+  (a parte do escritório) e em `valor_direto_cliente` o que foi ao cliente;
+  `valor_repasse` fica zero (nada a repassar) e a situação é `direto`. A
+  parcela é abatida pelo bruto (`valor + valor_direto_cliente = principal +
+  encargos`). O fechamento mostra "Pago direto a clientes (fora do caixa)"
+  para a conta das entradas fechar; recibo, relatório de recebimentos e
+  prestação de contas dizem o que foi direto ao cliente. O último jeito usado
+  no contrato já vem marcado.
+- **Cota própria em multa e juros** (`parcelas.cota_encargos_pct`, vazia = a
+  mesma do acordo). "Depende do caso": em Novo contrato (acordo) e Apurar
+  êxito (acordo) há o campo opcional. O gatilho divide o principal pela cota
+  do acordo e os encargos pela cota deles, sempre sobre o acumulado da
+  parcela. A renegociação herda as duas cotas e não junta cotas diferentes.
+
 #### Correções da caça a bugs (19/10)
 
 Migração `20261019180000_correcoes_cacada` (só regras e consultas; nenhum dado
@@ -556,6 +583,7 @@ quem não é sócio.
 | 20261005232739 | `avisos_do_dia` **(pendente no remoto)** | Contadores pessoais e por permissão, sem sobreposição de tarefas |
 | 20261019120000 | `honorarios_misto_repasse` | Fixo + êxito, contrato encadeado, cota do escritório por parcela, `valor_repasse`, `repasses_cliente` e fechamento/painel pelos honorários |
 | 20261019180000 | `correcoes_cacada` | Correções da caça a bugs de 19/10: histórico de clientes, renegociação fixo × êxito, centavo do acordo em partes, duas casas, repasse em arquivado, saldo previsto anual |
+| 20261020120000 | `acordo_direto_encargos` | Acordo: parte do cliente paga direto a ele (`direto_ao_cliente`, `valor_direto_cliente`) e cota própria do escritório em multa e juros (`parcelas.cota_encargos_pct`) |
 
 As seis primeiras versões foram conferidas no projeto remoto. As oito novas
 foram geradas pela CLI e executadas somente em PostgreSQL isolado. Elas ainda

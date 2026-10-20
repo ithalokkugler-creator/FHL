@@ -164,6 +164,7 @@ export const TIPOS_HONORARIO = { fixo: 'Valor fixo', exito: 'Êxito', misto: 'Fi
 const SITUACOES_REPASSE = {
   pendente: ['Repasse pendente', 'alerta'],
   feito: ['Repassado', 'ok'],
+  direto: ['Pago direto ao cliente', 'ok'],
 };
 export const seloRepasse = (s) => (SITUACOES_REPASSE[s] ? selo(SITUACOES_REPASSE[s]) : '');
 

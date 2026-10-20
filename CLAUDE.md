@@ -66,6 +66,12 @@ divisão entre sócios). Preparação, decisões e perguntas abertas:
 técnicos no `sistema/README.md`. Domínio `advocaciafl.com.br` no ar desde 19/10/2026; fotos, SMTP do e-mail
 novo e Google Agenda estão sendo ajustados pelo Ithalo.
 
+**Respostas dos advogados — 20/10/2026:** o dinheiro do acordo cai na conta do
+escritório "na maioria das vezes" (depende do processo) → o recebimento agora
+aceita "parte do cliente paga direto a ele"; multa e juros "dependem do caso"
+(ex.: 50% quando não há honorário inicial) → cota própria opcional do escritório
+em multa e juros. Detalhes: `sistema/README.md` (Respostas dos advogados).
+
 ---
 
 ## 1. Quem é quem

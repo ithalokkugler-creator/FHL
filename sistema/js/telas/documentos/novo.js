@@ -49,7 +49,8 @@ async function dadosDoContrato(id) {
   const normais = doFixo.filter((p) => p.numero !== 0);
   const entrada = doFixo.find((p) => p.numero === 0);
   const validos = recebimentos.filter((r) => !r.estornado_em);
-  const pago = validos.reduce((soma, r) => soma + centavos(r.valor), 0);
+  // O que a parte contrária pagou: no caixa e, no acordo, também o que foi direto ao cliente.
+  const pago = validos.reduce((soma, r) => soma + centavos(r.valor) + centavos(r.valor_direto_cliente ?? 0), 0);
   // Acordo: o que já foi repassado ao cliente vai pronto para a prestação de contas.
   const repassado = validos.filter((r) => r.repasse_situacao === 'feito').reduce((soma, r) => soma + centavos(r.valor_repasse), 0);
 

@@ -25,6 +25,9 @@ const REGRAS = {
   renegociacoes_valor_renegociado_check: ['O valor renegociado precisa ser maior que zero.', null],
   contratos_valor_exito_check: ['O valor do êxito apurado precisa ser maior que zero.', 'valor'],
   parcelas_valor_check: ['O valor de cada parcela precisa ser maior que zero.', null],
+  parcelas_cota_encargos_pct_check: ['A cota do escritório em multa e juros vai de 0% a 100%.', 'cota_encargos'],
+  recebimento_direto: ['Só recebimento de parcela de acordo pode ter a parte do cliente paga direto a ele.', null],
+  recebimento_soma: ['O valor recebido não fecha com o saldo abatido e os encargos. Confira o valor.', 'valor'],
 };
 
 const CAMPOS = {

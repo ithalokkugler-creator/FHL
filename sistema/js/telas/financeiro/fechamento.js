@@ -161,6 +161,7 @@ function tela(mes, { registro, foto, lista }) {
             <tr><td>Parcelas de contratos</td><td class="num">${moeda(centavos(t.principal_parcelas))}</td></tr>
             <tr><td>Multa, juros e correção recebidos</td><td class="num">${moeda(centavos(t.encargos))}</td></tr>
             <tr><td>Entradas avulsas</td><td class="num">${moeda(centavos(t.avulsas))}</td></tr>
+            ${Number(t.diretos_clientes) ? html`<tr><td>Pago direto a clientes (acordos, fora do caixa)</td><td class="num">− ${moeda(centavos(t.diretos_clientes))}</td></tr>` : ''}
             ${t.entradas_por_forma.map((f) => html`<tr><td class="sub">por ${f.forma}</td><td class="num sub">${moeda(centavos(f.valor))}</td></tr>`)}
             ${repasses ? html`
               <tr><td>Parte dos clientes (acordos)</td><td class="num">− ${moeda(repasses)}</td></tr>
@@ -246,6 +247,7 @@ function planilha(mes, { totais: t, divisao: d }) {
     ['  Parcelas de contratos', centavos(t.principal_parcelas)],
     ['  Multa, juros e correção', centavos(t.encargos)],
     ['  Entradas avulsas', centavos(t.avulsas)],
+    ...(Number(t.diretos_clientes) ? [['  Pago direto a clientes (acordos, fora do caixa)', -centavos(t.diretos_clientes)]] : []),
     ...(Number(t.repasses) ? [['Repasses a clientes (acordos)', -centavos(t.repasses)], ['Honorários', centavos(t.honorarios)]] : []),
     ['Saídas', centavos(t.saidas)],
     ...t.saidas_por_categoria.map((c) => [`  ${c.categoria}`, centavos(c.valor)]),

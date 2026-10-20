@@ -8,7 +8,7 @@
 import { atualizar, componentesDosEncargos, memoriaParaGravar } from '../../dominio/atraso.js';
 import { mensagemDeCobranca } from '../../dominio/cobranca.js';
 import { fatorDoPeriodo, INDICES, temMesParaCorrigir, variacoes } from '../../dominio/indices.js';
-import { divisaoDoRepasse, gerarParcelas, nomeDaParcela, somaDasParcelas } from '../../dominio/parcelas.js';
+import { divisaoDoRecebimento, divisaoDoRepasse, gerarParcelas, nomeDaParcela, somaDasParcelas } from '../../dominio/parcelas.js';
 import { avisar } from '../../nucleo/avisos.js';
 import { abrirDialogo } from '../../nucleo/dialogo.js';
 import { ErroCampo } from '../../nucleo/formularios.js';
@@ -229,18 +229,28 @@ export function memoriaGravada(m) {
  */
 export async function receberParcela(p) {
   const acordo = temRepasse(p);
-  const [{ formas, contasFinanceiras }, [{ calculo: inicial }], anteriores] = await Promise.all([
+  const [{ formas, contasFinanceiras }, [{ calculo: inicial }], anteriores, ultimo] = await Promise.all([
     apoio(), atualizarParcelas([p]),
     // Acordo pago em partes: a divisão é sobre o acumulado da parcela, como no banco.
     acordo ? db.todos('recebimentos', {
-      select: 'valor,valor_repasse',
+      select: 'valor,valor_repasse,valor_principal,valor_encargos',
       filtros: [['parcela_id', 'eq', p.id], ['estornado_em', 'is', null]],
     }) : [],
+    // O caminho do último pagamento deste acordo vem marcado (depende do processo).
+    acordo ? db.um('v_recebimentos', {
+      select: 'direto_ao_cliente',
+      filtros: [['contrato_id', 'eq', p.contrato_id], ['estornado_em', 'is', null]],
+      ordem: 'criado_em.desc',
+    }).catch(() => null) : null,
   ]);
   const anterior = anteriores.reduce((a, r) => ({
-    valor: a.valor + centavos(r.valor),
+    principal: a.principal + centavos(r.valor_principal),
+    encargos: a.encargos + centavos(r.valor_encargos),
     escritorio: a.escritorio + centavos(r.valor) - centavos(r.valor_repasse),
-  }), { valor: 0, escritorio: 0 });
+  }), { principal: 0, encargos: 0, escritorio: 0 });
+  const cotas = { cota: p.cota_escritorio_pct, cotaEncargos: p.cota_encargos_pct ?? null };
+  const textoCotas = cotas.cotaEncargos != null && Number(cotas.cotaEncargos) !== Number(cotas.cota)
+    ? `${percentual(cotas.cota)}; multa e juros, ${percentual(cotas.cotaEncargos)}` : percentual(cotas.cota);
   let calculo = inicial;
   let recalculo = Promise.resolve();
   let valorDigitado = false;
@@ -257,7 +267,7 @@ export async function receberParcela(p) {
           <input type="date" name="data" value="${dia}" max="${dia}" required>
         </label>
         <label class="campo campo--4">
-          <span>Valor recebido</span>
+          <span>${acordo ? 'Valor pago pela parte contrária' : 'Valor recebido'}</span>
           <input name="valor" class="num" inputmode="decimal" value="${decimal(calculo.total)}" required autofocus>
         </label>
         <label class="campo campo--4">
@@ -272,6 +282,14 @@ export async function receberParcela(p) {
           <span>Observação</span>
           <input name="observacao" maxlength="500">
         </label>
+        ${acordo ? html`
+          <fieldset class="fieldset campos campo">
+            <legend>Como a parte contrária pagou</legend>
+            <label class="opcao campo"><input type="radio" name="destino" value="escritorio" ${ultimo?.direto_ao_cliente ? '' : 'checked'}>
+              Tudo na conta do escritório — o escritório repassa a parte do cliente</label>
+            <label class="opcao campo"><input type="radio" name="destino" value="direto" ${ultimo?.direto_ao_cliente ? 'checked' : ''}>
+              A parte do cliente foi paga direto a ele — entrou na conta só a do escritório</label>
+          </fieldset>` : ''}
         <label class="opcao campo"><input type="checkbox" name="recibo"> Emitir o recibo deste recebimento ao salvar</label>
         ${acordo ? html`<label class="opcao campo" data-papel="repassar"><input type="checkbox" name="repassar"> Registrar também o repasse ao cliente, na mesma data e saindo da mesma conta</label>` : ''}
       </div>
@@ -302,14 +320,17 @@ export async function receberParcela(p) {
           texto = 'Quita a parcela, sem encargos.';
         }
         if (acordo && !(passou > 0)) {
-          const { escritorio, cliente } = divisaoDoRepasse(valor, p.cota_escritorio_pct, anterior);
-          texto += cliente > 0
-            ? ` Acordo: ${moeda(escritorio)} são honorários (${percentual(p.cota_escritorio_pct)}) e ${moeda(cliente)} são do cliente, a repassar.`
-            : ` Acordo: todo o valor fica com o escritório (${percentual(p.cota_escritorio_pct)}); não há parte do cliente a repassar.`;
-          // Sem parte do cliente, não há repasse a registrar.
+          const direto = form.destino.value === 'direto';
+          const { escritorio, cliente } = divisaoDoRecebimento({ principal, encargos }, cotas, anterior);
+          texto += cliente <= 0
+            ? ` Acordo: todo o valor fica com o escritório (${textoCotas}); não há parte do cliente.`
+            : direto
+              ? ` Acordo: entram na conta do escritório ${moeda(escritorio)} (honorários, ${textoCotas}); ${moeda(cliente)} foram pagos direto ao cliente — não há repasse a fazer.`
+              : ` Acordo: ${moeda(escritorio)} são honorários (${textoCotas}) e ${moeda(cliente)} são do cliente, a repassar.`;
+          // Sem parte do cliente na conta do escritório, não há repasse a registrar.
           const opcao = $('[data-papel="repassar"]', dialogo);
-          opcao.hidden = cliente <= 0;
-          if (cliente <= 0) form.repassar.checked = false;
+          opcao.hidden = cliente <= 0 || direto;
+          if (opcao.hidden) form.repassar.checked = false;
         }
         caixa.textContent = texto;
       };
@@ -329,6 +350,9 @@ export async function receberParcela(p) {
       form.valor.addEventListener('input', () => {
         valorDigitado = true;
         efeito();
+      });
+      form.addEventListener('change', (e) => {
+        if (e.target.name === 'destino') efeito();
       });
       redesenhar();
     },
@@ -361,9 +385,13 @@ export async function receberParcela(p) {
         conta_financeira_id: dados.conta_financeira_id || null,
         observacao: dados.observacao || null,
         memoria_calculo: memoriaParaGravar(calculo),
-      }, 'id');
-      avisar(valor < calculo.saldo ? 'Pagamento parcial registrado.' : 'Recebimento registrado.');
-      if (dados.repassar) {
+        // Acordo: a parte do cliente foi direto a ele; o banco guarda no caixa só a do escritório.
+        ...(acordo && dados.destino === 'direto' ? { direto_ao_cliente: true } : {}),
+      }, 'id,valor,valor_direto_cliente');
+      avisar(Number(salvo.valor_direto_cliente) > 0
+        ? `Recebimento registrado: ${moeda(centavos(salvo.valor))} na conta do escritório e ${moeda(centavos(salvo.valor_direto_cliente))} pagos direto ao cliente.`
+        : valor < calculo.saldo ? 'Pagamento parcial registrado.' : 'Recebimento registrado.');
+      if (dados.repassar && dados.destino !== 'direto') {
         await db.rpc('registrar_repasse', {
           p: { recebimento_id: salvo.id, data: dados.data, forma_id: dados.forma_id || null, conta_financeira_id: dados.conta_financeira_id || null },
         }).then(() => avisar('Repasse ao cliente registrado.'))
@@ -606,8 +634,10 @@ export async function renegociarContrato(contratoId) {
   // Começam marcadas as do mesmo grupo (parte e cota) da primeira.
   const cota = (p) => Number(p.cota_escritorio_pct ?? 100);
   const parte = (p) => (p.parte === 'exito' ? 'exito' : 'fixo');
-  const grupo = (p) => `${parte(p)}|${cota(p)}`;
-  const cotas = new Set(abertas.map(cota));
+  // A cota sobre multa e juros também separa grupos (vazia = a do acordo).
+  const cotaEncargos = (p) => Number(p.cota_encargos_pct ?? cota(p));
+  const grupo = (p) => `${parte(p)}|${cota(p)}|${cotaEncargos(p)}`;
+  const cotas = new Set(abertas.map((p) => `${cota(p)}|${cotaEncargos(p)}`));
   const partes = new Set(abertas.map(parte));
   const grupos = new Set(abertas.map(grupo));
   const marcada = (p) => grupo(p) === grupo(abertas[0]);
@@ -637,7 +667,7 @@ export async function renegociarContrato(contratoId) {
                 <td class="num">${moeda(c.saldo)}</td>
                 <td class="num">${moeda(c.total)}</td>
                 ${partes.size > 1 ? html`<td>${parte(p) === 'exito' ? 'Êxito' : 'Fixo'}</td>` : ''}
-                ${cotas.size > 1 ? html`<td class="num">${percentual(cota(p))}</td>` : ''}
+                ${cotas.size > 1 ? html`<td class="num">${percentual(cota(p))}${cotaEncargos(p) !== cota(p) ? html`<span class="sub">multa e juros ${percentual(cotaEncargos(p))}</span>` : ''}</td>` : ''}
               </tr>`)}
           </tbody>
         </table>
@@ -716,7 +746,7 @@ export async function renegociarContrato(contratoId) {
     if (new Set(escolhidas.map((i) => parte(i.parcela))).size > 1) {
       return { saldo, atualizado, erro: 'Marque só parcelas do fixo ou só parcelas do êxito: as novas herdam a parte das marcadas.' };
     }
-    if (new Set(escolhidas.map((i) => cota(i.parcela))).size > 1) {
+    if (new Set(escolhidas.map((i) => `${cota(i.parcela)}|${cotaEncargos(i.parcela)}`)).size > 1) {
       return { saldo, atualizado, erro: 'Marque só parcelas com a mesma cota do escritório (o fixo ou o acordo).' };
     }
     if (!(valor > 0)) return { saldo, atualizado, erro: 'Informe o valor renegociado.' };

@@ -84,7 +84,12 @@ export default async function telaNovoContrato(ctx) {
                 <input name="cota" class="num" inputmode="decimal" placeholder="30" autocomplete="off">
                 <span class="campo__ajuda">O resto de cada parcela recebida é do cliente.</span>
               </label>
-              <p class="campo campo--8 campo__ajuda" data-papel="resumo-acordo">Informe o valor bruto e a cota.</p>
+              <label class="campo campo--4">
+                <span>Multa e juros: cota do escritório (%)</span>
+                <input name="cota_encargos" class="num" inputmode="decimal" placeholder="a mesma" autocomplete="off">
+                <span class="campo__ajuda">Vazio: a mesma do acordo. Preencha se a multa e os juros de atraso se dividem diferente (ex.: 50).</span>
+              </label>
+              <p class="campo campo__ajuda" data-papel="resumo-acordo">Informe o valor bruto e a cota.</p>
             </div>
             <label class="campo campo--4">
               <span data-papel="rotulo-total">Valor total</span>
@@ -243,8 +248,10 @@ export default async function telaNovoContrato(ctx) {
       return;
     }
     const escritorio = parcelas.reduce((s, p) => s + divisaoDoRepasse(p.valor, cota).escritorio, 0);
+    const cotaEncargos = lerNumero(form.cota_encargos.value);
     resumo.textContent = `Valor bruto ${moeda(total)} · escritório (${percentual(cota)}) ${moeda(escritorio)} · `
-      + `repasse ao cliente ${moeda(total - escritorio)}.`;
+      + `repasse ao cliente ${moeda(total - escritorio)}.`
+      + (entre(cotaEncargos, 0, 100) && cotaEncargos !== cota ? ` Multa e juros de atraso: ${percentual(cotaEncargos)} do escritório.` : '');
     $('[data-papel="soma-escritorio"]', form).textContent = moeda(escritorio);
     for (const celula of $$('[data-papel="escritorio"]', form)) {
       const p = parcelas[Number(celula.dataset.i)];
@@ -379,7 +386,7 @@ export default async function telaNovoContrato(ctx) {
 
   form.addEventListener('input', (e) => {
     if (['total', 'entrada', 'data_entrada', 'quantidade', 'primeiro', 'valor_parcela', 'frequencia', 'modo'].includes(e.target.name)) gerar();
-    if (e.target.name === 'cota') atualizarAcordo();
+    if (['cota', 'cota_encargos'].includes(e.target.name)) atualizarAcordo();
   });
   form.addEventListener('change', (e) => {
     if (e.target.name === 'tipo' || e.target.name === 'acordo') {
@@ -478,10 +485,16 @@ export default async function telaNovoContrato(ctx) {
     if (d.entrada_recebida && entrada.vencimento > hoje()) throw new Error('A entrada paga não pode ter data no futuro.');
 
     let cota = null;
+    let cotaEncargos = null;
     if (d.tipo === 'fixo' && d.acordo) {
       cota = lerNumero(d.cota);
       if (!entre(cota, 0.01, 99.99)) throw new ErroCampo('cota', 'Informe a cota do escritório, de 0,01% a 99,99%. Se tudo é do escritório, desmarque o acordo.');
       if (!ateDuasCasas(cota)) throw new ErroCampo('cota', 'A cota do escritório aceita até duas casas decimais (ex.: 30 ou 33,33).');
+      if (d.cota_encargos) {
+        cotaEncargos = lerNumero(d.cota_encargos);
+        if (!entre(cotaEncargos, 0, 100)) throw new ErroCampo('cota_encargos', 'Informe a cota do escritório em multa e juros, de 0% a 100%, ou deixe vazio para usar a do acordo.');
+        if (!ateDuasCasas(cotaEncargos)) throw new ErroCampo('cota_encargos', 'A cota em multa e juros aceita até duas casas decimais (ex.: 50 ou 33,33).');
+      }
     }
 
     return {
@@ -489,6 +502,7 @@ export default async function telaNovoContrato(ctx) {
       valor_total: paraReais(total),
       ...(percentualExito != null ? { exito_pct: percentualExito } : {}),
       ...(cota != null ? { cota_escritorio_pct: cota } : {}),
+      ...(cotaEncargos != null ? { cota_encargos_pct: cotaEncargos } : {}),
       parcelas: parcelas.map((p) => ({ numero: p.numero, vencimento: p.vencimento, valor: paraReais(p.valor) })),
       entrada_recebida: d.entrada_recebida
         ? { data: entrada.vencimento, forma_id: d.forma_prevista_id || null, conta_financeira_id: d.conta_entrada || null }

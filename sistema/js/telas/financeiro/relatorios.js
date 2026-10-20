@@ -386,9 +386,11 @@ const GERAR = {
         { titulo: 'Acréscimo', valor: (r) => (r.encargos_discriminados ? centavos(r.valor_acrescimo) : null), tipo: 'moeda' },
         { titulo: 'Encargos (total)', valor: (r) => centavos(r.valor_encargos), tipo: 'moeda' },
         { titulo: 'Valor', valor: (r) => centavos(r.valor), tipo: 'moeda' },
+        { titulo: 'Direto ao cliente', valor: (r) => (Number(r.valor_direto_cliente) ? centavos(r.valor_direto_cliente) : null), tipo: 'moeda' },
         { titulo: 'Do escritório', valor: (r) => centavos(r.valor_escritorio ?? r.valor), tipo: 'moeda' },
         { titulo: 'Do cliente (repasse)', valor: (r) => centavos(r.valor_repasse ?? 0), tipo: 'moeda' },
-        { titulo: 'Repasse', valor: (r) => (r.repasse_situacao === 'feito' ? `feito em ${data(r.repasse_data)}` : r.repasse_situacao === 'pendente' ? 'pendente' : null) },
+        { titulo: 'Repasse', valor: (r) => (r.repasse_situacao === 'feito' ? `feito em ${data(r.repasse_data)}` : r.repasse_situacao === 'pendente' ? 'pendente'
+          : r.repasse_situacao === 'direto' ? 'pago direto ao cliente' : null) },
         { titulo: 'Lançado por', valor: (r) => nomeDe(r.criado_por) },
         { titulo: 'Estorno', valor: (r) => (r.estornado_em ? `${dataHora(r.estornado_em)} — ${r.motivo_estorno}` : null) },
       ],
@@ -396,8 +398,10 @@ const GERAR = {
       totais: {
         Recebido: somaCentavos(validos, 'valor'), Principal: somaCentavos(validos, 'valor_principal'), Encargos: somaCentavos(validos, 'valor_encargos'),
         ...(repasses ? { 'Do cliente (repasse)': repasses, Honorários: somaCentavos(validos, 'valor') - repasses } : {}),
+        ...(somaCentavos(validos, 'valor_direto_cliente') ? { 'Direto ao cliente (fora do caixa)': somaCentavos(validos, 'valor_direto_cliente') } : {}),
       },
-      aviso: 'Recebimentos anteriores a 08/10/2026 não discriminam multa, juros e correção (aparece só o total de encargos). Nos acordos, a parte do cliente entra no caixa e é repassada: não é honorário.',
+      aviso: 'Recebimentos anteriores a 08/10/2026 não discriminam multa, juros e correção (aparece só o total de encargos). Nos acordos, a parte do cliente entra no caixa e é repassada: não é honorário. '
+        + 'Quando a parte contrária pagou a parte do cliente direto a ele, o valor é só o que entrou no caixa, e principal + encargos = valor + direto ao cliente.',
     };
   },
 

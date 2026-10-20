@@ -251,6 +251,12 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
   const proprio = c.multa_pct != null;
   const posicao = posicoes(parcelas);
   const dataRenegociacao = new Map(renegociacoes.map((r) => [r.id, r.criado_em]));
+  // Acordo com cota própria em multa e juros, e o que foi pago direto ao cliente.
+  const cotasProprias = [...new Set(parcelas
+    .filter((p) => temRepasse(p) && p.cota_encargos_pct != null && Number(p.cota_encargos_pct) !== Number(p.cota_escritorio_pct)
+      && !['renegociada', 'cancelada'].includes(p.situacao))
+    .map((p) => `${percentual(p.cota_escritorio_pct)} do acordo e ${percentual(p.cota_encargos_pct)} da multa, dos juros e da correção`))];
+  const diretoAoCliente = recebimentos.filter((r) => !r.estornado_em).reduce((s, r) => s + centavos(r.valor_direto_cliente ?? 0), 0);
 
   const subtitulo = html`
     ${c.codigo ? html`<strong>${c.codigo}</strong> · ` : ''}${c.cliente_nome}${c.cliente_telefone ? ` · ${telefone(c.cliente_telefone)}` : ''}${c.processo ? ` · processo ${c.processo}` : ''}
@@ -279,6 +285,8 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
     ${Number(c.diferenca_plano) ? html`<p class="nota nota--perigo">As parcelas não fecham com o valor do contrato: diferença de ${moeda(centavos(c.diferenca_plano))}. Confira o histórico.</p>` : ''}
     ${Number(c.repasse_pendente) > 0 ? html`<p class="nota">Parte do cliente recebida e ainda não repassada: <strong>${moeda(centavos(c.repasse_pendente))}</strong>
       (${plural(c.repasses_pendentes, 'recebimento', 'recebimentos')}).${lanca ? ' Registre o repasse em Recebimentos, quando ele sair.' : ''}</p>` : ''}
+    ${cotasProprias.length ? html`<p class="sub">Acordo: o escritório fica com ${cotasProprias.join('; ')}.</p>` : ''}
+    ${diretoAoCliente ? html`<p class="sub">Pago pela parte contrária direto ao cliente, fora do caixa do escritório: ${moeda(diretoAoCliente)}.</p>` : ''}
     ${c.arquivado_em ? html`<p class="nota">Arquivado em ${dataHora(c.arquivado_em)} por ${nomeDe(c.arquivado_por)}. Motivo: ${c.motivo_arquivamento}</p>` : ''}
 
     ${c.cancelado_em ? html`
@@ -288,7 +296,8 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
 
     <div class="indicadores">
       ${indicador('Honorários', ...honorarios(c))}
-      ${indicador('Recebido', moeda(centavos(c.recebido)), 'inclui multa, juros e correção recebidos', { tom: 'ok' })}
+      ${indicador('Recebido', moeda(centavos(c.recebido)), diretoAoCliente
+        ? `inclui multa, juros e correção, e ${moeda(diretoAoCliente)} pagos direto ao cliente` : 'inclui multa, juros e correção recebidos', { tom: 'ok' })}
       ${indicador('Saldo em aberto', moeda(centavos(c.saldo)), !c.proximo_vencimento
         ? 'nada a vencer'
         : c.proximo_vencimento < hoje() ? `vencido desde ${data(c.proximo_vencimento)}` : `próximo vencimento ${data(c.proximo_vencimento)}`)}
@@ -359,7 +368,10 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
                 <tr class="${r.estornado_em ? 'apagada' : ''}">
                   <td class="num">${data(r.data)}</td>
                   <td>${nomeDaParcela(r.parcela_numero)}${r.observacao ? html`<span class="sub">${r.observacao}</span>` : ''}</td>
-                  <td class="num">${moeda(centavos(r.valor))}${Number(r.valor_repasse) > 0 ? html`
+                  <td class="num">${moeda(centavos(r.valor))}${Number(r.valor_direto_cliente) > 0 ? html`
+                    <span class="sub">honorários, na conta</span>
+                    <span class="sub">+ ${moeda(centavos(r.valor_direto_cliente))} direto ao cliente</span>
+                    ${r.estornado_em ? '' : html`<span class="sub">${seloRepasse('direto')}</span>`}` : Number(r.valor_repasse) > 0 ? html`
                     <span class="sub">escritório ${moeda(centavos(r.valor_escritorio))}</span>
                     <span class="sub">cliente ${moeda(centavos(r.valor_repasse))}</span>
                     ${r.estornado_em ? '' : html`<span class="sub">${seloRepasse(r.repasse_situacao)}${r.repasse_situacao === 'feito' ? ` ${data(r.repasse_data)}` : ''}</span>`}` : ''}</td>
@@ -608,6 +620,11 @@ function apurarExito(contrato) {
           <span>Cota do escritório (%)</span>
           <input name="cota" class="num" inputmode="decimal" value="${String(Number(contrato.exito_pct)).replace('.', ',')}">
         </label>
+        <label class="campo campo--6" data-modo="acordo" hidden>
+          <span>Multa e juros: cota do escritório (%)</span>
+          <input name="cota_encargos" class="num" inputmode="decimal" placeholder="a mesma">
+          <span class="campo__ajuda">Vazio: a mesma do acordo.</span>
+        </label>
         <label class="campo campo--4" data-modo="acordo" hidden>
           <span>Entrada (opcional)</span>
           <input name="entrada" class="num" inputmode="decimal" placeholder="0,00">
@@ -642,6 +659,7 @@ function apurarExito(contrato) {
             + (quantas ? `${quantas} × ${valores}, a partir de ${data(r.novas.find((n) => n.numero > 0).vencimento)}` : '');
           previa.textContent = acordo
             ? `${plano}. Do bruto de ${moeda(r.total)}: escritório (${percentual(r.cota)}) ${moeda(r.escritorio)} · cliente ${moeda(r.total - r.escritorio)}, repassado a cada recebimento.`
+              + (r.cotaEncargos != null ? ` Multa e juros de atraso: ${percentual(r.cotaEncargos)} do escritório.` : '')
             : `${plano}.`;
         } catch (falha) {
           previa.textContent = falha.message;
@@ -664,6 +682,7 @@ function apurarExito(contrato) {
           valor_total: paraReais(r.total),
           base: r.base > 0 ? paraReais(r.base) : null,
           ...(r.cota != null ? { cota_escritorio_pct: r.cota } : {}),
+          ...(r.cotaEncargos != null ? { cota_encargos_pct: r.cotaEncargos } : {}),
           parcelas: r.novas.map((n) => ({ vencimento: n.vencimento, valor: paraReais(n.valor) })),
         },
       });
@@ -687,6 +706,10 @@ function apurarExito(contrato) {
     const cota = lerNumero(form.cota.value);
     if (!entre(cota, 0.01, 100)) throw new Error('Informe a cota do escritório, de 0,01% a 100%.');
     if (!ateDuasCasas(cota)) throw new Error('A cota do escritório aceita até duas casas decimais (ex.: 30 ou 33,33).');
+    const cotaEncargos = form.cota_encargos.value.trim() ? lerNumero(form.cota_encargos.value) : null;
+    if (cotaEncargos != null && (!entre(cotaEncargos, 0, 100) || !ateDuasCasas(cotaEncargos))) {
+      throw new Error('A cota em multa e juros vai de 0% a 100%, com até duas casas decimais — ou deixe vazio para usar a do acordo.');
+    }
     const novas = gerarParcelas({
       total: base,
       entrada: lerMoeda(form.entrada.value) ?? 0,
@@ -695,6 +718,6 @@ function apurarExito(contrato) {
       primeiroVencimento: form.primeiro.value,
     });
     const escritorio = novas.reduce((s, n) => s + divisaoDoRepasse(n.valor, cota).escritorio, 0);
-    return { total: base, base, cota, novas, escritorio };
+    return { total: base, base, cota, cotaEncargos, novas, escritorio };
   }
 }

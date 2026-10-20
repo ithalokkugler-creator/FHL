@@ -104,6 +104,9 @@ function pagamentoContrato(d) {
     Observam-se o art. 22 do Estatuto da OAB e o art. 85, §14, do CPC.`;
 }
 
+/** Acordo: o que a parte contrária pagou direto ao cliente (centavos). */
+const pagoDireto = (recebimentos) => recebimentos.reduce((s, r) => s + centavos(r.valor_direto_cliente ?? 0), 0);
+
 /** Na prestação de contas, o fixo + êxito já apurado conta inteiro: as
  *  parcelas listadas e o total pago incluem as do êxito. */
 function totalContratado(d) {
@@ -344,7 +347,7 @@ const prestacaoContas = modelo({
     const parcelas = parcelasValidas(ctx.dados);
     const recebimentos = (ctx.dados.financeiro?.recebimentos ?? []).filter((r) => !r.estornado_em);
     const linhas = parcelas.length
-      ? parcelas.map((p) => html`<tr><td>${data(p.vencimento)} - ${moeda(centavos(p.valor))}</td><td>${recebimentos.filter((r) => r.parcela_id === p.id).map((r) => html`<p>${data(r.data)} - ${moeda(centavos(r.valor))}</p>`)}</td></tr>`)
+      ? parcelas.map((p) => html`<tr><td>${data(p.vencimento)} - ${moeda(centavos(p.valor))}</td><td>${recebimentos.filter((r) => r.parcela_id === p.id).map((r) => html`<p>${data(r.data)} - ${moeda(centavos(r.valor) + centavos(r.valor_direto_cliente ?? 0))}${Number(r.valor_direto_cliente) ? ` (${moeda(centavos(r.valor_direto_cliente))} pagos direto ao(à) contratante)` : ''}</p>`)}</td></tr>`)
       : html`<tr><td>${dado(null, 'VENCIMENTO E VALOR')}</td><td>${dado(null, 'PAGAMENTO E VALOR')}</td></tr>`;
     return html`
     <p><strong>Contratante(s):</strong> ${q(ctx)}.</p>
@@ -358,6 +361,7 @@ const prestacaoContas = modelo({
     ${saldoPrestacao(ctx.dados)}
     <p><em>Demonstrativo de valor pago ao(à) contratante, na data de assinatura deste termo:</em></p>
     <p><strong>${dinheiro(ctx.dados.valor_repassado, 'VALOR REPASSADO')}</strong></p>
+    ${pagoDireto(recebimentos) ? html`<p>Além disso, a parte contrária pagou diretamente ao(à) contratante, sem passar pelo escritório, <strong>${moeda(pagoDireto(recebimentos))}</strong>.</p>` : ''}
     <p>As partes registram os valores discriminados neste demonstrativo. O recibo limita-se aos pagamentos e repasses efetivamente indicados; não constitui quitação geral, renúncia à cobrança de saldo remanescente ou de valores ainda a apurar.</p>`;
   },
 });

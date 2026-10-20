@@ -163,6 +163,9 @@ const CAMPOS = {
   parte: 'parte do contrato',
   cota_escritorio_pct: 'cota do escritório (%)',
   valor_repasse: 'parte do cliente',
+  direto_ao_cliente: 'parte do cliente paga direto a ele',
+  valor_direto_cliente: 'pago direto ao cliente',
+  cota_encargos_pct: 'cota do escritório em multa e juros (%)',
   recebimento_id: 'recebimento',
   observacao: 'observação',
 };
@@ -244,7 +247,7 @@ const ehDinheiro = (campo) => campo === 'valor' || (/^valor_/.test(campo) && !/_
 // própria linha (quanto saiu, quando e de onde, no repasse ao cliente).
 const RESUMO_CRIACAO = {
   repasses_cliente: ['valor', 'data', 'observacao'],
-  recebimentos: ['valor', 'data', 'valor_repasse'],
+  recebimentos: ['valor', 'data', 'valor_repasse', 'valor_direto_cliente'],
   contratos: ['tipo_honorario', 'valor_total', 'exito_pct'],
   ajustes_financeiros: ['valor', 'motivo'],
 };
@@ -277,7 +280,7 @@ export function itemHistorico(a) {
             ? html`<li>conteúdo:<ul>${mudancasCorpo(a.antes?.[c], a.depois?.[c]).map((m) => html`<li>${m}</li>`)}</ul></li>`
             : html`<li>${nomeCampo(c)}: <s>${legivel(c, a.antes?.[c], a.tabela)}</s> → ${legivel(c, a.depois?.[c], a.tabela)}</li>`))}</ul>`
           : a.acao === 'criou' && RESUMO_CRIACAO[a.tabela] && a.depois
-            ? html`<ul class="historico__campos">${RESUMO_CRIACAO[a.tabela].filter((c) => a.depois[c] != null && a.depois[c] !== '' && !(c === 'valor_repasse' && !Number(a.depois[c])))
+            ? html`<ul class="historico__campos">${RESUMO_CRIACAO[a.tabela].filter((c) => a.depois[c] != null && a.depois[c] !== '' && !(['valor_repasse', 'valor_direto_cliente'].includes(c) && !Number(a.depois[c])))
               .map((c) => html`<li>${nomeCampo(c)}: ${legivel(c, a.depois[c], a.tabela)}</li>`)}</ul>`
             : ''}
       </span>

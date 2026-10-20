@@ -29,6 +29,22 @@ medido antes: `npm run sistema:test` 152/152.
 > documentos) e capturas em 1366, 1440 e 390 sem transbordamento.
 > As perguntas do §7 continuam abertas: o que está lá foi feito pela
 > recomendação.
+>
+> **Respostas dos advogados (20/10/2026)** às perguntas 1 e 2 do §7, já no
+> sistema (migração `20261020120000_acordo_direto_encargos`):
+>
+> 1. *"Depende muito do processo, mas na maioria das vezes sim"* (o dinheiro
+>    do acordo cai na conta do escritório). O caso comum já era o do sistema.
+>    Para os outros, o recebimento de parcela de acordo pergunta **como a
+>    parte contrária pagou**: tudo na conta do escritório (repassa-se a parte
+>    do cliente) ou **a parte do cliente direto a ele** — aí entra no caixa só
+>    a parte do escritório, sem repasse. O último jeito usado no contrato já
+>    vem marcado. Se o processo inteiro for assim, também dá para lançar só os
+>    honorários, sem marcar acordo.
+> 2. *"Depende do caso; tem cliente que acertamos 50% quando não há
+>    honorário inicial"*. A cota do acordo já era por contrato (50% funciona).
+>    D3 vira opção: **cota do escritório em multa e juros**, própria, em Novo
+>    contrato (acordo) e em Apurar êxito (acordo). Vazia = a mesma do acordo.
 
 ---
 
@@ -86,7 +102,7 @@ Seguem a regra da casa: sem resposta, implementa-se a recomendação, marcada
 |---|---|---|
 | **D1** | Misto: `valor_total` = parte fixa; o êxito apurado vai para `valor_exito` | Não afrouxa a trava "valor total não muda"; o Word continua mostrando o fixo certo; o plano (`v_contratos_plano`) fecha somando os dois |
 | **D2** | Cota do escritório **por parcela** (padrão 100%) | Cobre o misto cuja parte de êxito é um acordo bruto; contratos atuais ficam 100%, sem mudança |
-| **D3** | Multa e juros pagos com atraso no acordo dividem na **mesma proporção** da cota | Regra simples e previsível. **Perguntar** |
+| **D3** | Multa e juros pagos com atraso no acordo dividem na **mesma proporção** da cota | **Respondido 20/10:** depende do caso — virou cota própria opcional (vazia = a mesma) |
 | **D4** | "Recebido" continua sendo o dinheiro que entrou (bruto, bate com o banco). **Honorários** = bruto − repasse. Divisão entre sócios usa honorários | Separa caixa de receita; nada infla a divisão |
 | **D5** | O repasse feito ao cliente é **saída própria**, nunca despesa | Despesa baixaria o resultado duas vezes; e reter valor do cliente é infração (art. 34, XXI, EAOAB) — o sistema deve lembrar do repasse pendente |
 | **D6** | Encadeado: sugere a 1ª parcela no **mês seguinte ao último vencimento** do contrato anterior (ou ao fim da vigência, se informada); a pessoa pode mudar | É o que o Vinícius descreveu; a data continua editável |
@@ -447,10 +463,11 @@ conferir divisão e saldo da conta.
 
 ## 7. Perguntas curtas para o Vinícius
 
-1. No acordo, o dinheiro cai na conta do escritório e vocês transferem a
-   parte do cliente? (o Lote 3 parte disso)
-2. Multa e juros de parcela do acordo paga com atraso: dividem na mesma
-   proporção? (D3)
+1. ~~No acordo, o dinheiro cai na conta do escritório e vocês transferem a
+   parte do cliente?~~ Respondido em 20/10: na maioria das vezes sim (ver o
+   quadro no topo).
+2. ~~Multa e juros de parcela do acordo paga com atraso: dividem na mesma
+   proporção?~~ Respondido em 20/10: depende do caso (ver o quadro no topo).
 3. O domínio `advocaciafl.com.br` é de vocês e o site vai para ele? O e-mail
    é Google Workspace? (D9, §5.2)
 4. Os textos de Criminal e Imobiliário servem? O Cível cede posse e locação

@@ -151,3 +151,30 @@ export function divisaoDoRepasse(valor, cota, anterior = {}) {
   const escritorio = Math.min(valor, Math.max(0, acumulado - jaDoEscritorio));
   return { escritorio, cliente: valor - escritorio };
 }
+
+/**
+ * Acordo: a divisão de um recebimento com principal e encargos (multa, juros
+ * e correção), quando o acordo tem uma cota própria para os encargos — 30% do
+ * acordo e 50% da multa, por exemplo. Sem ela (ou igual), é a mesma conta de
+ * divisaoDoRepasse sobre o total. Mesma conta do banco, sobre o acumulado da
+ * parcela: o que a parte contrária pagou, tenha entrado no caixa ou ido
+ * direto ao cliente.
+ *
+ * @param {{ principal: number, encargos?: number }} pago  centavos
+ * @param {{ cota: number, cotaEncargos?: number|null }} cotas  percentuais
+ * @param {{ principal?: number, encargos?: number, escritorio?: number }} [anterior]
+ *   o que a parcela já recebeu (centavos, sem estornados) e o que ficou com o escritório
+ * @returns {{ escritorio: number, cliente: number }}  centavos
+ */
+export function divisaoDoRecebimento({ principal, encargos = 0 }, { cota, cotaEncargos = null }, anterior = {}) {
+  const valor = principal + encargos;
+  const principalAntes = anterior.principal ?? 0;
+  const encargosAntes = anterior.encargos ?? 0;
+  if (cotaEncargos == null || Number(cotaEncargos) === Number(cota)) {
+    return divisaoDoRepasse(valor, cota, { valor: principalAntes + encargosAntes, escritorio: anterior.escritorio ?? 0 });
+  }
+  const parte = (v, c) => Math.floor((v * Math.round(Number(c) * 100) + 5000) / 10000);
+  const acumulado = parte(principalAntes + principal, cota) + parte(encargosAntes + encargos, cotaEncargos);
+  const escritorio = Math.min(valor, Math.max(0, acumulado - (anterior.escritorio ?? 0)));
+  return { escritorio, cliente: valor - escritorio };
+}
