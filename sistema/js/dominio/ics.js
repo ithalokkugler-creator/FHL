@@ -46,7 +46,8 @@ export function gerarIcs(compromissos, { nome = 'Fonseca Lisboa Advocacia', agor
     'CALSCALE:GREGORIAN', `X-WR-CALNAME:${escaparIcs(nome)}`];
   const ids = new Set();
   for (const c of compromissos) {
-    if (c.cancelado_em || ids.has(c.id)) continue;
+    // Remarcado já tem o novo horário em outro compromisso: o antigo não vai.
+    if (c.cancelado_em || c.situacao === 'remarcado' || ids.has(c.id)) continue;
     const e = evento(c), tipoData = c.dia_inteiro ? ';VALUE=DATE' : '';
     ids.add(c.id);
     linhas.push('BEGIN:VEVENT', `UID:${c.id}@fhl-advocacia`, `DTSTAMP:${carimbo}`,

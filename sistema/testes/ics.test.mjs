@@ -68,6 +68,11 @@ test('Mascarado sai apenas como Ocupado mesmo com detalhes indevidos na entrada'
   for(const secreto of ['José','Ithalo','LOCAL SIGILOSO','Caso de teste','RELATO','VALARM'])assert.ok(!ics.includes(secreto));
   assert.match(ics,/CLASS:PRIVATE/);assert.equal(linkGoogleAgenda(privado),null);
 });
+test('Remarcado não sai no .ics (o novo horário é outro compromisso)',()=>{
+  const ics=gerarIcs([c,{...c,id:'remarcado',situacao:'remarcado'}],opcoes);
+  assert.equal(ics.match(/BEGIN:VEVENT/g)?.length,1);
+  assert.ok(!ics.includes('UID:remarcado@'));
+});
 test('Cancelar exclui evento, UID duplicado não repete e exportação vazia é válida',()=>{
   const ics=gerarIcs([c,c,{...c,id:'cancelado',cancelado_em:'2026-10-04'}],opcoes);
   assert.equal(ics.match(/BEGIN:VEVENT/g)?.length,1);

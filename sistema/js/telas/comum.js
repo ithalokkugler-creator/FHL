@@ -223,15 +223,18 @@ export function rotuloSituacao(tabela, valor) {
   return rotulo?.[0] ?? valor;
 }
 
-/** Como os compromissos chegam ao Google: sozinhos (ligado, migração 34) ou pelo botão. */
+/** Como os compromissos chegam ao Google: sozinhos (ligado, migração 34) ou
+ *  pelo botão. Uma linha só; a explicação abre ao tocar (no celular, a nota
+ *  inteira empurrava a lista para baixo da dobra). */
 export const notaGoogle = (google) => (google?.conectado ? html`
-  <p class="nota nota--info">
-    Ligada ao <strong>Google Agenda</strong> do escritório (${google.conta}): o que é marcado aqui vai sozinho para a
-    agenda do responsável, e o que é marcado no Google, inclusive pelo cliente, aparece aqui em até 2 minutos.
-    O que veio do Google se altera ou cancela no Google (o sistema acompanha); o que nasceu aqui, aqui.
-  </p>` : html`
-  <p class="nota">
-    Use <strong>Pôr no Google Agenda</strong> no compromisso: abre a agenda do escritório (${CONTA_GOOGLE}) já na agenda
-    do responsável, a que a página de agendamento dele consulta. Confira e salve.
-    Alterações e cancelamentos posteriores precisam ser ajustados também no Google.
-  </p>`);
+  <details class="nota nota--info nota-google">
+    <summary>Agenda ligada ao <strong>Google Agenda</strong> do escritório.<span class="nota-google__mais">Como funciona</span></summary>
+    <p>O que é marcado aqui vai sozinho para a agenda do responsável no Google (${google.conta}), e o que é marcado lá,
+      inclusive pelo cliente na página de agendamento, aparece aqui em até 2 minutos. O que veio do Google se altera ou
+      cancela no Google (o sistema acompanha); o que nasceu aqui, aqui.</p>
+  </details>` : html`
+  <details class="nota nota-google">
+    <summary>Para o Google Agenda, use <strong>Pôr no Google Agenda</strong> no compromisso.<span class="nota-google__mais">Como funciona</span></summary>
+    <p>O botão abre a agenda do escritório (${CONTA_GOOGLE}) já na agenda do responsável, a que a página de agendamento
+      dele consulta. Confira e salve. Alterações e cancelamentos posteriores precisam ser ajustados também no Google.</p>
+  </details>`);

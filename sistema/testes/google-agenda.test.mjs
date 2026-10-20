@@ -61,6 +61,16 @@ test('Reserva do cliente vira atendimento, com a modalidade escolhida no formul�
   assert.equal(e.particular, false);
   const presencial = lerEvento({ ...reserva, description: 'Atendimento Presencial ou Virtual?<br>Presencial' });
   assert.equal(presencial.modalidade, 'presencial');
+  // O contato de quem marcou vai junto nas observações.
+  assert.match(e.descricao, /^Convidado: maria@example\.test\n\n/);
+});
+
+test('Reunião com convidado de fora, sem formulário de reserva, é reunião (não atendimento)', () => {
+  const e = lerEvento({ ...reserva, summary: 'Reunião com perito', description: '',
+    attendees: [{ email: 'contato@advocaciafl.com.br', self: true, organizer: true }, { email: 'perito@example.test', displayName: 'Perito' }] });
+  assert.equal(e.tipo, 'interno');
+  assert.equal(e.reserva, true, 'continua sem ser confundida com cópia de compromisso daqui');
+  assert.match(e.descricao, /Convidado: Perito <perito@example\.test>/);
 });
 
 test('Outros eventos: audiência, dia inteiro, ausência, interno; local de trabalho fica de fora', () => {

@@ -48,7 +48,8 @@ const CONVITES = { pendente: ['Convite em preparo', ''], enviado: ['Convite envi
 // diálogo, junto da escolha, e no title da célula. Administrador tem sempre
 // o máximo, qualquer que seja o valor gravado.
 const NIVEIS = {
-  acesso_agenda: [NIVEIS_AGENDA, { nenhum: '—', propria: 'Própria', todas: 'Todas' }, 'todas'],
+  // "Própria" parecia "só vê a própria"; vê a de todos e edita a sua.
+  acesso_agenda: [NIVEIS_AGENDA, { nenhum: '—', propria: 'Edita a sua', todas: 'Edita todas' }, 'todas'],
   acesso_financeiro: [NIVEIS_FINANCEIRO, { nenhum: '—', consulta: 'Consulta', lancamentos: 'Lançamentos', completo: 'Completo' }, 'completo'],
   acesso_site: [NIVEIS_SITE, { nenhum: '—', editar: 'Publica' }, 'editar'],
   acesso_clientes: [NIVEIS_CLIENTES, { nenhum: '—', editar: 'Edita' }, 'editar'],
@@ -142,7 +143,7 @@ function tela(convites) {
                 <td>
                   <span class="usuario">
                     <span class="avatar avatar--pequeno" data-vars="--cor:${m.cor}" aria-hidden="true">${iniciais(m.nome)}</span>
-                    <span>${m.nome_curto}<span class="sub">${m.oab ?? m.nome}</span></span>
+                    <span><button type="button" class="link-acao" data-acao="editar" data-id="${m.id}" title="Editar ${m.nome_curto}">${m.nome_curto}</button><span class="sub">${m.oab ?? m.nome}</span></span>
                   </span>
                 </td>
                 <td>${PAPEIS[m.papel]}</td>
@@ -198,10 +199,9 @@ function editarMembro(m) {
         <label class="campo campo--4"><span>Cor na agenda</span><input type="color" name="cor" value="${(m?.cor ?? '#2E615D').toLowerCase()}"></label>
         <label class="campo">
           <span>Agenda no Google (opcional)</span>
-          <input name="google_agenda" value="${m?.google_agenda ?? ''}" maxlength="200" pattern="\\s*[^\\s@]+@[^\\s@]+\\s*" spellcheck="false" autocomplete="off" placeholder="c_…@group.calendar.google.com">
-          <span class="campo__ajuda">ID da agenda desta pessoa na conta ${CONTA_GOOGLE}: no Google Agenda, Configurações da agenda → Integrar agenda → ID da agenda.
-            É nela que os compromissos desta pessoa ficam no Google, e o que for marcado nela aparece aqui.
-            Em branco, os compromissos desta pessoa não vão sozinhos para o Google.</span>
+          <input name="google_agenda" value="${m?.google_agenda ?? ''}" maxlength="200" pattern="\\s*[^\\s@]+@[^\\s@]+\\s*" title="Cole o ID como o Google mostra, terminado em @group.calendar.google.com" spellcheck="false" autocomplete="off" placeholder="c_…@group.calendar.google.com">
+          <span class="campo__ajuda">No Google Agenda da conta ${CONTA_GOOGLE}: Configurações da agenda desta pessoa → ID da agenda.
+            Em branco, os compromissos dela não sincronizam.</span>
         </label>
         <fieldset class="fieldset campos">
           <legend>Acesso aos módulos</legend>

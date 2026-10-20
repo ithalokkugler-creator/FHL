@@ -4,7 +4,7 @@
 // O "Escritório Virtual" do protótipo: quem atende quem e a que horas, se há
 // cliente esperando, e o que pede atenção no Financeiro. Avisa, não envia (5.4).
 
-import { avisarErro } from '../nucleo/avisos.js';
+import { avisar, avisarErro } from '../nucleo/avisos.js';
 import { corDe, estado, nomeDe, pode } from '../nucleo/estado.js';
 import {
   centavos, dataCurta, dataExtensa, dataHora, diasEntre, fimDoMes, hoje, hora, inicioDoMes, instante, moeda, noFuso, nomeDoMes,
@@ -44,9 +44,10 @@ export default async function telaInicio(ctx) {
   };
   addEventListener('fhl:atualizacoes', sincronizar);
 
-  const alterar = async (id, mudanca) => {
+  const alterar = async (id, mudanca, mensagem) => {
     try {
       await db.alterar('compromissos', [['id', 'eq', id]], mudanca, 'id');
+      avisar(mensagem);
       await carregarEDesenhar();
     } catch (erro) {
       avisarErro(erro);
@@ -78,9 +79,9 @@ export default async function telaInicio(ctx) {
         avisarErro(erro);
       }
     },
-    chegou: (el) => alterar(el.dataset.id, { chegada_em: new Date().toISOString() }),
-    realizado: (el) => alterar(el.dataset.id, { situacao: 'realizado' }),
-    faltou: (el) => alterar(el.dataset.id, { situacao: 'faltou' }),
+    chegou: (el) => alterar(el.dataset.id, { chegada_em: new Date().toISOString() }, 'Chegada registrada.'),
+    realizado: (el) => alterar(el.dataset.id, { situacao: 'realizado' }, 'Marcado como realizado.'),
+    faltou: (el) => alterar(el.dataset.id, { situacao: 'faltou' }, 'Marcado como falta.'),
   });
 
   // "Aguardando há 12 min" e a linha do "Agora" andam sozinhos. Não redesenha
@@ -401,7 +402,7 @@ function itemCompromisso(c, agora) {
               : ''}
             ${c.tipo === 'atendimento' && !c.chegada_em ? html`<button type="button" class="botao botao--pequeno" data-acao="chegou" data-id="${c.id}">Chegou</button>` : ''}
             <button type="button" class="botao botao--pequeno" data-acao="realizado" data-id="${c.id}">Realizado</button>
-            <button type="button" class="botao botao--pequeno botao--discreto" data-acao="faltou" data-id="${c.id}">Faltou</button>
+            <button type="button" class="botao botao--pequeno" data-acao="faltou" data-id="${c.id}">Faltou</button>
           </span>`
           : c.mascarado ? '' : html`<span class="dia-item__selos">${seloCompromisso(c.situacao)}</span>`}
       </div>

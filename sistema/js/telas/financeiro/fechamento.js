@@ -148,7 +148,7 @@ function tela(mes, { registro, foto, lista }) {
 
     <div class="indicadores">
       ${indicador('Entradas', moeda(centavos(t.entradas)), plural(Number(t.recebimentos), 'recebimento', 'recebimentos'), { tom: 'ok' })}
-      ${repasses ? indicador('Repasses a clientes', moeda(repasses), `honorários do mês: ${moeda(centavos(t.entradas) - repasses)}`) : ''}
+      ${repasses ? indicador('Parte dos clientes (acordos)', moeda(repasses), `honorários do mês: ${moeda(centavos(t.entradas) - repasses)}`) : ''}
       ${indicador('Saídas', moeda(centavos(t.saidas)), t.pagamentos != null ? plural(Number(t.pagamentos), 'pagamento de despesa', 'pagamentos de despesas') : 'contas pagas no mês')}
       ${indicador('Resultado', moeda(centavos(t.resultado)), repasses ? 'entradas − repasses − saídas' : 'entradas − saídas', { tom: Number(t.resultado) < 0 ? 'perigo' : '' })}
     </div>
@@ -165,7 +165,7 @@ function tela(mes, { registro, foto, lista }) {
             ${t.entradas_por_forma.map((f) => html`<tr><td class="sub">por ${f.forma}</td><td class="num sub">${moeda(centavos(f.valor))}</td></tr>`)}
             ${repasses ? html`
               <tr><td>Parte dos clientes (acordos)</td><td class="num">− ${moeda(repasses)}</td></tr>
-              <tr><td class="sub">repassada no mês</td><td class="num sub">${moeda(centavos(t.repasses_feitos ?? 0))}</td></tr>
+              <tr><td class="sub">dessa parte, já repassada no mês</td><td class="num sub">${moeda(centavos(t.repasses_feitos ?? 0))}</td></tr>
               <tr><td><strong>Honorários do mês</strong></td><td class="num"><strong>${moeda(centavos(t.entradas) - repasses)}</strong></td></tr>` : ''}
           </tbody>
         </table>
@@ -248,7 +248,7 @@ function planilha(mes, { totais: t, divisao: d }) {
     ['  Multa, juros e correção', centavos(t.encargos)],
     ['  Entradas avulsas', centavos(t.avulsas)],
     ...(Number(t.diretos_clientes) ? [['  Pago direto a clientes (acordos, fora do caixa)', -centavos(t.diretos_clientes)]] : []),
-    ...(Number(t.repasses) ? [['Repasses a clientes (acordos)', -centavos(t.repasses)], ['Honorários', centavos(t.honorarios)]] : []),
+    ...(Number(t.repasses) ? [['Parte dos clientes (acordos)', -centavos(t.repasses)], ['Honorários', centavos(t.honorarios)]] : []),
     ['Saídas', centavos(t.saidas)],
     ...t.saidas_por_categoria.map((c) => [`  ${c.categoria}`, centavos(c.valor)]),
     ['Resultado', centavos(t.resultado)],

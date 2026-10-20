@@ -86,7 +86,10 @@ export function tipoDoEvento(ev) {
   if (ev.eventType === 'outOfOffice') return { tipo: 'bloqueio', modalidade: 'ausencia' };
   if (/audiencia/.test(titulo)) return { tipo: 'audiencia', modalidade: online ? 'online' : null };
   if (ev.start?.date) return { tipo: 'bloqueio', modalidade: null };
-  if (ehReserva(ev) || /atendimento|consulta|retorno/.test(titulo)) {
+  // Reserva da página de agendamento (formulário) ou título de atendimento.
+  // Só ter convidado de fora não basta: reunião com perito é reunião.
+  const formulario = /presencial ou virtual|agendado por|reservado por/.test(texto);
+  if (formulario || /atendimento|consulta|retorno/.test(titulo)) {
     // Formulário da reserva: "Atendimento Presencial ou Virtual?" e a resposta.
     const resposta = /presencial ou virtual\?\s*\n?\s*(presencial|virtual|online)/.exec(texto)?.[1];
     const modalidade = resposta ? (resposta === 'presencial' ? 'presencial' : 'online') : online ? 'online' : null;
@@ -110,6 +113,9 @@ export function lerEvento(ev) {
   const fim = diaInteiro ? ev.end?.date : ev.end?.dateTime;
   if (!inicio || !fim) return null;
   const video = ev.hangoutLink || ev.conferenceData?.entryPoints?.find((p) => p.entryPointType === 'video')?.uri || '';
+  // Quem marcou pela página de agendamento: o contato vai junto nas observações.
+  const convidados = (ev.attendees ?? []).filter((a) => !a.self && !a.organizer && !a.resource)
+    .map((a) => (a.displayName && a.email ? `${a.displayName} <${a.email}>` : a.email || a.displayName)).filter(Boolean);
   return {
     ...base,
     status: 'confirmed',
@@ -118,7 +124,8 @@ export function lerEvento(ev) {
     fim,
     dia_inteiro: diaInteiro,
     local: String(ev.location || video || '').slice(0, 500),
-    descricao: textoSimples(ev.description).slice(0, 4000),
+    descricao: [convidados.length ? `Convidado: ${convidados.join(', ')}` : '', textoSimples(ev.description)]
+      .filter(Boolean).join('\n\n').slice(0, 4000),
     particular: ['private', 'confidential'].includes(ev.visibility),
     reserva: ehReserva(ev),
     ...tipoDoEvento(ev),

@@ -28,6 +28,7 @@ const REGRAS = {
   parcelas_cota_encargos_pct_check: ['A cota do escritório em multa e juros vai de 0% a 100%.', 'cota_encargos'],
   recebimento_direto: ['Só recebimento de parcela de acordo pode ter a parte do cliente paga direto a ele.', null],
   recebimento_soma: ['O valor recebido não fecha com o saldo abatido e os encargos. Confira o valor.', 'valor'],
+  membros_google_agenda: ['Essa agenda do Google já é de outro membro. Cada pessoa precisa da sua.', 'google_agenda'],
   membros_google_agenda_check: ['Cole o ID da agenda como o Google mostra, terminado em @group.calendar.google.com.', 'google_agenda'],
 };
 

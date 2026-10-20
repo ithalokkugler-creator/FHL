@@ -42,4 +42,8 @@ test('agenda: conflito conta só o mesmo responsável e o intervalo mínimo', ()
 
   const editandoOProprio = conflitos({ id: '1', membro_id: 'ju', inicio: h(14), fim: h(15) }, existentes, 0);
   assert.equal(editandoOProprio.sobrepostos.length, 0);
+
+  // Remarcado não ocupa mais o horário antigo (caça a bugs de 20/10).
+  const comRemarcado = [{ id: '9', membro_id: 'ju', inicio: h(9), fim: h(10), situacao: 'remarcado' }];
+  assert.equal(conflitos({ membro_id: 'ju', inicio: h(9), fim: h(9, 30) }, comRemarcado, 0).sobrepostos.length, 0);
 });

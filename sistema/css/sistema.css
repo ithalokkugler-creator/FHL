@@ -1177,6 +1177,12 @@ a.dia-item__corpo:hover { background: var(--c-realce); }
 }
 .evento--oculto { border-left-color: var(--c-ink-m); background: var(--c-bone-dim); color: var(--c-texto-m); cursor: default; }
 .evento--realizado { opacity: 0.6; }
+/* Remarcado: o horário antigo continua à vista, mas não parece marcado. */
+.evento--remarcado { opacity: 0.72; }
+.evento--remarcado .evento__titulo { text-decoration: line-through; text-decoration-thickness: 1px; }
+.compromisso--remarcado .compromisso__hora,
+.compromisso--remarcado .compromisso__corpo { opacity: 0.62; }
+.compromisso--remarcado strong { text-decoration: line-through; text-decoration-thickness: 1px; }
 .evento--curto .sub { display: none; }
 
 .evento-dia-todo {
@@ -1195,9 +1201,40 @@ a.dia-item__corpo:hover { background: var(--c-realce); }
   cursor: pointer;
 }
 
+/* Nota do Google em uma linha; a explicação abre ao tocar. */
+.nota-google > summary { cursor: pointer; list-style: none; }
+.nota-google > summary::-webkit-details-marker { display: none; }
+.nota-google > summary::before { content: '▸'; display: inline-block; width: 1em; color: var(--c-teal); }
+.nota-google[open] > summary::before { content: '▾'; }
+.nota-google__mais { display: inline-block; margin-left: 0.5em; font-size: var(--t-pequeno); text-decoration: underline; text-underline-offset: 2px; white-space: nowrap; }
+.nota-google[open] > summary { margin-bottom: var(--s-2); }
+.nota-google > p { margin: 0; padding-left: 1em; font-size: var(--t-pequeno); }
+.lista-google { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; font-size: var(--t-pequeno); }
+.lista-google li { display: flex; flex-wrap: wrap; column-gap: var(--s-2); }
+.lista-google__falta { color: var(--c-texto-m); }
+.confirma-conflito { margin-top: var(--s-3); }
+.dados__texto { white-space: pre-line; }
+.botao--texto-perigo { color: var(--c-perigo); }
+.chip--atalho { font-weight: 600; }
+
 /* Na tela estreita, a grade vira lista por dia. */
 .agenda-lista { display: none; }
 @media (max-width: 760px) {
+  .so-computador { display: none !important; }
+  /* Pessoas numa linha só, que rola de lado: três linhas de chips empurravam
+     a lista do dia para baixo da dobra. */
+  .chips--agenda { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px;
+    -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); padding-right: 24px; }
+  /* Cartão da lista: título à esquerda e "Abrir" ao lado, não embaixo. */
+  .compromisso { grid-template-columns: minmax(0, 1fr) auto; gap: 2px var(--s-3); }
+  .compromisso__hora { grid-column: 1 / -1; }
+  .compromisso__acoes { justify-content: flex-end; }
+  /* "Novo compromisso" na largura toda; setas com largura de dedo. */
+  .pagina__acoes .botao--primario { flex: 1 1 100%; }
+  .pagina__acoes .botao[aria-label] { min-width: 44px; }
+  .chips--agenda::-webkit-scrollbar { display: none; }
+  .chips--agenda > .chip { flex: none; }
+  .agenda-google { margin-top: var(--s-2); }
   .agenda { display: none; }
   .agenda-lista { display: grid; gap: var(--s-4); }
 }
@@ -1927,3 +1964,31 @@ rect.grafico__barra { fill: var(--cor, var(--c-teal)); }
 @media print {
   .aviso-inatividade, .paginacao { display: none !important; }
 }
+
+/* --------------------------------------------------------------------------
+   TOQUE — no celular e no tablet, botões, chips e segmentos com altura de
+   dedo (caça a bugs de 20/10: vários estavam entre 28 e 36 px).
+   -------------------------------------------------------------------------- */
+@media (pointer: coarse) {
+  .botao { min-height: 44px; }
+  .botao--pequeno { min-height: 40px; padding: 0 12px; }
+  .chip { min-height: 40px; }
+  .segmentos__botao { min-height: 40px; }
+}
+
+/* Nome que abre a edição (Membros): no celular, o "Editar" fica no fim da
+   tabela, fora da tela. */
+.link-acao {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* Seção extra num diálogo de campos (Configurar agenda → Google Agenda). */
+.campos + .fieldset { margin-top: var(--s-5); }

@@ -23,7 +23,7 @@ import { limparErrosFormulario, mostrarErroFormulario, validarFormulario } from 
  * @param {(dados, form, dialogo) => Promise<any>} [p.aoEnviar]  devolve false para não fechar
  * @returns {Promise<any>} o que aoEnviar devolveu, ou null se fechou sem salvar
  */
-export function abrirDialogo({ titulo, corpo, rotuloOk = 'Salvar', perigo = false, largo = false, somenteLeitura = false, aoAbrir, aoEnviar }) {
+export function abrirDialogo({ titulo, corpo, rotuloOk = 'Salvar', rotuloFechar = null, perigo = false, largo = false, somenteLeitura = false, aoAbrir, aoEnviar }) {
   return new Promise((resolver) => {
     const dialogo = document.createElement('dialog');
     dialogo.className = `dialogo${largo ? ' dialogo--largo' : ''}`;
@@ -38,7 +38,7 @@ export function abrirDialogo({ titulo, corpo, rotuloOk = 'Salvar', perigo = fals
         <p class="dialogo__erro" role="alert" hidden></p>
         <div class="dialogo__corpo">${corpo}</div>
         <footer class="dialogo__rodape">
-          <button type="button" class="botao" data-fechar>${somenteLeitura ? 'Fechar' : 'Cancelar'}</button>
+          <button type="button" class="botao" data-fechar>${rotuloFechar ?? (somenteLeitura ? 'Fechar' : 'Cancelar')}</button>
           ${somenteLeitura ? '' : html`<button type="submit" class="botao ${perigo ? 'botao--perigo' : 'botao--primario'}">${rotuloOk}</button>`}
         </footer>
       </form>`);
@@ -114,6 +114,8 @@ export function pedirMotivo({ titulo, texto, rotuloOk = 'Confirmar', rotulo = 'M
   return abrirDialogo({
     titulo,
     rotuloOk,
+    // "Cancelar" ao lado de "Cancelar compromisso" confundia: este só volta.
+    rotuloFechar: 'Voltar',
     perigo: true,
     corpo: html`
       ${texto ? html`<p class="dialogo__texto">${texto}</p>` : ''}

@@ -314,6 +314,10 @@ export async function receberParcela(p) {
           texto = `Pagamento parcial: abate ${moeda(principal)} e ficam ${moeda(calculo.saldo - principal)} em aberto na parcela.`;
         } else if (passou > 0) {
           texto = `O valor passa ${moeda(passou)} do total atualizado (${moeda(calculo.total)}). Registre até ${moeda(calculo.total)}; a diferença entra como entrada avulsa ou como acréscimo autorizado no contrato.`;
+        } else if (valor < calculo.total) {
+          // Quita o saldo, mas não todos os encargos: o resto deixa de ser cobrado.
+          texto = `Quita a parcela: ${moeda(principal)} de saldo e ${moeda(encargos)} de multa, juros e correção. `
+            + `Os outros ${moeda(calculo.total - valor)} de encargos deixam de ser cobrados — para cobrá-los, registre ${moeda(calculo.total)}.`;
         } else if (encargos > 0) {
           texto = `Quita a parcela: ${moeda(principal)} de saldo e ${moeda(encargos)} de multa, juros e correção.`;
         } else {

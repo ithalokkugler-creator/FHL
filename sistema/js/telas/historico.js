@@ -264,6 +264,7 @@ function legivel(campo, v, tabela) {
   const rotulo = typeof v === 'string' ? codigo(tabela, campo, v) : null;
   if (rotulo) return rotulo;
   if (estado.porId.has(v)) return nomeDe(v);
+  if (campo === 'remarcado_para') return 'o compromisso no novo horário';
   if (/_id$/.test(campo)) return `registro …${String(v).slice(-6)}`;
   if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return data(v);
   if (/^\d{4}-\d{2}-\d{2}T/.test(v)) return dataHora(v);

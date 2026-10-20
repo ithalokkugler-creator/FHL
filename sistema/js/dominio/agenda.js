@@ -41,7 +41,8 @@ export function distribuirColunas(itens) {
  *  Instantes em milissegundos. */
 export function conflitos(candidato, existentes, intervaloMinutos = 0) {
   const margem = intervaloMinutos * 60_000;
-  const mesmos = existentes.filter((e) => e.membro_id === candidato.membro_id && e.id !== candidato.id);
+  // Remarcado não ocupa mais o horário antigo.
+  const mesmos = existentes.filter((e) => e.membro_id === candidato.membro_id && e.id !== candidato.id && e.situacao !== 'remarcado');
   const sobrepostos = mesmos.filter((e) => e.inicio < candidato.fim && e.fim > candidato.inicio);
   const colados = margem
     ? mesmos.filter((e) => !sobrepostos.includes(e)

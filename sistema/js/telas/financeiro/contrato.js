@@ -150,7 +150,9 @@ export default async function telaContrato(ctx) {
       const r = recebimento(el);
       const motivo = await pedirMotivo({
         titulo: 'Estornar recebimento',
-        texto: `O recebimento de ${moeda(centavos(r.valor))} em ${data(r.data)} deixa de contar, e o saldo volta para a parcela. O lançamento continua visível, como estornado.`,
+        texto: Number(r.valor_direto_cliente) > 0
+          ? `O recebimento de ${moeda(centavos(r.valor) + centavos(r.valor_direto_cliente))} em ${data(r.data)} (${moeda(centavos(r.valor))} na conta do escritório e ${moeda(centavos(r.valor_direto_cliente))} pagos direto ao cliente) deixa de contar, e o saldo volta para a parcela. O lançamento continua visível, como estornado.`
+          : `O recebimento de ${moeda(centavos(r.valor))} em ${data(r.data)} deixa de contar, e o saldo volta para a parcela. O lançamento continua visível, como estornado.`,
         rotuloOk: 'Estornar',
       });
       if (!motivo) return;

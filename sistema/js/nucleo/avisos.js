@@ -14,7 +14,9 @@ export function avisar(texto, tipo = 'ok', duracao = 4200) {
   for (const antigo of area.children) {
     if (antigo.dataset.texto === texto && antigo.dataset.tipo === tipo) antigo.remove();
   }
-  while (area.children.length >= 3) area.firstElementChild.remove();
+  // No celular, empilhados cobriam a lista: um por vez.
+  const maximo = matchMedia('(max-width: 640px)').matches ? 1 : 3;
+  while (area.children.length >= maximo) area.firstElementChild.remove();
   const aviso = document.createElement('div');
   aviso.className = `aviso aviso--${tipo}`;
   aviso.dataset.texto = texto;

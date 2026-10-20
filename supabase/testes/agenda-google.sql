@@ -50,6 +50,7 @@ declare
   m_socio  uuid;
   v_id     uuid;
   v_novo   uuid;
+  v_id2    uuid;
   v_txt    text;
   v_num    numeric;
 begin
@@ -173,6 +174,38 @@ begin
     perform pg_temp.como(u_socio);
     v_txt := pg_temp.erro(format($q$select public.remarcar_compromisso(%L, now() + interval '3 days', now() + interval '3 days 1 hour')$q$, v_id));
     res := res || pg_temp.t(v_txt like '42501%', 'R07 sócio com agenda própria não remarca o compromisso de outro', v_txt);
+
+    -- ===================== revisão (migração 37) =====================
+    etapa := 'revisão';
+    perform pg_temp.como(u_socio);
+    insert into public.compromissos (membro_id, tipo, titulo, inicio, fim, particular, observacoes)
+      values (m_socio, 'interno', 'Consulta médica', now() + interval '4 days', now() + interval '4 days 1 hour', true, 'SIGILO')
+      returning id into v_novo;
+    perform pg_temp.como(u_admin);
+    select count(*) into v_num from public.auditoria where tabela = 'compromissos' and registro_id = v_novo;
+    res := res || pg_temp.t(v_num = 0, 'V01 nem o administrador lê o histórico do particular de outra pessoa', v_num);
+    perform pg_temp.como(u_socio);
+    select count(*) into v_num from public.auditoria where tabela = 'compromissos' and registro_id = v_novo;
+    res := res || pg_temp.t(v_num > 0, 'V02 a dona lê o histórico do próprio particular', v_num);
+
+    -- remarcado_para só para compromisso do mesmo responsável (v_id é do Vinícius).
+    insert into public.compromissos (membro_id, tipo, titulo, inicio, fim)
+      values (m_socio, 'atendimento', 'Meu', now() + interval '5 days', now() + interval '5 days 1 hour')
+      returning id into v_id2;
+    v_txt := pg_temp.erro(format($q$update public.compromissos set situacao = 'remarcado', remarcado_para = %L where id = %L$q$, v_id, v_id2));
+    res := res || pg_temp.t(v_txt like '%mesmo responsável%', 'V03 remarcado_para não aponta para compromisso de outra pessoa', v_txt);
+    v_txt := pg_temp.erro(format($q$update public.compromissos set situacao = 'remarcado' where id = %L$q$, v_id2));
+    res := res || pg_temp.t(v_txt like '%use "Remarcar"%', 'V04 "remarcado" sem novo horário é recusado', v_txt);
+
+    -- Situação no Google: nada sobre particular de outra pessoa.
+    perform set_config('role', 'none', true);
+    insert into privado.google_eventos (compromisso_id, origem) values (v_novo, 'sistema') on conflict do nothing;
+    perform pg_temp.como(u_admin);
+    select count(*) into v_num from public.google_agenda_estados(array[v_novo]);
+    res := res || pg_temp.t(v_num = 0, 'V05 estados do Google não falam do particular de outra pessoa', v_num);
+    perform pg_temp.como(u_socio);
+    select count(*) into v_num from public.google_agenda_estados(array[v_novo]);
+    res := res || pg_temp.t(v_num = 1, 'V06 a dona vê a situação do próprio particular no Google', v_num);
 
     raise exception 'FIM_DOS_TESTES';
   exception when others then

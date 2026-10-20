@@ -58,6 +58,8 @@ function emailDoToken(idToken) {
 export function criarSincronizador({
   url, chave, clienteId, segredo, retorno, sistema,
   conta = 'contato@advocaciafl.com.br', google = GOOGLE, buscar = fetch, agora = () => new Date(),
+  // Atualizar manual repetido dentro deste intervalo não gasta cota do Google.
+  intervaloManual = 10_000,
 }) {
   const servico = { apikey: chave, 'Content-Type': 'application/json' };
   if (chave && !chave.startsWith('sb_secret_')) servico.Authorization = `Bearer ${chave}`;
@@ -308,7 +310,12 @@ export function criarSincronizador({
       if (!token) return responder({ erro: 'Entre no sistema para usar o Google Agenda.' }, 401);
 
       if (pedido?.acao === 'sincronizar') {
-        await rpc('google_agenda_situacao', {}, comoQuemChamou);  // sem acesso à agenda, recusa
+        const situacao = await rpc('google_agenda_situacao', {}, comoQuemChamou);  // sem acesso à agenda, recusa
+        // Clique repetido não gasta cota do Google: a rodada de segundos atrás vale.
+        const ultima = Date.parse(situacao?.ultima_sincronizacao ?? '');
+        if (situacao?.conectado && !situacao.pendentes && agora().getTime() - ultima < intervaloManual) {
+          return responder({ conectado: true, recente: true });
+        }
         return responder(await sincronizar());
       }
       if (pedido?.acao === 'iniciar') {

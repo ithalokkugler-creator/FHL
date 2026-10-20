@@ -70,7 +70,8 @@ export async function criarPreviaBanco({ origem }) {
     'google-agenda': criarSincronizador({
       url: base, chave: CHAVE_SERVICO, clienteId: 'cliente-ficticio', segredo: 'segredo-ficticio',
       retorno: `${base}/functions/v1/google-agenda`, sistema: `${origem}/sistema/`,
-      google: google.enderecos, buscar: interno,
+      // Na prévia, cada "Atualizar" roda de verdade (não há pg_cron para trazer depois).
+      google: google.enderecos, buscar: interno, intervaloManual: 0,
     }),
   };
 

@@ -557,6 +557,20 @@ igual no novo horário, ligados por `remarcado_para` (o detalhe mostra "para …
 remarcado; o novo horário, se houver, continua e se cancela à parte. Antes,
 "Remarcado" só trocava a etiqueta, sem data e sem volta.
 
+**Caça a bugs 2 (20/10/2026, 7 testadores + revisão de design).** Remarcado
+não ocupa mais o horário antigo (conflito), não sai no `.ics`, aparece apagado e
+riscado na grade e na lista; remarcar avisa conflito como Novo e Editar.
+Reunião com convidado de fora vem do Google como reunião (só formulário de
+reserva ou título de atendimento viram atendimento), e o convidado vai para as
+observações. "Atualizar" repetido em menos de 10 s não gasta cota do Google
+(`intervaloManual`; 0 na prévia). Interface: nota do Google recolhível, filtro
+"Todos / Só eu" lembrado no navegador, Imprimir e Exportar só no computador,
+chips numa linha no celular, botões de 40–44 px no toque, nome do membro abre a
+edição, Configurar mostra quem sincroniza. Ficaram para decidir com o
+escritório (não mexidos): multa recalculada sobre o saldo depois de pagamento
+parcial (§6.5) e encargos não pagos deixando de ser cobrados quando o saldo é
+quitado (o diálogo agora avisa quanto deixa de ser cobrado).
+
 As colunas `google_*` de `compromissos` ficaram sem uso: o estado mora em
 `privado.google_eventos`, porque compromisso cancelado não aceita alteração.
 
@@ -667,6 +681,7 @@ quem não é sócio.
 | 20261020200000 | `agenda_google_sincronizacao` | Google Agenda nos dois sentidos: fila `privado.google_eventos`, conexão OAuth, RPCs da função `google-agenda`, pg_net e pg_cron (2 min) |
 | 20261020210000 | `agenda_google_destravar` | `where unica` em destravar e desligar (o `safeupdate` do Supabase recusava) |
 | 20261020220000 | `agenda_remarcar` | Remarcar com a nova data (`remarcar_compromisso`, `compromissos.remarcado_para`) e voltar para agendado |
+| 20261020230000 | `agenda_revisao` | Caça a bugs 2: histórico de particular só do dono (nem quem audita), `remarcado_para` só do mesmo responsável e "remarcado" só com o novo horário, situação no Google sem particular alheio |
 
 As seis primeiras versões foram conferidas no projeto remoto. As oito novas
 foram geradas pela CLI e executadas somente em PostgreSQL isolado. Elas ainda
