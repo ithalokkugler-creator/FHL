@@ -243,7 +243,12 @@ export function criarSincronizador({
     } catch (e) {
       erro = e instanceof Error && e.message ? e.message : 'A sincronização com o Google falhou.';
     }
-    await rpc('google_agenda_destravar', { p_erro: erro });
+    try {
+      await rpc('google_agenda_destravar', { p_erro: erro });
+    } catch (e) {
+      // O que foi feito está feito; a trava vence sozinha em 140 segundos.
+      console.error('google_agenda_destravar', e?.message);
+    }
     return { conectado: true, ...resumo, erro };
   }
 

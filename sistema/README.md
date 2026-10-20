@@ -854,6 +854,10 @@ comum. Importação direta da conta Google na Agenda continua pendente.
 
 ## Notas de manutenção
 
+- **UPDATE e DELETE sempre com WHERE.** O Supabase carrega o `safeupdate` nas
+  chamadas da Data API e recusa (400) os dois sem WHERE, mesmo dentro de uma
+  função `security definer`. A prévia local não tem o `safeupdate`: tabela de
+  uma linha só leva `where unica` (migração `20261020210000`).
 - **Dinheiro circula em centavos inteiros.** O banco guarda reais; a conversão é
   só na borda (`centavos`, `paraReais`). Erro de centavo é erro de cobrança.
 - **Datas de calendário não passam por fuso** (`'AAAA-MM-DD'`); instantes sempre
