@@ -49,6 +49,7 @@ declare
   u_socio  uuid := gen_random_uuid();
   m_socio  uuid;
   v_id     uuid;
+  v_novo   uuid;
   v_txt    text;
   v_num    numeric;
 begin
@@ -132,6 +133,46 @@ begin
     update public.compromissos set cancelado_em = now(), motivo_cancelamento = 'teste' where id = v_id;
     select count(*) into v_num from privado.google_eventos where compromisso_id = v_id and situacao = 'pendente';
     res := res || pg_temp.t(v_num = 1, 'G16 cancelar deixa pendente para sair do Google', v_num);
+
+    -- ===================== remarcar (migração 36) =====================
+    etapa := 'remarcar';
+    perform pg_temp.como(u_socio);
+    insert into public.compromissos (membro_id, tipo, titulo, inicio, fim)
+      values (m_socio, 'audiencia', 'Audiência de instrução', timestamptz '2026-11-04 13:00-03', timestamptz '2026-11-04 14:00-03')
+      returning id into v_id;
+    v_novo := public.remarcar_compromisso(v_id, timestamptz '2026-11-06 14:00-03', timestamptz '2026-11-06 15:00-03');
+    select count(*) into v_num from public.compromissos
+     where id = v_id and situacao = 'remarcado' and remarcado_para = v_novo;
+    res := res || pg_temp.t(v_num = 1, 'R01 remarcar marca o antigo como remarcado, apontando para o novo', v_num);
+    select count(*) into v_num from public.compromissos
+     where id = v_novo and situacao = 'agendado' and titulo = 'Audiência de instrução' and tipo = 'audiencia'
+       and inicio = timestamptz '2026-11-06 14:00-03' and membro_id = m_socio;
+    res := res || pg_temp.t(v_num = 1, 'R02 o novo é igual ao antigo, no novo horário', v_num);
+
+    v_txt := pg_temp.erro(format($q$select public.remarcar_compromisso(%L, now(), now() + interval '1 hour')$q$, v_id));
+    res := res || pg_temp.t(v_txt like '%Só um compromisso agendado%', 'R03 o que já foi remarcado não se remarca de novo', v_txt);
+
+    update public.compromissos set situacao = 'agendado' where id = v_id;
+    select count(*) into v_num from public.compromissos where id = v_id and situacao = 'agendado' and remarcado_para is null;
+    res := res || pg_temp.t(v_num = 1, 'R04 voltar para agendado desfaz o remarcado (e solta o vínculo)', v_num);
+
+    v_txt := pg_temp.erro(format($q$select public.remarcar_compromisso(%L, %L, %L)$q$, v_id,
+      timestamptz '2026-11-04 13:00-03', timestamptz '2026-11-04 14:00-03'));
+    res := res || pg_temp.t(v_txt like '%diferente do atual%', 'R05 remarcar para o mesmo horário é recusado', v_txt);
+
+    perform set_config('role', 'none', true);
+    select count(*) into v_num from privado.google_eventos where compromisso_id = v_novo and situacao = 'pendente';
+    res := res || pg_temp.t(v_num = 1, 'R06 o novo horário entra na fila do Google', v_num);
+
+    -- Quem só edita a própria agenda não remarca a de outro.
+    perform pg_temp.como(u_admin);
+    insert into public.compromissos (membro_id, tipo, titulo, inicio, fim)
+      select id, 'atendimento', 'Do administrador', now() + interval '2 days', now() + interval '2 days 1 hour'
+        from public.membros where nome_curto = 'Vinícius'
+      returning id into v_id;
+    perform pg_temp.como(u_socio);
+    v_txt := pg_temp.erro(format($q$select public.remarcar_compromisso(%L, now() + interval '3 days', now() + interval '3 days 1 hour')$q$, v_id));
+    res := res || pg_temp.t(v_txt like '42501%', 'R07 sócio com agenda própria não remarca o compromisso de outro', v_txt);
 
     raise exception 'FIM_DOS_TESTES';
   exception when others then

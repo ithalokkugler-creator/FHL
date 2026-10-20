@@ -550,6 +550,13 @@ administrador), o botão some para quem tem subagenda — tudo vai sozinho:
   sincronização roda pelo "Atualizar". Teste de ponta a ponta em
   `sistema/testes/google-agenda.test.mjs`.
 
+**Remarcar (20/10/2026, teste do Guilherme).** "Remarcar" pergunta o novo dia e
+horário: `remarcar_compromisso()` marca o compromisso como remarcado e cria um
+igual no novo horário, ligados por `remarcado_para` (o detalhe mostra "para …" e
+"remarcado de …"). **Voltar para agendado** desfaz realizado, faltou e
+remarcado; o novo horário, se houver, continua e se cancela à parte. Antes,
+"Remarcado" só trocava a etiqueta, sem data e sem volta.
+
 As colunas `google_*` de `compromissos` ficaram sem uso: o estado mora em
 `privado.google_eventos`, porque compromisso cancelado não aceita alteração.
 
@@ -658,6 +665,8 @@ quem não é sócio.
 | 20261020150000 | `revisao_acordo` | Painel com o pago direto a clientes (`resumo_financeiro`) e redistribuição que mantém a soma de cada grupo de parcelas |
 | 20261020180000 | `agenda_google_contato` | `membros.google_agenda`: subagenda de cada membro na conta Google do escritório, usada por "Pôr no Google Agenda" |
 | 20261020200000 | `agenda_google_sincronizacao` | Google Agenda nos dois sentidos: fila `privado.google_eventos`, conexão OAuth, RPCs da função `google-agenda`, pg_net e pg_cron (2 min) |
+| 20261020210000 | `agenda_google_destravar` | `where unica` em destravar e desligar (o `safeupdate` do Supabase recusava) |
+| 20261020220000 | `agenda_remarcar` | Remarcar com a nova data (`remarcar_compromisso`, `compromissos.remarcado_para`) e voltar para agendado |
 
 As seis primeiras versões foram conferidas no projeto remoto. As oito novas
 foram geradas pela CLI e executadas somente em PostgreSQL isolado. Elas ainda

@@ -158,7 +158,8 @@ export default async function telaAgenda(ctx) {
     evento: async (el) => {
       const c = compromissos.find((x) => x.id === el.dataset.id);
       if (!c || c.mascarado) return;
-      const resultado = await detalhe(c, { google, estadoGoogle: estadosGoogle.get(c.id) });
+      const remarcacao = await ligacoesDeRemarcacao(c).catch(() => null);
+      const resultado = await detalhe(c, { google, estadoGoogle: estadosGoogle.get(c.id), remarcacao });
       if (resultado === 'editar') depois(editarCompromisso(c, { config }));
       else if (resultado) carregar().catch(avisarErro);
     },
@@ -483,15 +484,78 @@ function textoGoogle(c, google, est) {
   return `No Google Agenda, na agenda de ${m?.nome_curto ?? 'quem responde'}${quando}.`;
 }
 
-function detalhe(c, { google = null, estadoGoogle = null } = {}) {
+// ---------------------------------------------------------------------------
+// Remarcar
+// ---------------------------------------------------------------------------
+
+const quandoCurto = (x) => (x.dia_inteiro ? data(noFuso(x.inicio).dia) : `${data(noFuso(x.inicio).dia)} às ${hora(x.inicio)}`);
+
+/** Para onde foi (se remarcado) e de onde veio (se é o novo horário de outro). */
+async function ligacoesDeRemarcacao(c) {
+  const linhas = await db.listar('compromissos', {
+    select: 'id,inicio,fim,dia_inteiro,remarcado_para',
+    filtros: [['or', `(id.eq.${c.id},remarcado_para.eq.${c.id})`]],
+  });
+  const para = linhas.find((x) => x.id === c.id)?.remarcado_para;
+  return {
+    de: linhas.find((x) => x.remarcado_para === c.id) ?? null,
+    para: para ? await db.um('compromissos', { select: 'id,inicio,fim,dia_inteiro,cancelado_em', filtros: [['id', 'eq', para]] }) : null,
+  };
+}
+
+/** Pergunta o novo horário; o banco marca este como remarcado e cria o novo. */
+function remarcar(c, { doGoogle }) {
+  const ini = noFuso(c.inicio);
+  const fimLocal = noFuso(c.fim);
+  const ultimo = c.dia_inteiro ? somarDias(fimLocal.dia, -1) : ini.dia;
+  return abrirDialogo({
+    titulo: 'Remarcar',
+    rotuloOk: 'Remarcar',
+    corpo: html`
+      <p class="sub">Este fica como "Remarcado" e um igual é marcado no novo horário.</p>
+      <div class="campos secao">
+        ${c.dia_inteiro ? html`
+          <label class="campo campo--6"><span>Primeiro dia</span><input type="date" name="dia_inicio" value="${ini.dia}" required></label>
+          <label class="campo campo--6"><span>Último dia</span><input type="date" name="dia_fim" value="${ultimo}" required></label>` : html`
+          <label class="campo campo--4"><span>Novo dia</span><input type="date" name="dia" value="${ini.dia}" required autofocus></label>
+          <label class="campo campo--4"><span>Começa</span><input type="time" name="hora_inicio" step="300" value="${horaDoMinuto(ini.minuto)}" required></label>
+          <label class="campo campo--4"><span>Termina</span><input type="time" name="hora_fim" step="300" value="${horaDoMinuto(fimLocal.minuto)}" required></label>`}
+      </div>
+      ${doGoogle ? html`<p class="nota secao">Este veio do Google Agenda: o novo horário vai para o Google como um evento novo,
+        e o antigo continua lá. Exclua o antigo no Google (lá o Google pergunta se avisa o cliente).</p>` : ''}`,
+    aoEnviar: async (d) => {
+      let inicio;
+      let fim;
+      if (c.dia_inteiro) {
+        if (!d.dia_inicio || !d.dia_fim || d.dia_fim < d.dia_inicio) throw new ErroCampo('dia_fim', 'O último dia precisa ser igual ou depois do primeiro.');
+        inicio = instante(d.dia_inicio);
+        fim = instante(somarDias(d.dia_fim, 1));
+      } else {
+        if (!d.dia || !d.hora_inicio || !d.hora_fim || d.hora_fim <= d.hora_inicio) throw new ErroCampo('hora_fim', 'Informe o dia e um horário de fim depois do começo.');
+        inicio = instante(d.dia, d.hora_inicio);
+        fim = instante(d.dia, d.hora_fim);
+      }
+      if (Date.parse(inicio) === Date.parse(c.inicio) && Date.parse(fim) === Date.parse(c.fim)) {
+        throw new ErroCampo(c.dia_inteiro ? 'dia_inicio' : 'dia', 'Escolha um dia ou horário diferente do atual.');
+      }
+      await db.rpc('remarcar_compromisso', { p_id: c.id, p_inicio: inicio, p_fim: fim });
+      return { inicio, dia_inteiro: c.dia_inteiro };
+    },
+  });
+}
+
+function detalhe(c, { google = null, estadoGoogle = null, remarcacao = null } = {}) {
   const podeMarcar = c.pode_editar && ['atendimento', 'audiencia'].includes(c.tipo) && c.situacao === 'agendado';
+  // Realizado, faltou e remarcado se desfazem (clique errado, teste).
+  const podeVoltar = c.pode_editar && c.situacao !== 'agendado';
+  const doGoogle = estadoGoogle?.origem === 'google' && estadoGoogle.no_google;
   const podeIniciar = podeMarcar && pode.clientes() && c.cliente_id && c.tipo === 'atendimento' && noFuso(c.inicio).dia === hoje();
   // Ligado ao Google com agenda do responsável: vai sozinho, e o botão só
   // duplicaria. Sem isso, a cópia manual: particular só pelas mãos do dono,
   // na conta do escritório e na subagenda do responsável.
   const automatico = Boolean(google?.conectado && membro(c.membro_id)?.google_agenda);
   const noGoogle = textoGoogle(c, google, estadoGoogle);
-  const linkGoogle = !automatico && (!c.particular || c.membro_id === estado.membro.id)
+  const linkGoogle = !automatico && c.situacao === 'agendado' && (!c.particular || c.membro_id === estado.membro.id)
     ? linkGoogleAgenda(paraExportacao(c), { agenda: membro(c.membro_id)?.google_agenda }) : null;
   const lembrete = !c.mascarado && !c.particular && c.tipo === 'atendimento' && c.situacao === 'agendado' && c.cliente_nome && c.cliente_telefone;
 
@@ -507,7 +571,9 @@ function detalhe(c, { google = null, estadoGoogle = null } = {}) {
         ${c.processo ? html`<div><dt>Processo</dt><dd>${c.processo}</dd></div>` : ''}
         ${c.local_ou_link ? html`<div><dt>Local ou link</dt><dd>${linkOuTexto(c.local_ou_link)}</dd></div>` : ''}
         ${c.observacoes ? html`<div><dt>Observações</dt><dd>${c.observacoes}</dd></div>` : ''}
-        <div><dt>Situação</dt><dd>${seloCompromisso(c.situacao)}${c.chegada_em ? ` · cliente chegou às ${hora(c.chegada_em)}` : ''}</dd></div>
+        <div><dt>Situação</dt><dd>${seloCompromisso(c.situacao)}${c.chegada_em ? ` · cliente chegou às ${hora(c.chegada_em)}` : ''}${
+          remarcacao?.para ? ` · para ${quandoCurto(remarcacao.para)}${remarcacao.para.cancelado_em ? ' (o novo foi cancelado)' : ''}` : ''}${
+          remarcacao?.de ? ` · remarcado de ${quandoCurto(remarcacao.de)}` : ''}</dd></div>
         ${noGoogle ? html`<div><dt>Google Agenda</dt><dd>${noGoogle}</dd></div>` : ''}
       </dl>
       <div class="detalhe-acoes secao">
@@ -517,7 +583,11 @@ function detalhe(c, { google = null, estadoGoogle = null } = {}) {
             ${c.tipo === 'atendimento' && !c.chegada_em ? html`<button type="button" class="botao" data-papel="situacao" data-valor="chegou">Cliente chegou</button>` : ''}
             <button type="button" class="botao" data-papel="situacao" data-valor="realizado">Realizado</button>
             <button type="button" class="botao" data-papel="situacao" data-valor="faltou">Faltou</button>
-            <button type="button" class="botao" data-papel="situacao" data-valor="remarcado">Remarcado</button>
+            <button type="button" class="botao" data-papel="remarcar">Remarcar</button>
+          </div>` : ''}
+        ${podeVoltar ? html`
+          <div class="grupo-botoes">
+            <button type="button" class="botao" data-papel="voltar">Voltar para agendado</button>
           </div>` : ''}
         <div class="grupo-botoes">
           ${c.pode_editar ? html`<button type="button" class="botao" data-papel="editar">Editar</button>` : ''}
@@ -554,10 +624,21 @@ function detalhe(c, { google = null, estadoGoogle = null } = {}) {
             await db.alterar('compromissos', [['id', 'eq', c.id]], valor === 'chegou' ? { chegada_em: new Date().toISOString() } : { situacao: valor }, 'id');
             avisar(valor === 'chegou' ? 'Chegada registrada.' : 'Situação atualizada.');
             fechar(true);
+          } else if (alvo.dataset.papel === 'remarcar') {
+            const novo = await remarcar(c, { doGoogle });
+            if (!novo) return;
+            avisar(`Remarcado para ${quandoCurto(novo)}.`);
+            fechar(true);
+          } else if (alvo.dataset.papel === 'voltar') {
+            await db.alterar('compromissos', [['id', 'eq', c.id]], { situacao: 'agendado' }, 'id');
+            const novo = remarcacao?.para && !remarcacao.para.cancelado_em ? remarcacao.para : null;
+            avisar(novo
+              ? `Voltou para agendado. O de ${quandoCurto(novo)} continua na agenda: cancele-o se não valer mais.`
+              : 'Voltou para agendado.');
+            fechar(true);
           } else if (alvo.dataset.papel === 'editar') {
             fechar('editar');
           } else if (alvo.dataset.papel === 'cancelar') {
-            const doGoogle = estadoGoogle?.origem === 'google' && estadoGoogle.no_google;
             const motivo = await pedirMotivo({ titulo: 'Cancelar compromisso', rotuloOk: 'Cancelar compromisso',
               texto: doGoogle
                 ? 'Sai da agenda do sistema e fica no histórico, mas continua no Google Agenda, de onde veio. Para liberar o horário (e o Google avisar o cliente, se for reserva), exclua lá.'

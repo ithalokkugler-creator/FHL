@@ -124,6 +124,7 @@ const CAMPOS = {
   acesso_prazos: 'acesso aos prazos',
   acesso_auditoria: 'acesso ao histórico',
   google_agenda: 'agenda no Google',
+  remarcado_para: 'remarcado para',
   conta_financeira_id: 'conta financeira',
   fornecedor_id: 'fornecedor',
   centro_custo_id: 'centro de custo',
