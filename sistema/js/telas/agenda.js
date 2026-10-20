@@ -6,7 +6,10 @@
 // O aviso de conflito conta o intervalo mínimo entre atendimentos (7.7), mas
 // não impede marcar: quem decide é quem está marcando.
 //
-// Google Agenda por cópia manual (.ics ou formulário preenchido).
+// Google Agenda: com a conta do escritório ligada (migração 34), a função
+// google-agenda sincroniza sozinha nos dois sentidos; esta tela mostra a
+// situação e o "Atualizar". Sem ligação, sobra a cópia manual (.ics ou
+// formulário preenchido).
 
 import { conflitos, distribuirColunas } from '../dominio/agenda.js';
 import { feriadosNacionaisFixos } from '../dominio/feriados.js';
@@ -49,16 +52,18 @@ export default async function telaAgenda(ctx) {
   let compromissos = [];
   let feriados = [];
   let feriadosFalharam = false;
+  let google = null;
+  let estadosGoogle = new Map();
   let pedido = 0;
 
-  const redesenhar = () => desenhar(ctx.raiz, tela({ semana, compromissos, config, ocultos, feriados, feriadosFalharam }));
+  const redesenhar = () => desenhar(ctx.raiz, tela({ semana, compromissos, config, ocultos, feriados, feriadosFalharam, google }));
 
   const carregar = async () => {
     const este = ++pedido;
     const de = semana;
     // Feriado com tribunal vazio vale para todos e aparece na grade. Se a
     // consulta falhar, a agenda abre do mesmo jeito, com um aviso.
-    const [lista, datas] = await Promise.all([
+    const [lista, datas, situacao] = await Promise.all([
       db.rpc('agenda_periodo', { p_de: instante(de), p_ate: instante(somarDias(de, 7)) }),
       db.todos('feriados', {
         select: 'id,data,nome',
@@ -67,8 +72,18 @@ export default async function telaAgenda(ctx) {
         console.error('Não foi possível ler os feriados cadastrados.', erro);
         return null;
       }),
+      // Sem a situação do Google, a agenda abre do mesmo jeito (como se não ligada).
+      db.rpc('google_agenda_situacao').catch((erro) => {
+        console.error('Não foi possível ler a situação do Google Agenda.', erro);
+        return null;
+      }),
     ]);
+    const estados = situacao?.conectado && lista.length
+      ? await db.rpc('google_agenda_estados', { p_ids: lista.map((c) => c.id) }).catch(() => [])
+      : [];
     if (!ctx.ativa() || este !== pedido) return;
+    google = situacao;
+    estadosGoogle = new Map(estados.map((e) => [e.compromisso_id, e]));
     compromissos = lista;
     feriadosFalharam = datas === null;
     feriados = comNacionais(datas ?? [], de);
@@ -76,6 +91,23 @@ export default async function telaAgenda(ctx) {
   };
   await carregar();
   if (!ctx.ativa()) return;
+
+  // Volta da autorização no Google (função google-agenda).
+  const atualizarGoogle = async (silencioso = false) => {
+    const r = await db.funcao('google-agenda', { acao: 'sincronizar' });
+    if (!silencioso) {
+      if (r.erro) avisarErro(new Error(r.erro));
+      else if (r.ocupado) avisar('O Google Agenda já está sendo atualizado. Confira em instantes.');
+      else avisar(resumoGoogle(r));
+    }
+    await carregar();
+  };
+  if (ctx.consulta.google === 'conectado') {
+    avisar('Google Agenda ligado. Trazendo e enviando os compromissos…');
+    atualizarGoogle().catch(avisarErro);
+  } else if (ctx.consulta.google === 'erro') {
+    avisarErro(new Error(ctx.consulta.motivo || 'Não foi possível ligar o Google Agenda.'));
+  }
 
   // "Iniciar atendimento" e "Parar" mexem no compromisso (chegada, realizado).
   const sincronizar = () => {
@@ -87,6 +119,7 @@ export default async function telaAgenda(ctx) {
     dia: semana === inicioDaSemana(hoje()) ? '' : semana,
     ocultos: [...ocultos].join(','),
   });
+  if (ctx.consulta.google) guardar();
   const trocarSemana = (dias) => {
     semana = dias === 0 ? inicioDaSemana(hoje()) : somarDias(semana, dias);
     guardar();
@@ -125,14 +158,34 @@ export default async function telaAgenda(ctx) {
     evento: async (el) => {
       const c = compromissos.find((x) => x.id === el.dataset.id);
       if (!c || c.mascarado) return;
-      const resultado = await detalhe(c);
+      const resultado = await detalhe(c, { google, estadoGoogle: estadosGoogle.get(c.id) });
       if (resultado === 'editar') depois(editarCompromisso(c, { config }));
       else if (resultado) carregar().catch(avisarErro);
     },
     configurar: async () => {
-      if (await configurarAgenda(config)) {
+      if (await configurarAgenda(config, google)) {
         config = await db.um('config_agenda', { select: '*' });
-        redesenhar();
+        await carregar();
+      }
+    },
+    'google-atualizar': async (el) => {
+      el.disabled = true;
+      try {
+        await atualizarGoogle();
+      } catch (erro) {
+        avisarErro(erro);
+      } finally {
+        el.disabled = false;
+      }
+    },
+    'google-conectar': async (el) => {
+      el.disabled = true;
+      try {
+        const { url } = await db.funcao('google-agenda', { acao: 'iniciar' });
+        location.assign(url);
+      } catch (erro) {
+        el.disabled = false;
+        avisarErro(erro);
       }
     },
   });
@@ -246,7 +299,7 @@ function tela(estadoTela) {
       ${pode.administrar() ? html`<button type="button" class="botao" data-acao="configurar">Configurar</button>` : ''}
       <button type="button" class="botao botao--primario" data-acao="novo">Novo compromisso</button>`)}
 
-    <div class="nao-imprimir">${notaGoogle()}</div>
+    <div class="nao-imprimir">${notaGoogle(estadoTela.google)}${linhaGoogle(estadoTela.google)}</div>
     ${estadoTela.feriadosFalharam ? html`<p class="nota secao">Não foi possível ler os feriados cadastrados (os nacionais fixos aparecem mesmo assim). Recarregue a agenda para conferir.</p>` : ''}
 
     <div class="chips secao nao-imprimir" role="group" aria-label="Mostrar a agenda de">
@@ -375,12 +428,70 @@ function quando(c) {
     : `De ${data(inicio)} ${hora(c.inicio)} a ${data(fim)} ${hora(c.fim)}`;
 }
 
-function detalhe(c) {
+// ---------------------------------------------------------------------------
+// Google Agenda
+// ---------------------------------------------------------------------------
+
+function resumoGoogle(r) {
+  if (!r?.conectado) return 'O Google Agenda não está ligado.';
+  const partes = [
+    r.enviados && `${r.enviados} enviado${r.enviados > 1 ? 's' : ''} ao Google`,
+    r.criados && `${r.criados} novo${r.criados > 1 ? 's' : ''} do Google`,
+    r.alterados && `${r.alterados} alterado${r.alterados > 1 ? 's' : ''}`,
+    r.cancelados && `${r.cancelados} excluído${r.cancelados > 1 ? 's' : ''} no Google`,
+  ].filter(Boolean);
+  const erros = r.erros ? ` ${r.erros} com problema: abra o compromisso para ver o motivo.` : '';
+  return `${partes.length ? `Google Agenda atualizado: ${partes.join(', ')}.` : 'Google Agenda conferido: nada mudou.'}${erros}`;
+}
+
+/** Situação da ligação, logo abaixo da nota. */
+function linhaGoogle(google) {
+  if (!google) return '';
+  if (!google.conectado) {
+    return pode.administrar()
+      ? html`<p class="sub secao agenda-google">A sincronização automática está desligada.
+          <button type="button" class="botao botao--pequeno" data-acao="google-conectar">Ligar ao Google Agenda</button></p>`
+      : '';
+  }
+  const ultima = google.ultima_sincronizacao;
+  const quando = !ultima ? 'ainda não conferido'
+    : noFuso(ultima).dia === hoje() ? `conferido às ${hora(ultima)}`
+      : `conferido em ${data(noFuso(ultima).dia)} às ${hora(ultima)}`;
+  return html`
+    <p class="sub secao agenda-google">Google Agenda ${quando}${google.pendentes ? ` · ${google.pendentes} indo para o Google` : ''}.
+      <button type="button" class="botao botao--pequeno" data-acao="google-atualizar">Atualizar</button></p>
+    ${google.ultimo_erro ? html`<p class="nota nota--perigo secao">${google.ultimo_erro}</p>` : ''}
+    ${google.com_erro ? html`<p class="nota secao">${google.com_erro} compromisso${google.com_erro > 1 ? 's não foram' : ' não foi'} para o Google. Abra o compromisso para ver o motivo; o sistema tenta de novo a cada 2 minutos.</p>` : ''}`;
+}
+
+/** No detalhe: onde o compromisso está em relação ao Google. */
+function textoGoogle(c, google, est) {
+  if (!google?.conectado) return null;
+  const m = membro(c.membro_id);
+  if (!est) {
+    return m?.google_agenda ? 'Indo para o Google Agenda…'
+      : `Não vai para o Google: ${m?.nome_curto ?? 'o responsável'} não tem agenda no Google (Membros → Editar).`;
+  }
+  if (est.situacao === 'erro') return `Não foi para o Google: ${est.erro ?? 'erro desconhecido'}. O sistema tenta de novo a cada 2 minutos.`;
+  if (est.situacao === 'pendente') return 'Indo para o Google Agenda…';
+  if (!est.no_google) return est.origem === 'google' ? 'Veio do Google Agenda (excluído lá).' : 'Fora do Google Agenda.';
+  const quando = est.sincronizado_em ? `, conferido às ${hora(est.sincronizado_em)}` : '';
+  if (est.origem === 'google') {
+    return `Veio do Google Agenda, da agenda de ${m?.nome_curto ?? 'quem responde'}${quando}. `
+      + 'Horário, título e cancelamento se mudam no Google (o sistema acompanha); o que mudar aqui fica só aqui.';
+  }
+  return `No Google Agenda, na agenda de ${m?.nome_curto ?? 'quem responde'}${quando}.`;
+}
+
+function detalhe(c, { google = null, estadoGoogle = null } = {}) {
   const podeMarcar = c.pode_editar && ['atendimento', 'audiencia'].includes(c.tipo) && c.situacao === 'agendado';
   const podeIniciar = podeMarcar && pode.clientes() && c.cliente_id && c.tipo === 'atendimento' && noFuso(c.inicio).dia === hoje();
-  // Particular só vai para o Google pelas mãos do dono. Abre na conta do
-  // escritório, na subagenda do responsável (a que a página de agendamento dele consulta).
-  const google = !c.particular || c.membro_id === estado.membro.id
+  // Ligado ao Google com agenda do responsável: vai sozinho, e o botão só
+  // duplicaria. Sem isso, a cópia manual: particular só pelas mãos do dono,
+  // na conta do escritório e na subagenda do responsável.
+  const automatico = Boolean(google?.conectado && membro(c.membro_id)?.google_agenda);
+  const noGoogle = textoGoogle(c, google, estadoGoogle);
+  const linkGoogle = !automatico && (!c.particular || c.membro_id === estado.membro.id)
     ? linkGoogleAgenda(paraExportacao(c), { agenda: membro(c.membro_id)?.google_agenda }) : null;
   const lembrete = !c.mascarado && !c.particular && c.tipo === 'atendimento' && c.situacao === 'agendado' && c.cliente_nome && c.cliente_telefone;
 
@@ -397,6 +508,7 @@ function detalhe(c) {
         ${c.local_ou_link ? html`<div><dt>Local ou link</dt><dd>${linkOuTexto(c.local_ou_link)}</dd></div>` : ''}
         ${c.observacoes ? html`<div><dt>Observações</dt><dd>${c.observacoes}</dd></div>` : ''}
         <div><dt>Situação</dt><dd>${seloCompromisso(c.situacao)}${c.chegada_em ? ` · cliente chegou às ${hora(c.chegada_em)}` : ''}</dd></div>
+        ${noGoogle ? html`<div><dt>Google Agenda</dt><dd>${noGoogle}</dd></div>` : ''}
       </dl>
       <div class="detalhe-acoes secao">
         ${podeMarcar ? html`
@@ -409,7 +521,7 @@ function detalhe(c) {
           </div>` : ''}
         <div class="grupo-botoes">
           ${c.pode_editar ? html`<button type="button" class="botao" data-papel="editar">Editar</button>` : ''}
-          ${google ? html`<a class="botao" href="${google}" target="_blank" rel="noopener noreferrer">Pôr no Google Agenda</a>` : ''}
+          ${linkGoogle ? html`<a class="botao" href="${linkGoogle}" target="_blank" rel="noopener noreferrer">Pôr no Google Agenda</a>` : ''}
           ${lembrete ? html`<button type="button" class="botao" data-papel="lembrete">Preparar lembrete</button>` : ''}
           ${pode.clientes() && c.cliente_id ? html`<button type="button" class="botao" data-papel="documento">Declaração de comparecimento</button>` : ''}
         </div>
@@ -445,7 +557,11 @@ function detalhe(c) {
           } else if (alvo.dataset.papel === 'editar') {
             fechar('editar');
           } else if (alvo.dataset.papel === 'cancelar') {
-            const motivo = await pedirMotivo({ titulo: 'Cancelar compromisso', rotuloOk: 'Cancelar compromisso', texto: 'O compromisso sai da agenda e fica no histórico.' });
+            const doGoogle = estadoGoogle?.origem === 'google' && estadoGoogle.no_google;
+            const motivo = await pedirMotivo({ titulo: 'Cancelar compromisso', rotuloOk: 'Cancelar compromisso',
+              texto: doGoogle
+                ? 'Sai da agenda do sistema e fica no histórico, mas continua no Google Agenda, de onde veio. Para liberar o horário (e o Google avisar o cliente, se for reserva), exclua lá.'
+                : 'O compromisso sai da agenda e fica no histórico.' });
             if (!motivo) return;
             await db.alterar('compromissos', [['id', 'eq', c.id]], { cancelado_em: new Date().toISOString(), motivo_cancelamento: motivo }, 'id');
             avisar('Compromisso cancelado.');
@@ -672,7 +788,7 @@ export async function editarCompromisso(c = null, { config, dia = hoje(), minuto
   });
 }
 
-function configurarAgenda(config) {
+function configurarAgenda(config, google) {
   const numero = (nome, rotulo, min, max) => html`
     <label class="campo campo--6"><span>${rotulo}</span><input type="number" name="${nome}" min="${min}" max="${max}" value="${config[nome]}" required></label>`;
 
@@ -688,7 +804,38 @@ function configurarAgenda(config) {
         ${numero('duracao_retorno', 'Retorno (min)', 5, 600)}
         ${numero('duracao_audiencia', 'Audiência (min)', 5, 600)}
         ${numero('duracao_interno', 'Reunião interna (min)', 5, 600)}
-      </div>`,
+      </div>
+      <fieldset class="fieldset secao">
+        <legend>Google Agenda</legend>
+        ${google?.conectado ? html`
+          <p class="sub">Ligada à conta ${google.conta} desde ${data(noFuso(google.conectado_em).dia)}. A agenda de cada pessoa no
+            Google é escolhida em Membros → Editar.</p>
+          <p class="secao"><button type="button" class="botao botao--pequeno" data-papel="google-reconectar">Ligar de novo</button>
+            <button type="button" class="botao botao--pequeno botao--discreto" data-papel="google-desligar">Desligar</button></p>
+          <p class="sub">Desligar para a sincronização; o que já está no Google e aqui continua nos dois lugares.</p>` : html`
+          <p class="sub">Desligada. Ao ligar, o Google pede para entrar com ${CONTA_GOOGLE} e autorizar.</p>
+          <p class="secao"><button type="button" class="botao botao--pequeno" data-papel="google-reconectar">Ligar ao Google Agenda</button></p>`}
+      </fieldset>`,
+    aoAbrir: (dialogo, _, fechar) => {
+      dialogo.addEventListener('click', async (e) => {
+        const alvo = e.target.closest('[data-papel^="google-"]');
+        if (!alvo) return;
+        alvo.disabled = true;
+        try {
+          if (alvo.dataset.papel === 'google-reconectar') {
+            const { url } = await db.funcao('google-agenda', { acao: 'iniciar' });
+            location.assign(url);
+            return;
+          }
+          await db.funcao('google-agenda', { acao: 'desconectar' });
+          avisar('Google Agenda desligado.');
+          fechar(true);
+        } catch (erro) {
+          alvo.disabled = false;
+          avisarErro(erro);
+        }
+      });
+    },
     aoEnviar: async (d) => {
       if (Number(d.hora_fim) <= Number(d.hora_inicio)) throw new ErroCampo('hora_fim', 'A grade precisa terminar depois de começar.');
       await db.alterar('config_agenda', [['id', 'eq', config.id]], {

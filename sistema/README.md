@@ -511,8 +511,47 @@ agenda do responsável; testado no Google sem salvar). O ID fica em
 agenda principal. Os IDs ficam só no banco, não no repositório. Quem usa o
 botão precisa ter a conta contato@ aberta no navegador; senão o Google pede o
 login dela. O `.ics` orienta importar um advogado por vez, na subagenda dele.
-A sincronização automática (7.3, opção C) continua parada — ver "Parado"; as
-colunas `google_*` de `compromissos` seguem reservadas.
+
+**Sincronização nos dois sentidos (migração `20261020200000`, função
+`google-agenda`).** Com a conta ligada (Agenda → Configurar, só o
+administrador), o botão some para quem tem subagenda — tudo vai sozinho:
+
+- **Sistema → Google.** Gatilho `y_google` em `compromissos` põe na fila
+  (`privado.google_eventos`) o que muda no Google (não a chegada do cliente);
+  `pg_net` avisa a função na hora e o `pg_cron` chama a cada 2 minutos. O
+  evento vai para a subagenda do responsável com id `fl` + id do compromisso
+  (reenviar não duplica). Particular vai como "Ocupado", sem detalhe;
+  observação interna nunca vai. Cancelado ou remarcado sai do Google.
+  `sendUpdates=none`: o Google não manda e-mail a ninguém.
+- **Google → sistema.** A cada rodada a função lê as subagendas dos membros
+  ativos (de 30 dias atrás a 180 à frente). Evento novo no Google — inclusive
+  a reserva feita pelo cliente na página de agendamento — vira compromisso
+  (tipo pelo título e pelo formulário da reserva); mudou lá, muda aqui;
+  excluído lá, cancela aqui com o motivo "Excluído no Google Agenda". De um
+  compromisso lançado aqui, o Google só muda horário e dono; título e detalhes
+  continuam os do sistema. Uma cópia feita à mão (botão antigo ou `.ics`,
+  mesmo responsável, horário e título) é ligada sem ser reescrita.
+- **O sistema só escreve no Google o que ele criou** (pedido do Ithalo ao
+  publicar: não mexer nas agendas que já existiam). O que nasceu no Google —
+  reserva de cliente, evento de um advogado — nunca é alterado nem excluído
+  daqui: muda-se no Google (que avisa o cliente) e o sistema acompanha. O que
+  se mudar nele aqui fica só aqui; cancelar aqui não tira do Google. Só vai
+  ao Google o que termina depois da ligação (o passado não).
+- **Primeiro traz, depois envia**, para a ligação acima acontecer antes do
+  envio. Conflito: vale a mudança mais nova.
+- **Autorização.** OAuth com o app "Interno" do Workspace (não expira em 7
+  dias nem precisa de verificação do Google), escopo `calendar.events`. A
+  volta do Google cai na própria função, que confere o `state` e a conta
+  (`contato@`) e guarda o refresh token em `privado.google_conexao` — nem a
+  tela nem a Data API o leem. Segredos da função: `GOOGLE_CLIENT_ID` e
+  `GOOGLE_CLIENT_SECRET` (o Ithalo cola o segredo no painel).
+- **Na prévia** há um Google fictício (`scripts/local/google-ficticio.mjs`):
+  "Ligar ao Google Agenda" autoriza na hora; sem pg_net/pg_cron, a
+  sincronização roda pelo "Atualizar". Teste de ponta a ponta em
+  `sistema/testes/google-agenda.test.mjs`.
+
+As colunas `google_*` de `compromissos` ficaram sem uso: o estado mora em
+`privado.google_eventos`, porque compromisso cancelado não aceita alteração.
 
 ---
 
@@ -618,6 +657,7 @@ quem não é sócio.
 | 20261020120000 | `acordo_direto_encargos` | Acordo: parte do cliente paga direto a ele (`direto_ao_cliente`, `valor_direto_cliente`) e cota própria do escritório em multa e juros (`parcelas.cota_encargos_pct`) |
 | 20261020150000 | `revisao_acordo` | Painel com o pago direto a clientes (`resumo_financeiro`) e redistribuição que mantém a soma de cada grupo de parcelas |
 | 20261020180000 | `agenda_google_contato` | `membros.google_agenda`: subagenda de cada membro na conta Google do escritório, usada por "Pôr no Google Agenda" |
+| 20261020200000 | `agenda_google_sincronizacao` | Google Agenda nos dois sentidos: fila `privado.google_eventos`, conexão OAuth, RPCs da função `google-agenda`, pg_net e pg_cron (2 min) |
 
 As seis primeiras versões foram conferidas no projeto remoto. As oito novas
 foram geradas pela CLI e executadas somente em PostgreSQL isolado. Elas ainda
@@ -794,7 +834,6 @@ painel). O Hobby da Vercel é só para uso não comercial.
 
 | O quê | Depende de |
 |---|---|
-| Google Agenda automático (sistema → Google sem clicar no botão; Google → sistema) | A conta existe desde 20/10 (`contato@`, Workspace, subagenda por advogado). Falta o sim do escritório e um projeto no Google Cloud com a API do Google Agenda (R$ 0); a chave fica nos segredos das funções, colada pelo Ithalo |
 | Convite e recuperação de senha por e-mail | E-mail e domínio oficiais, e um SMTP. No Free, o e-mail padrão do Supabase só chega a quem é da equipe da organização |
 | Migração dos dados do protótipo | O arquivo de backup exportado pelo Vinícius |
 | Publicação na Vercel | Aprovação do commit |

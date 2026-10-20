@@ -48,6 +48,7 @@ declare
   u_admin  uuid := gen_random_uuid();
   u_socio  uuid := gen_random_uuid();
   m_socio  uuid;
+  v_id     uuid;
   v_txt    text;
   v_num    numeric;
 begin
@@ -91,6 +92,46 @@ begin
     perform pg_temp.como(u_socio);
     select count(*) into v_num from public.membros where google_agenda is null;
     res := res || pg_temp.t(v_num > 0, 'G06 todos os membros leem a coluna (o botão do Google precisa dela)', v_num);
+
+    -- ===================== sincronização (migração 34) =====================
+    etapa := 'sincronização';
+    v_txt := pg_temp.erro('select public.google_agenda_pendencias(10)');
+    res := res || pg_temp.t(v_txt like '42501%', 'G07 membro não lê as pendências do Google (só o servidor)', v_txt);
+    v_txt := pg_temp.erro('select public.google_agenda_conexao()');
+    res := res || pg_temp.t(v_txt like '42501%', 'G08 membro não lê a autorização do Google', v_txt);
+    v_txt := pg_temp.erro($q$select public.google_agenda_aplicar('x', '[]')$q$);
+    res := res || pg_temp.t(v_txt like '42501%', 'G09 membro não aplica eventos do Google', v_txt);
+    v_txt := pg_temp.erro('select public.google_agenda_iniciar()');
+    res := res || pg_temp.t(v_txt like '42501%', 'G10 só o administrador começa a ligação com o Google', v_txt);
+    select (public.google_agenda_situacao() ->> 'conectado')::boolean::int into v_num;
+    res := res || pg_temp.t(v_num = 0, 'G11 membro com agenda vê a situação (desligada)', v_num);
+
+    -- Sem agenda no Google, o compromisso não entra na fila.
+    insert into public.compromissos (membro_id, tipo, titulo, inicio, fim)
+      values (m_socio, 'interno', 'Sem Google', now() + interval '1 day', now() + interval '1 day 1 hour')
+      returning id into v_id;
+    -- A fila mora em privado: só o banco (e a função, pelas RPCs) a lê.
+    perform set_config('role', 'none', true);
+    select count(*) into v_num from privado.google_eventos where compromisso_id = v_id;
+    res := res || pg_temp.t(v_num = 0, 'G12 sem agenda no Google, nada fica pendente', v_num);
+
+    -- Com agenda: entra (os já marcados também), e a chegada não mexe.
+    update public.membros set google_agenda = 'c_g13@group.calendar.google.com' where id = m_socio;
+    select count(*) into v_num from privado.google_eventos where compromisso_id = v_id and situacao = 'pendente';
+    res := res || pg_temp.t(v_num = 1, 'G13 ao ganhar agenda no Google, os compromissos dela entram na fila', v_num);
+    update privado.google_eventos set situacao = 'ok', mudou_em = now() - interval '1 hour' where compromisso_id = v_id;
+    update public.compromissos set chegada_em = now() where id = v_id;
+    select count(*) into v_num from privado.google_eventos where compromisso_id = v_id and situacao = 'ok';
+    res := res || pg_temp.t(v_num = 1, 'G14 marcar a chegada do cliente não reenvia ao Google', v_num);
+    update public.compromissos set situacao = 'realizado' where id = v_id;
+    select count(*) into v_num from privado.google_eventos where compromisso_id = v_id and situacao = 'ok';
+    res := res || pg_temp.t(v_num = 1, 'G17 marcar realizado não reenvia ao Google', v_num);
+    update public.compromissos set titulo = 'Com Google' where id = v_id;
+    select count(*) into v_num from privado.google_eventos where compromisso_id = v_id and situacao = 'pendente';
+    res := res || pg_temp.t(v_num = 1, 'G15 mudar o título reenvia ao Google', v_num);
+    update public.compromissos set cancelado_em = now(), motivo_cancelamento = 'teste' where id = v_id;
+    select count(*) into v_num from privado.google_eventos where compromisso_id = v_id and situacao = 'pendente';
+    res := res || pg_temp.t(v_num = 1, 'G16 cancelar deixa pendente para sair do Google', v_num);
 
     raise exception 'FIM_DOS_TESTES';
   exception when others then

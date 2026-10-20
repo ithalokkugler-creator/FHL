@@ -4,7 +4,8 @@
 // Data API sobre o PostgreSQL das migrações (banco.mjs), mais o mínimo do
 // resto que o sistema usa: Storage (balde privado de anexos e o do site),
 // Auth (sair, convite), as funções de borda (com os mesmos handlers que vão
-// para o Supabase), um DJEN fictício e um CEP fictício. Nada sai desta
+// para o Supabase), um DJEN fictício, um CEP fictício e um Google fictício
+// (autorização e Google Agenda, para a sincronização). Nada sai desta
 // máquina; nenhuma credencial real é usada.
 //
 // Perfil = token: "teste-admin", "teste-socia"… (o painel /__teste injeta).
@@ -18,6 +19,8 @@ import { respostaCepFicticia, respostaDjenFicticia } from './djen-ficticio.mjs';
 import { criarRecebedor } from '../../supabase/functions/receber-contato/handler.js';
 import { criarFinalizador } from '../../supabase/functions/finalizar-anexo/handler.js';
 import { criarAdministrador } from '../../supabase/functions/administrar-usuarios/handler.js';
+import { criarSincronizador } from '../../supabase/functions/google-agenda/handler.js';
+import { criarGoogleFicticio } from './google-ficticio.mjs';
 
 const RAIZ = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const CHAVE_SERVICO = 'sb_secret_PREVIA_FICTICIA';
@@ -32,6 +35,7 @@ export async function criarPreviaBanco({ origem }) {
   // Arquivos do Storage (bytes) e links assinados, em memória.
   let arquivos = new Map();
   let assinados = new Map();
+  const google = criarGoogleFicticio({ base });
 
   async function restaurar() {
     const novo = await criarBanco();
@@ -40,6 +44,7 @@ export async function criarPreviaBanco({ origem }) {
     usuarios = new Map(rows.map((r) => [r.email.replace('@example.test', ''), { id: r.user_id, email: r.email }]));
     arquivos = new Map();
     assinados = new Map();
+    google.restaurar();
     const velho = db;
     db = novo;
     await velho?.close();
@@ -62,6 +67,11 @@ export async function criarPreviaBanco({ origem }) {
     'receber-contato': criarRecebedor({ url: base, chave: CHAVE_SERVICO, sal: 'SAL-FICTICIO-APENAS-NA-PREVIA-LOCAL-SEM-CREDENCIAIS', buscar: interno }),
     'finalizar-anexo': criarFinalizador({ url: base, chave: CHAVE_SERVICO, buscar: interno }),
     'administrar-usuarios': criarAdministrador({ url: base, chave: CHAVE_SERVICO, buscar: interno }),
+    'google-agenda': criarSincronizador({
+      url: base, chave: CHAVE_SERVICO, clienteId: 'cliente-ficticio', segredo: 'segredo-ficticio',
+      retorno: `${base}/functions/v1/google-agenda`, sistema: `${origem}/sistema/`,
+      google: google.enderecos, buscar: interno,
+    }),
   };
 
   // -------------------------------------------------------------- Storage
@@ -176,11 +186,12 @@ export async function criarPreviaBanco({ origem }) {
       if (funcoes[nome]) return funcoes[nome](req);
       return json({ erro: 'Esta função não roda na prévia (precisa de configuração real).' }, 503);
     }
+    if (caminho.startsWith('google/')) return google.tratar(req, caminho.slice('google/'.length));
     if (caminho.startsWith('djen/api/v1/comunicacao')) return respostaDjenFicticia(url);
     const cep = /^cep\/(\d{8})\/json\/?$/.exec(caminho);
     if (cep) return respostaCepFicticia(cep[1]);
     return null;
   }
 
-  return { tratar, restaurar, perfis: () => [...usuarios.keys()] };
+  return { tratar, restaurar, perfis: () => [...usuarios.keys()], google };
 }

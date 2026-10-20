@@ -76,8 +76,11 @@ em multa e juros. Detalhes: `sistema/README.md` (Respostas dos advogados).
 `contato@advocaciafl.com.br` (Google Workspace), com uma subagenda por advogado;
 a página de agendamento de cada um consulta só a subagenda dele. "Pôr no Google
 Agenda" passou a abrir nessa conta e na subagenda do responsável
-(`membros.google_agenda`). Sincronização automática continua opcional e parada.
-Detalhes: `sistema/README.md` (F8).
+(`membros.google_agenda`). No mesmo dia, a pedido do Ithalo, **sincronização
+automática nos dois sentidos** (função `google-agenda`, a cada 2 minutos e logo
+depois de cada mudança): o que se marca no sistema vai sozinho para a subagenda
+do responsável, e o que se marca no Google (inclusive a reserva do cliente)
+aparece no sistema. Detalhes: `sistema/README.md` (Agenda).
 
 ---
 

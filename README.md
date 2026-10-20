@@ -343,9 +343,15 @@ prévia de links num endereço provisório, gere com a variável `SITE_URL`:
 `SITE_URL=https://endereco-provisorio npm run build` — no PowerShell,
 `$env:SITE_URL="https://endereco-provisorio"; npm run build`.
 
-**Com o domínio no ar:** cadastrar no Google Search Console (verificação por
-DNS), enviar o `sitemap.xml` e conferir a prévia dos links no opengraph.xyz ou
-no Sharing Debugger do Facebook.
+**Google Search Console (20/10/2026):** propriedade de domínio
+`advocaciafl.com.br` na conta `contato@advocaciafl.com.br`, verificada sozinha
+pelo TXT `google-site-verification` que já estava no DNS do registro.br — **não
+apagar esse registro**, senão a verificação cai. `sitemap.xml` enviado e
+processado (18 páginas); indexação da home solicitada. Falta conferir a prévia
+dos links no opengraph.xyz ou no Sharing Debugger do Facebook.
+
+**E-mail do domínio (20/10/2026):** SPF, DKIM (`google._domainkey`, ligado no
+Google Admin) e DMARC (`p=none`) no registro.br, para o Gmail do Workspace.
 
 ## Campanhas
 
@@ -433,8 +439,8 @@ números. A seção Linguagem mostra o texto já traduzido.
    Vazios, o rodapé lista a inscrição de cada advogado e a política omite o
    CNPJ; preenchidos, aparecem sozinhos em todos esses lugares.
 4. ~~**Domínio oficial.**~~ Resolvido em 19/10/2026: `advocaciafl.com.br`,
-   o mesmo do e-mail `contato@advocaciafl.com.br`. Falta cadastrar no Google
-   Search Console (ver Domínio, acima).
+   o mesmo do e-mail `contato@advocaciafl.com.br`. Search Console cadastrado e
+   sitemap enviado em 20/10/2026 (ver Domínio, acima).
 5. **Ensaio fotográfico.** Até ele existir, cada advogado tem um retrato
    tipográfico — iniciais em serifada e o filete da logomarca
    (`src/partials/equipe.mjs`). A foto entra pelo campo `foto` de

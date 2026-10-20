@@ -124,6 +124,7 @@ async function carregar(dia) {
     tarefas.agenda = db.rpc('agenda_periodo', { p_de: instante(dia), p_ate: instante(somarDias(dia, 1)) });
     tarefas.amanha = db.rpc('agenda_periodo', { p_de: instante(somarDias(dia, 1)), p_ate: instante(somarDias(dia, 2)) })
       .then((lista) => lista.filter((c) => !c.mascarado && !c.particular && c.tipo === 'atendimento' && c.situacao === 'agendado' && c.cliente_nome));
+    tarefas.google = db.rpc('google_agenda_situacao');
   }
 
   if (pode.prazos()) {
@@ -348,7 +349,7 @@ function painelDia(dados, dia, filtro) {
           </aside>` : ''}
       </div>
 
-      ${comAgenda && verAgenda ? html`<div class="painel__rodape dia__rodape">${notaGoogle()}</div>` : ''}
+      ${comAgenda && verAgenda ? html`<div class="painel__rodape dia__rodape">${notaGoogle(dados.google)}</div>` : ''}
     </section>`;
 }
 

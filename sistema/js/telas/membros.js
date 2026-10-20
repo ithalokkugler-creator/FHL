@@ -200,7 +200,8 @@ function editarMembro(m) {
           <span>Agenda no Google (opcional)</span>
           <input name="google_agenda" value="${m?.google_agenda ?? ''}" maxlength="200" pattern="\\s*[^\\s@]+@[^\\s@]+\\s*" spellcheck="false" autocomplete="off" placeholder="c_…@group.calendar.google.com">
           <span class="campo__ajuda">ID da agenda desta pessoa na conta ${CONTA_GOOGLE}: no Google Agenda, Configurações da agenda → Integrar agenda → ID da agenda.
-            É para ela que "Pôr no Google Agenda" leva os compromissos. Em branco, vão para a agenda principal do escritório.</span>
+            É nela que os compromissos desta pessoa ficam no Google, e o que for marcado nela aparece aqui.
+            Em branco, os compromissos desta pessoa não vão sozinhos para o Google.</span>
         </label>
         <fieldset class="fieldset campos">
           <legend>Acesso aos módulos</legend>

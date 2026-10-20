@@ -14,3 +14,8 @@ verify_jwt = false
 
 [functions.administrar-usuarios]
 verify_jwt = false
+
+# Volta do Google (sem token) e chamadas do próprio banco (x-fl-cron); as da
+# tela conferem o token de quem chamou pelo banco, como as outras.
+[functions.google-agenda]
+verify_jwt = false

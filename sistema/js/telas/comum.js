@@ -223,10 +223,15 @@ export function rotuloSituacao(tabela, valor) {
   return rotulo?.[0] ?? valor;
 }
 
-/** Exportação manual: só o usuário salva no Google e confere a disponibilidade. */
-export const notaGoogle = () => html`
+/** Como os compromissos chegam ao Google: sozinhos (ligado, migração 34) ou pelo botão. */
+export const notaGoogle = (google) => (google?.conectado ? html`
+  <p class="nota nota--info">
+    Ligada ao <strong>Google Agenda</strong> do escritório (${google.conta}): o que é marcado aqui vai sozinho para a
+    agenda do responsável, e o que é marcado no Google, inclusive pelo cliente, aparece aqui em até 2 minutos.
+    O que veio do Google se altera ou cancela no Google (o sistema acompanha); o que nasceu aqui, aqui.
+  </p>` : html`
   <p class="nota">
     Use <strong>Pôr no Google Agenda</strong> no compromisso: abre a agenda do escritório (${CONTA_GOOGLE}) já na agenda
     do responsável, a que a página de agendamento dele consulta. Confira e salve.
     Alterações e cancelamentos posteriores precisam ser ajustados também no Google.
-  </p>`;
+  </p>`);

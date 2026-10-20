@@ -186,7 +186,7 @@ async function tratar(req) {
     await previaBanco?.restaurar();
     return Response.json({ ok: true });
   }
-  if (previaBanco && /^\/__teste\/(rest|storage|auth|functions|djen|cep)\//.test(caminho)) {
+  if (previaBanco && /^\/__teste\/(rest|storage|auth|functions|djen|cep|google)\//.test(caminho)) {
     const resposta = await previaBanco.tratar(req);
     if (resposta) return resposta;
   }
