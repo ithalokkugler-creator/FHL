@@ -9,6 +9,8 @@ export const TEL = '(41) 2152-2607';
 export const TEL_HREF = '+554121522607';
 export const WHATS = '554121522607';
 export const EMAIL = 'contato@advocaciafl.com.br'; // Confirmado pelo Vinícius no grupo do escritório (out/2026).
+// Conta Google onde fica a agenda única do escritório, com uma subagenda por advogado (20/10/2026).
+export const CONTA_GOOGLE = EMAIL;
 export const HORARIO = 'Segunda a sexta, das 9h às 18h';
 export const HORARIO_CURTO = 'Seg. a sex., 9h às 18h';
 export const ENDERECO_DOCUMENTO = 'rua Doutor Leocádio, 282, Centro, Paranaguá/PR – CEP: 83.203-270';

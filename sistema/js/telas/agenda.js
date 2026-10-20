@@ -11,11 +11,12 @@
 import { conflitos, distribuirColunas } from '../dominio/agenda.js';
 import { feriadosNacionaisFixos } from '../dominio/feriados.js';
 import { gerarIcs, linkGoogleAgenda } from '../dominio/ics.js';
+import { CONTA_GOOGLE } from '../escritorio.js';
 import { mensagemLembrete } from '../dominio/mensagens.js';
 import { avisar, avisarErro } from '../nucleo/avisos.js';
 import { abrirDialogo, pedirMotivo } from '../nucleo/dialogo.js';
 import { ErroCampo } from '../nucleo/formularios.js';
-import { corDe, estado, membrosAtivos, nomeDe, pode } from '../nucleo/estado.js';
+import { corDe, estado, membro, membrosAtivos, nomeDe, pode } from '../nucleo/estado.js';
 import {
   data, dataCurta, dataExtensa, diasEntre, hoje, hora, horaDoMinuto, inicioDaSemana, inicioDoMes, instante,
   linkWhatsApp, nomeDoDia, noFuso, semAcento, somarDias, somarMeses, telefone,
@@ -332,7 +333,8 @@ function exportarAgenda({ semana, ocultos }) {
     </div>
     <p class="nota secao">Particulares de outras pessoas aparecem como Ocupado. Observações internas não são exportadas.
       Importar cria uma cópia: alterações e cancelamentos posteriores precisam ser ajustados no Google.</p>
-    <p class="sub secao">No Google Agenda, abra Configurações → Importar e exportar e escolha este arquivo e a agenda de destino.</p>`,
+    <p class="sub secao">No Google Agenda da conta ${CONTA_GOOGLE}, abra Configurações → Importar e exportar, escolha este arquivo
+      e, como destino, a agenda do advogado. Exporte um advogado por vez: a página de agendamento de cada um só consulta a agenda dele.</p>`,
     aoAbrir: (dialogo, form) => {
       form.periodo.addEventListener('change', () => {
         const mes = form.periodo.value === 'mes';
@@ -376,8 +378,10 @@ function quando(c) {
 function detalhe(c) {
   const podeMarcar = c.pode_editar && ['atendimento', 'audiencia'].includes(c.tipo) && c.situacao === 'agendado';
   const podeIniciar = podeMarcar && pode.clientes() && c.cliente_id && c.tipo === 'atendimento' && noFuso(c.inicio).dia === hoje();
-  // Particular só vai para o Google pelas mãos do dono.
-  const google = !c.particular || c.membro_id === estado.membro.id ? linkGoogleAgenda(paraExportacao(c)) : null;
+  // Particular só vai para o Google pelas mãos do dono. Abre na conta do
+  // escritório, na subagenda do responsável (a que a página de agendamento dele consulta).
+  const google = !c.particular || c.membro_id === estado.membro.id
+    ? linkGoogleAgenda(paraExportacao(c), { agenda: membro(c.membro_id)?.google_agenda }) : null;
   const lembrete = !c.mascarado && !c.particular && c.tipo === 'atendimento' && c.situacao === 'agendado' && c.cliente_nome && c.cliente_telefone;
 
   return abrirDialogo({

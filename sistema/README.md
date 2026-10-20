@@ -66,6 +66,9 @@ direto a ele e cota própria em multa e juros — ver
 `20261020120000`, 23 verificações SQL e 3 testes JS novos — **160/160 JS e
 543/543 SQL**. Revisão (`20261020150000`): contrato de honorários de acordo,
 redistribuição por grupo e painel — **161/161 JS e 546/546 SQL**.
+Google Agenda do escritório (`20261020180000`): "Pôr no Google Agenda" abre
+na conta contato@ e na subagenda do responsável — ver
+[Agenda](#agenda) e o Google Agenda em "Parado" — **162/162 JS e 552/552 SQL**.
 
 **09/10/2026 · revisão de código, banco e visual:** correções de permissões,
 captura DJEN, filtros e previsões financeiras, recibos históricos, importação,
@@ -494,9 +497,22 @@ pendentes após o bloqueio registrado em F5/F6. F8 não tem migração própria.
 Salvar/importar cria uma cópia. Para ocupar o link de agendamento, a agenda
 de destino precisa participar da verificação de disponibilidade do Google.
 Alterações/cancelamentos posteriores também precisam ser ajustados ali.
-A sincronização nos dois sentidos (7.3, opção C) continua aguardando a conta
-do escritório; as colunas `google_*` ficam reservadas. A importação real na
-conta Google ainda precisa de teste humano.
+
+**Agenda do escritório no Google (20/10/2026).** É uma só, na conta
+`contato@advocaciafl.com.br` (Google Workspace, conferida no navegador): a
+agenda principal "FONSECA LISBOA Advocacia" e uma subagenda por advogado
+(Guilherme, Juliana, Vinícius e a do Marlon, que saiu). Cada página de
+agendamento ("Atendimento com …") só considera ocupado o que está na
+subagenda do próprio advogado — nada na agenda principal bloqueia horário. Por
+isso o link do botão leva `authuser=contato@…` (abre nessa conta, mesmo com
+outras contas Google no navegador) e `src=<ID da subagenda>` (já escolhe a
+agenda do responsável; testado no Google sem salvar). O ID fica em
+`membros.google_agenda` (Membros → Editar → "Agenda no Google"); em branco, a
+agenda principal. Os IDs ficam só no banco, não no repositório. Quem usa o
+botão precisa ter a conta contato@ aberta no navegador; senão o Google pede o
+login dela. O `.ics` orienta importar um advogado por vez, na subagenda dele.
+A sincronização automática (7.3, opção C) continua parada — ver "Parado"; as
+colunas `google_*` de `compromissos` seguem reservadas.
 
 ---
 
@@ -601,6 +617,7 @@ quem não é sócio.
 | 20261019180000 | `correcoes_cacada` | Correções da caça a bugs de 19/10: histórico de clientes, renegociação fixo × êxito, centavo do acordo em partes, duas casas, repasse em arquivado, saldo previsto anual |
 | 20261020120000 | `acordo_direto_encargos` | Acordo: parte do cliente paga direto a ele (`direto_ao_cliente`, `valor_direto_cliente`) e cota própria do escritório em multa e juros (`parcelas.cota_encargos_pct`) |
 | 20261020150000 | `revisao_acordo` | Painel com o pago direto a clientes (`resumo_financeiro`) e redistribuição que mantém a soma de cada grupo de parcelas |
+| 20261020180000 | `agenda_google_contato` | `membros.google_agenda`: subagenda de cada membro na conta Google do escritório, usada por "Pôr no Google Agenda" |
 
 As seis primeiras versões foram conferidas no projeto remoto. As oito novas
 foram geradas pela CLI e executadas somente em PostgreSQL isolado. Elas ainda
@@ -777,7 +794,7 @@ painel). O Hobby da Vercel é só para uso não comercial.
 
 | O quê | Depende de |
 |---|---|
-| Google Agenda nos dois sentidos | Conta do Google do escritório (Gmail comum ou Workspace) |
+| Google Agenda automático (sistema → Google sem clicar no botão; Google → sistema) | A conta existe desde 20/10 (`contato@`, Workspace, subagenda por advogado). Falta o sim do escritório e um projeto no Google Cloud com a API do Google Agenda (R$ 0); a chave fica nos segredos das funções, colada pelo Ithalo |
 | Convite e recuperação de senha por e-mail | E-mail e domínio oficiais, e um SMTP. No Free, o e-mail padrão do Supabase só chega a quem é da equipe da organização |
 | Migração dos dados do protótipo | O arquivo de backup exportado pelo Vinícius |
 | Publicação na Vercel | Aprovação do commit |

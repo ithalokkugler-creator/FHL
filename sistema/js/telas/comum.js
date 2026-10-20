@@ -3,6 +3,7 @@
 
 import { html } from '../nucleo/html.js';
 import { dataHora, nomeDoMes } from '../nucleo/formato.js';
+import { CONTA_GOOGLE } from '../escritorio.js';
 
 export function cabecalho(titulo, subtitulo, acoes) {
   return html`
@@ -225,7 +226,7 @@ export function rotuloSituacao(tabela, valor) {
 /** Exportação manual: só o usuário salva no Google e confere a disponibilidade. */
 export const notaGoogle = () => html`
   <p class="nota">
-    Use <strong>Pôr no Google Agenda</strong> no compromisso ou importe o arquivo <strong>.ics</strong>.
-    Salve na agenda usada pelo link de agendamento e confira se ela verifica os horários ocupados.
+    Use <strong>Pôr no Google Agenda</strong> no compromisso: abre a agenda do escritório (${CONTA_GOOGLE}) já na agenda
+    do responsável, a que a página de agendamento dele consulta. Confira e salve.
     Alterações e cancelamentos posteriores precisam ser ajustados também no Google.
   </p>`;

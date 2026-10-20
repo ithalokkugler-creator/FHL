@@ -15,6 +15,7 @@ import { abrirDialogo } from '../nucleo/dialogo.js';
 import {
   carregarMembros, estado, iniciais, NIVEIS_AGENDA, NIVEIS_AUDITORIA, NIVEIS_FINANCEIRO, NIVEIS_SITE, NIVEIS_CLIENTES, NIVEIS_PRAZOS, PAPEIS,
 } from '../nucleo/estado.js';
+import { CONTA_GOOGLE } from '../escritorio.js';
 import { dataHora } from '../nucleo/formato.js';
 import { aoClicar, desenhar, html } from '../nucleo/html.js';
 import { db } from '../nucleo/supabase.js';
@@ -195,6 +196,12 @@ function editarMembro(m) {
           ${souEu ? html`<span class="campo__ajuda">O próprio perfil não se muda.</span>` : ''}
         </label>
         <label class="campo campo--4"><span>Cor na agenda</span><input type="color" name="cor" value="${(m?.cor ?? '#2E615D').toLowerCase()}"></label>
+        <label class="campo">
+          <span>Agenda no Google (opcional)</span>
+          <input name="google_agenda" value="${m?.google_agenda ?? ''}" maxlength="200" pattern="\\s*[^\\s@]+@[^\\s@]+\\s*" spellcheck="false" autocomplete="off" placeholder="c_…@group.calendar.google.com">
+          <span class="campo__ajuda">ID da agenda desta pessoa na conta ${CONTA_GOOGLE}: no Google Agenda, Configurações da agenda → Integrar agenda → ID da agenda.
+            É para ela que "Pôr no Google Agenda" leva os compromissos. Em branco, vão para a agenda principal do escritório.</span>
+        </label>
         <fieldset class="fieldset campos">
           <legend>Acesso aos módulos</legend>
           <label class="campo"><span>Preencher com um modelo</span>
@@ -232,6 +239,7 @@ function editarMembro(m) {
         email: d.email ? d.email.toLowerCase() : null,
         oab: d.oab || null,
         cor: form.cor.value.toUpperCase(),
+        google_agenda: d.google_agenda?.trim() || null,
         papel: souEu ? m.papel : form.papel.value,
         acesso_agenda: form.acesso_agenda.value,
         acesso_financeiro: form.acesso_financeiro.value,

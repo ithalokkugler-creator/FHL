@@ -33,7 +33,7 @@ export const pode = {
 
 export async function carregarMembros() {
   estado.membros = await db.listar('membros', {
-    select: 'id,nome,nome_curto,papel,oab,cor,email,user_id,acesso_agenda,acesso_financeiro,acesso_site,acesso_clientes,acesso_prazos,acesso_auditoria,ativo',
+    select: 'id,nome,nome_curto,papel,oab,cor,email,user_id,acesso_agenda,acesso_financeiro,acesso_site,acesso_clientes,acesso_prazos,acesso_auditoria,google_agenda,ativo',
     ordem: 'nome_curto.asc',
   });
   estado.porId = new Map(estado.membros.map((m) => [m.id, m]));

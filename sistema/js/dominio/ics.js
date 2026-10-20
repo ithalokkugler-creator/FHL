@@ -1,6 +1,6 @@
 // RFC 5545: texto escapado, CRLF e linhas de até 75 octetos UTF-8.
 import { FUSO, noFuso } from '../nucleo/formato.js';
-import { ENDERECO, CIDADE } from '../escritorio.js';
+import { ENDERECO, CIDADE, CONTA_GOOGLE } from '../escritorio.js';
 
 export const escaparIcs = (texto) => String(texto ?? '').replace(/\\/g, '\\\\')
   .replace(/\r\n|\r|\n/g, '\\n').replace(/;/g, '\\;').replace(/,/g, '\\,');
@@ -63,10 +63,16 @@ export function gerarIcs(compromissos, { nome = 'Fonseca Lisboa Advocacia', agor
   return linhas.map(dobrarLinha).join('\r\n') + '\r\n';
 }
 
-export function linkGoogleAgenda(c) {
+/**
+ * Abre o formulário do Google na conta do escritório (authuser), já na subagenda
+ * do responsável (src) — é ela que a página de agendamento dele consulta.
+ * Sem subagenda, a agenda principal da conta.
+ */
+export function linkGoogleAgenda(c, { agenda } = {}) {
   if (c.mascarado || c.cancelado_em) return null;
   const e = evento(c), url = new URL('https://calendar.google.com/calendar/render');
   for (const [chave, valor] of Object.entries({ action: 'TEMPLATE', text: e.titulo,
-    dates: e.datas.join('/'), details: e.descricao, location: e.local, ctz: FUSO })) url.searchParams.set(chave, valor);
+    dates: e.datas.join('/'), details: e.descricao, location: e.local, ctz: FUSO,
+    authuser: CONTA_GOOGLE, src: agenda || CONTA_GOOGLE })) url.searchParams.set(chave, valor);
   return url.href;
 }

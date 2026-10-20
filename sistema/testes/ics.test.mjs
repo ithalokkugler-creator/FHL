@@ -52,6 +52,15 @@ test('Google preenche título, horas UTC, local, responsável e caracteres espec
   assert.equal(url.searchParams.get('location'),'Sala, 2; Centro');assert.match(url.searchParams.get('details'),/Ithalo/);
   assert.ok(!url.href.includes('RELATO'));
 });
+test('Google abre na conta do escritório e na subagenda do responsável',()=>{
+  const agenda='c_abc123@group.calendar.google.com';
+  const url=new URL(linkGoogleAgenda(c,{agenda}));
+  assert.equal(url.searchParams.get('authuser'),'contato@advocaciafl.com.br');
+  assert.equal(url.searchParams.get('src'),agenda);
+  // Sem subagenda: a agenda principal da conta.
+  assert.equal(new URL(linkGoogleAgenda(c)).searchParams.get('src'),'contato@advocaciafl.com.br');
+  assert.equal(new URL(linkGoogleAgenda(c,{agenda:''})).searchParams.get('src'),'contato@advocaciafl.com.br');
+});
 test('Mascarado sai apenas como Ocupado mesmo com detalhes indevidos na entrada',()=>{
   const privado={...c,mascarado:true,particular:true,local_ou_link:'LOCAL SIGILOSO',lembrete_minutos:30};
   const ics=gerarIcs([privado],opcoes);

@@ -72,6 +72,13 @@ aceita "parte do cliente paga direto a ele"; multa e juros "dependem do caso"
 (ex.: 50% quando não há honorário inicial) → cota própria opcional do escritório
 em multa e juros. Detalhes: `sistema/README.md` (Respostas dos advogados).
 
+**Google Agenda — 20/10/2026:** o escritório mantém **uma agenda só**, na conta
+`contato@advocaciafl.com.br` (Google Workspace), com uma subagenda por advogado;
+a página de agendamento de cada um consulta só a subagenda dele. "Pôr no Google
+Agenda" passou a abrir nessa conta e na subagenda do responsável
+(`membros.google_agenda`). Sincronização automática continua opcional e parada.
+Detalhes: `sistema/README.md` (F8).
+
 ---
 
 ## 1. Quem é quem
