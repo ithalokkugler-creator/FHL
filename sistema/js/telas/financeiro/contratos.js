@@ -11,6 +11,7 @@ import { termoDeBusca } from '../../nucleo/consulta.js';
 import { abrirDialogo } from '../../nucleo/dialogo.js';
 import { estado, nomeDe, pode } from '../../nucleo/estado.js';
 import { centavos, data, hoje, lerMoeda, moeda, paraReais, percentual, somarDias } from '../../nucleo/formato.js';
+import { linhasEsqueleto } from '../../nucleo/esqueleto.js';
 import { $, aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { guardarConsulta } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
@@ -62,7 +63,7 @@ export default async function telaContratos(ctx) {
         <select name="responsavel">${opcoes(estado.membros.map((m) => [m.id, m.nome_curto]), filtro.responsavel, { vazio: 'Todos' })}</select>
       </label>
     </form>
-    <section class="painel" data-papel="lista"><p class="carregando">Carregando…</p></section>`);
+    <section class="painel" data-papel="lista">${linhasEsqueleto()}</section>`);
 
   const form = $('form', ctx.raiz);
   const lista = $('[data-papel="lista"]', ctx.raiz);

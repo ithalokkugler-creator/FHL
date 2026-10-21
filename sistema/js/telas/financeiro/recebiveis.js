@@ -17,6 +17,7 @@ import { termoDeBusca } from '../../nucleo/consulta.js';
 import { abrirDialogo } from '../../nucleo/dialogo.js';
 import { estado, nomeDe, pode } from '../../nucleo/estado.js';
 import { centavos, data, hoje, lerMoeda, moeda, paraReais } from '../../nucleo/formato.js';
+import { linhasEsqueleto } from '../../nucleo/esqueleto.js';
 import { $, $$, aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { guardarConsulta } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
@@ -79,7 +80,7 @@ export default async function telaRecebiveis(ctx) {
       <label class="campo campo--estreito"><span>Saldo mínimo</span><input name="minimo" class="num" inputmode="decimal" value="${filtro.minimo}"></label>
       <label class="campo campo--estreito"><span>Saldo máximo</span><input name="maximo" class="num" inputmode="decimal" value="${filtro.maximo}"></label>
     </form>
-    <section class="painel" data-papel="lista"><p class="carregando">Carregando…</p></section>`);
+    <section class="painel" data-papel="lista">${linhasEsqueleto()}</section>`);
 
   const form = $('form', ctx.raiz);
   const lista = $('[data-papel="lista"]', ctx.raiz);

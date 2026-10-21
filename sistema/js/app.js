@@ -8,6 +8,7 @@
 import { carregarMembros, estado, iniciais, PAPEIS, pode } from './nucleo/estado.js';
 import { $, $$, aoClicar, desenhar, html } from './nucleo/html.js';
 import { resolver, rota } from './nucleo/rotas.js';
+import { ESPERA, esqueleto } from './nucleo/esqueleto.js';
 import { aoMudarSessao, db, emailDaSessao, sair, sessaoAtual, sessaoDoLink } from './nucleo/supabase.js';
 import { atualizarAvisos, mudaContadores } from './nucleo/avisos-do-dia.js';
 import { ligarCronometro } from './telas/atualizacoes/cronometro.js';
@@ -26,30 +27,30 @@ const app = document.getElementById('app');
 
 const doFinanceiro = { permitido: pode.financeiro };
 
-rota('/inicio', () => import('./telas/inicio.js'), { titulo: 'Hoje' });
-rota('/agenda', () => import('./telas/agenda.js'), { titulo: 'Agenda', permitido: pode.agenda });
-rota('/contatos', () => import('./telas/contatos.js'), { titulo: 'Contatos', permitido: pode.clientes });
-rota('/clientes', () => import('./telas/clientes/lista.js'), { titulo: 'Clientes', permitido: pode.clientes });
-rota('/clientes/:id', () => import('./telas/clientes/cliente.js'), { titulo: 'Ficha do cliente', permitido: pode.clientes });
-rota('/processos', () => import('./telas/processos.js'), { titulo: 'Processos', permitido: pode.clientes });
-rota('/documentos', () => import('./telas/documentos/lista.js'), { titulo: 'Documentos', permitido: pode.clientes });
+rota('/inicio', () => import('./telas/inicio.js'), { titulo: 'Hoje', esqueleto: 'painel' });
+rota('/agenda', () => import('./telas/agenda.js'), { titulo: 'Agenda', permitido: pode.agenda, esqueleto: 'agenda' });
+rota('/contatos', () => import('./telas/contatos.js'), { titulo: 'Contatos', permitido: pode.clientes, esqueleto: 'lista' });
+rota('/clientes', () => import('./telas/clientes/lista.js'), { titulo: 'Clientes', permitido: pode.clientes, esqueleto: 'lista' });
+rota('/clientes/:id', () => import('./telas/clientes/cliente.js'), { titulo: 'Ficha do cliente', permitido: pode.clientes, esqueleto: 'painel' });
+rota('/processos', () => import('./telas/processos.js'), { titulo: 'Processos', permitido: pode.clientes, esqueleto: 'lista' });
+rota('/documentos', () => import('./telas/documentos/lista.js'), { titulo: 'Documentos', permitido: pode.clientes, esqueleto: 'lista' });
 rota('/documentos/novo', () => import('./telas/documentos/novo.js'), { titulo: 'Gerar documento', permitido: pode.clientes });
 // O recibo (Financeiro) também abre aqui para quem não tem Clientes; o banco
 // só entrega a essa pessoa os documentos do tipo recibo.
 rota('/documentos/:id', () => import('./telas/documentos/documento.js'), { titulo: 'Documento', permitido: () => pode.clientes() || pode.financeiro() });
-rota('/atualizacoes', () => import('./telas/atualizacoes/lista.js'), { titulo: 'Atualizações', permitido: pode.clientes });
+rota('/atualizacoes', () => import('./telas/atualizacoes/lista.js'), { titulo: 'Atualizações', permitido: pode.clientes, esqueleto: 'lista' });
 rota('/atualizacoes/relatorio', () => import('./telas/atualizacoes/relatorio.js'), { titulo: 'Relatório de atividades', permitido: pode.clientes });
-rota('/tarefas', () => import('./telas/tarefas/lista.js'), { titulo: 'Tarefas' });
-rota('/prazos', () => import('./telas/tarefas/prazos.js'), { titulo: 'Prazos' });
+rota('/tarefas', () => import('./telas/tarefas/lista.js'), { titulo: 'Tarefas', esqueleto: 'lista' });
+rota('/prazos', () => import('./telas/tarefas/prazos.js'), { titulo: 'Prazos', esqueleto: 'lista' });
 rota('/feriados', () => import('./telas/feriados.js'), { titulo: 'Feriados e prazos', permitido: pode.prazos });
-rota('/intimacoes', () => import('./telas/intimacoes.js'), { titulo: 'Intimações', permitido: pode.prazos });
-rota('/financeiro', () => import('./telas/financeiro/painel.js'), { titulo: 'Financeiro', ...doFinanceiro });
+rota('/intimacoes', () => import('./telas/intimacoes.js'), { titulo: 'Intimações', permitido: pode.prazos, esqueleto: 'lista' });
+rota('/financeiro', () => import('./telas/financeiro/painel.js'), { titulo: 'Financeiro', ...doFinanceiro, esqueleto: 'painel' });
 rota('/financeiro/recebiveis', () => import('./telas/financeiro/recebiveis.js'), { titulo: 'Recebíveis', ...doFinanceiro });
-rota('/financeiro/atraso', () => import('./telas/financeiro/em-atraso.js'), { titulo: 'Em atraso', ...doFinanceiro });
+rota('/financeiro/atraso', () => import('./telas/financeiro/em-atraso.js'), { titulo: 'Em atraso', ...doFinanceiro, esqueleto: 'lista' });
 rota('/financeiro/contratos', () => import('./telas/financeiro/contratos.js'), { titulo: 'Contratos', ...doFinanceiro });
 rota('/financeiro/contratos/novo', () => import('./telas/financeiro/contrato-novo.js'), { titulo: 'Novo contrato', permitido: pode.lancar });
-rota('/financeiro/contratos/:id', () => import('./telas/financeiro/contrato.js'), { titulo: 'Contrato', ...doFinanceiro });
-rota('/financeiro/contas', () => import('./telas/financeiro/contas.js'), { titulo: 'Contas do escritório', ...doFinanceiro });
+rota('/financeiro/contratos/:id', () => import('./telas/financeiro/contrato.js'), { titulo: 'Contrato', ...doFinanceiro, esqueleto: 'painel' });
+rota('/financeiro/contas', () => import('./telas/financeiro/contas.js'), { titulo: 'Contas do escritório', ...doFinanceiro, esqueleto: 'lista' });
 rota('/financeiro/contas-financeiras', () => import('./telas/financeiro/contas-financeiras.js'), { titulo: 'Contas financeiras', ...doFinanceiro });
 rota('/financeiro/alertas', () => import('./telas/financeiro/alertas.js'), { titulo: 'Alertas do Financeiro', ...doFinanceiro });
 rota('/financeiro/importacao', () => import('./telas/financeiro/importacao.js'), { titulo: 'Importar planilha', permitido: pode.lancar });
@@ -310,7 +311,14 @@ async function mostrarRota() {
     return;
   }
 
-  desenhar(raiz, html`<p class="carregando" role="status">Carregando…</p>`);
+  // Até ESPERA ms, só o aviso para leitor de tela (tela rápida não pisca);
+  // depois, o esqueleto da tela — se ela ainda não desenhou nada.
+  desenhar(raiz, html`<p class="sr-only" role="status" data-esqueleto>Carregando…</p>`);
+  setTimeout(() => {
+    if (esta === geracao && raiz.isConnected && raiz.childElementCount === 1 && raiz.firstElementChild.matches('[data-esqueleto]')) {
+      desenhar(raiz, esqueleto(r.esqueleto));
+    }
+  }, ESPERA);
 
   try {
     const modulo = await r.carregar();

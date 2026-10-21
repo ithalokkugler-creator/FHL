@@ -127,6 +127,50 @@ img { max-width: 100%; display: block; }
   color: var(--c-texto-m);
 }
 
+/* Esqueleto de carregamento (nucleo/esqueleto.js): blocos no formato da tela,
+   sem texto nem número. Só aparece se a tela demorar mais de 300 ms. */
+.esq {
+  display: block;
+  height: 12px;
+  background: linear-gradient(90deg, var(--c-bone-dim) 0%, #EEEEE8 40%, var(--c-bone-dim) 80%) 0 0 / 300% 100%;
+  animation: esq-brilho 1.4s ease-in-out infinite;
+}
+@keyframes esq-brilho { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .esq { animation: none; } }
+.esqueleto { animation: esq-entrar 0.2s ease-out; }
+/* Dentro de painel: só aparece se passar de 300 ms (tela rápida não pisca). */
+.esqueleto--atrasado { padding: 0 var(--s-4); animation: esq-entrar 0.2s ease-out 0.3s both; }
+@keyframes esq-entrar { from { opacity: 0; } to { opacity: 1; } }
+.esq-topo { display: grid; gap: 8px; margin-bottom: var(--s-5); }
+.esq-titulo { width: min(240px, 60%); height: 26px; }
+.esq-sub { width: min(420px, 85%); }
+.esq-filtros { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-3); margin-bottom: var(--s-4); }
+.esq-campo { width: 160px; height: 38px; }
+.esq-campo--largo { flex: 1 1 220px; }
+.esq-painel { padding: var(--s-2) var(--s-4); }
+.esq-linha { display: grid; gap: 8px; padding: var(--s-3) 0; border-bottom: 1px solid var(--c-linha); }
+.esq-linha:last-child { border-bottom: 0; }
+.esq-linha__a { width: min(320px, 70%); height: 14px; }
+.esq-linha__b { width: min(520px, 90%); }
+.esq-indicadores {
+  display: flex; flex-wrap: wrap; gap: 1px; margin-bottom: var(--s-5);
+  border: 1px solid var(--c-linha); background: var(--c-linha);
+}
+.esq-indicador { flex: 1 1 170px; display: grid; gap: 8px; padding: var(--s-3) var(--s-4); background: var(--c-superficie); }
+.esq-rotulo { width: 90px; height: 10px; }
+.esq-valor { width: 70px; height: 22px; }
+.esq-colunas { display: grid; gap: var(--s-4); grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.esq-grade { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 1px; background: var(--c-linha); }
+.esq-dia { display: grid; align-content: start; gap: var(--s-2); min-height: 260px; padding: var(--s-3); background: var(--c-superficie); }
+.esq-evento { height: 44px; }
+/* No celular a agenda é lista: um dia por linha. */
+@media (max-width: 760px) {
+  .esq-grade { grid-template-columns: 1fr; }
+  .esq-dia { min-height: 0; }
+  .esq-dia .esq-evento:nth-child(n + 3) { display: none; }
+  .esq-campo { width: calc(50% - var(--s-2)); }
+}
+
 .vazio {
   padding: var(--s-5) var(--s-4);
   color: var(--c-texto-m);

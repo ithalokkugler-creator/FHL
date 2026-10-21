@@ -892,6 +892,15 @@ comum. Importação direta da conta Google na Agenda continua pendente.
 
 ## Notas de manutenção
 
+- **Esqueleto de carregamento** (21/10, `nucleo/esqueleto.js`). Rota com
+  `esqueleto: 'lista' | 'painel' | 'agenda'` em `app.js` mostra blocos cinza
+  no formato da tela se ela demorar mais de 300 ms (antes disso, só o aviso
+  para leitor de tela); a própria tela o substitui ao desenhar, e o erro do
+  roteador também. Contratos e Recebíveis, que desenham cabeçalho e filtros na
+  hora, usam `linhasEsqueleto()` dentro da lista (atraso pelo CSS). Nunca pôr
+  texto ou número no esqueleto: um bloco não pode parecer dado. Rota sem
+  formato continua com "Carregando…".
+
 - **UPDATE e DELETE sempre com WHERE.** O Supabase carrega o `safeupdate` nas
   chamadas da Data API e recusa (400) os dois sem WHERE, mesmo dentro de uma
   função `security definer`. A prévia local não tem o `safeupdate`: tabela de

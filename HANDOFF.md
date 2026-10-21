@@ -126,8 +126,8 @@ histórico deles está no git e, para as especificações, em
   `membros.email`; o 1º login liga o usuário ao membro em `iniciar_sessao`).
   **SMTP próprio** com o Gmail do Ithalo (`smtp.gmail.com:465`, senha de app,
   remetente "Fonseca Lisboa Advocacia"); modelos Invite e Reset em português.
-  **Validade do link (Email OTP expiration) em 86400 s temporariamente** —
-  voltar para 3600 quando a Juliana entrar.
+  Validade do link (Email OTP expiration): 3600 s (voltou de 86400 em
+  21/10, depois que a Juliana entrou).
 - **Funções de borda** (todas `verify_jwt = false` em `supabase/config.toml`;
   conferem o token por conta própria): `receber-contato` (formulário do site
   → Contatos), `finalizar-anexo`, `administrar-usuarios` (convite),
@@ -315,8 +315,9 @@ Detalhes técnicos de cada um no `sistema/README.md`.
 
 - **Membros:** Vinícius (admin), Guilherme e Juliana (sócios), "Ithalo —
   suporte técnico do piloto" (admin), Marlon (inativo).
-  Guilherme e Vinícius **já entraram**; **Juliana ainda não** (convite de
-  20/10 10h41, link vale até 21/10 ~10h40; reenviar em Membros).
+  Os três sócios **já entraram** (Juliana em 21/10, 15h32). Em 21/10 o
+  Vinícius lançou o Financeiro real: 16 contratos, 260 parcelas, 58
+  recebimentos.
 - **Limpeza de 20/10** (rodada pelo Ithalo; script em
   `supabase/manutencao/limpeza-dados-de-teste-20261020.sql`): Financeiro
   zerado (numeração recomeça em C001/2026), testes de 06–13/10 removidos;
@@ -375,7 +376,7 @@ orquestração, `eventos.js` = tradução pura), migrações `2026102018…` a
 | 15/10 | **Começa o uso real** pelos advogados |
 | 19/10 | Pedidos do grupo: e-mail contato@, Criminal/Imobiliário, fixo+êxito, encadeado, acordo com repasse; caça a bugs 1; domínio `advocaciafl.com.br` |
 | 20/10 | Respostas dos advogados (direto ao cliente, cota de encargos); limpeza dos dados de teste; convites; DNS de e-mail; Search Console; **Google Agenda nos dois sentidos**; Remarcar; caça a bugs 2 + revisão de design |
-| 21/10 | Pedidos do grupo: campo Cliente com busca por nome/CPF, processos que o escritório não acompanha (intimações do Marlon), filiação em mãe e pai (migração 38; `sistema/README.md` → Pedidos dos advogados) |
+| 21/10 | Pedidos do grupo: campo Cliente com busca por nome/CPF, processos que o escritório não acompanha (intimações do Marlon), filiação em mãe e pai (migração 38; `sistema/README.md` → Pedidos dos advogados); esqueleto de carregamento nas telas principais; validade do link de e-mail de volta a 1 h |
 
 ---
 
@@ -385,7 +386,8 @@ orquestração, `eventos.js` = tradução pura), migrações `2026102018…` a
 1. **Trocar a senha de app do Gmail** dele (apareceu num print) e colar a nova
    no Supabase → Authentication → SMTP.
 2. **Trocar a senha dele no sistema** (foi escrita no chat).
-3. Ativar **Leaked password protection** (Supabase → Authentication).
+3. **Leaked password protection**: só existe no Supabase Pro (entra junto
+   com a troca de plano).
 4. Revisar as **22 sessões abertas** do contato@ (Google → Segurança →
    Seus dispositivos).
 5. Reconsiderar a **verificação em 2 etapas** do contato@ (protege agenda,
@@ -393,7 +395,6 @@ orquestração, `eventos.js` = tradução pura), migrações `2026102018…` a
    pelo contato@ em vez do Gmail do Ithalo).
 
 ### Do agente, quando chegar a hora
-- Juliana entrou → **voltar a validade do link para 3600 s**.
 - Remetente do SMTP → contato@ (depois da 2 etapas e de uma senha de app do
   contato@, colada pelo Ithalo).
 - **Cópia de segurança** diária (desenhada em `docs/operacao/`, não ativa):
