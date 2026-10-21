@@ -3,7 +3,7 @@
 -- Especificação financeira (DOCX v1.0) e DJEN, direto no banco
 -- =============================================================================
 --
--- preparacao-financeiro-docx.md §7 (cenários G01–G24) e F6. Tudo acontece
+-- docs/historico/preparacao-financeiro-docx.md §7 (cenários G01–G24) e F6. Tudo acontece
 -- num bloco desfeito no fim: nada fica gravado. Não rode em produção — rode
 -- com `npm run banco:test` (PostgreSQL isolado) ou numa branch do Supabase.
 --

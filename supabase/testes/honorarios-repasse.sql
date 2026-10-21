@@ -3,7 +3,7 @@
 -- Honorários fixo + êxito, contrato encadeado e acordo com repasse
 -- =============================================================================
 --
--- Migração 20261019120000 (preparacao-pedidos-advogados.md, Lotes 2 e 3).
+-- Migração 20261019120000 (docs/historico/preparacao-pedidos-advogados.md, Lotes 2 e 3).
 -- Tudo acontece num bloco desfeito no fim: nada fica gravado. Não rode em
 -- produção — rode com `npm run banco:test` (PostgreSQL isolado).
 --

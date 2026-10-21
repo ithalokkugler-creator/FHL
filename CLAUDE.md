@@ -1,70 +1,41 @@
 # Fonseca Lisboa Advocacia (ex-FHL) — contexto do cliente
 
-Este arquivo guarda **o que o cliente quer e por quê**. A parte técnica do site
-(como rodar, build, arquitetura, tokens, pendências de lançamento) está no
-[`README.md`](README.md) — não duplicar aqui.
+Este arquivo guarda **o que o cliente quer e por quê**. O estado atual, as
+contas, como rodar/testar/publicar e as pendências estão no
+[`HANDOFF.md`](HANDOFF.md); o site em detalhe no [`README.md`](README.md); a
+área dos advogados no [`sistema/README.md`](sistema/README.md) — não duplicar
+aqui.
 
 Fonte: primeira reunião com o cliente, 11/09/2026, 47 min, Google Meet.
 Transcrição e 168 frames em `../Advocacia contexto/`. Marcações `[MM:SS]`
 referenciam o minuto do vídeo.
 
-**Entrega local de 05/10/2026:** iniciada a preparação de novas funções por
-E0 (acessos Clientes/Prazos), F1 (Contatos), F2 (Clientes e processos),
-F3 (Documentos) e F4 (Atualizações e cronômetro). Oito modelos permitem gerar,
-editar e imprimir; a ficha de atendimento recebe o relato da conversa. Tempo,
-participantes e relatório para o cliente estão prontos para teste fictício.
-F7 reúne avisos de Hoje, aniversários e lembretes com mensagens preparadas
-pela equipe, sem envio automático.
-F8 permite copiar compromissos para o Google por botão ou arquivo `.ics`,
-preparar lembrete no atendimento e ver feriados cadastrados na grade.
-A cópia exige salvar/importar na agenda usada pelo link de agendamento e
-conferir sua disponibilidade. Mudanças posteriores também precisam ser
-ajustadas no Google. Feriados nacionais automáticos continuam pendentes.
-F5/F6 ganharam tarefas, prazos informados manualmente, cadastro de feriados
-e conferência de intimações manuais com prazo/audiência ligados.
-Não houve commit, deploy ou migração remota. Estado técnico e roteiro:
-[TESTAR-NOVAS-FUNCOES.md](TESTAR-NOVAS-FUNCOES.md). Na mesma noite, revisão
-de bugs, visual e código: [REVISAO-NOVAS-FUNCOES.md](REVISAO-NOVAS-FUNCOES.md)
-— inclusive o aviso de que push na `main` publica na hora, e o frontend novo
-não abre sem as migrações aplicadas. Revisão dos textos jurídicos
-continua pendente (§7.8 da preparação). Contagem automática de prazos, datas
-móveis e busca/importação DJEN ficaram pendentes após bloqueio do filtro de
-conteúdo durante a geração dos módulos, sem motivo detalhado. A captura
-diária fica para depois da busca manual em uso, conforme §10.7.
+**Onde estamos (20/10/2026):** site e área dos advogados **em produção** em
+`advocaciafl.com.br`, com os advogados usando de verdade desde 15/10. Tudo o
+que a §4 lista como desejo dele já existe no sistema (Financeiro do DOCX,
+Clientes, Documentos, Atualizações com cronômetro, Tarefas/Prazos, DJEN,
+Agenda, Site, Membros, Avisos) — a linha do tempo está no `HANDOFF.md` §9.
+Continuam valendo: **sem integração bancária** (sem OFX/Open Finance) e **sem
+2FA**, por decisão do Ithalo; **textos jurídicos dos modelos sem revisão** do
+escritório.
 
-**Entrega local de 08–09/10/2026 (sem commit, sem migração remota):**
-- **Financeiro:** todo o DOCX (T01–T17), com Consulta/Auditoria, pagamentos
-  parciais, contas financeiras, código C001/AAAA, fechamento anual,
-  relatórios/XLSX, recibo, anexos, alertas e importação da planilha antiga.
-- **Prazos e DJEN:** busca no DJEN pelo navegador, captura diária e contagem
-  automática de prazos como sugestão, com conferência obrigatória.
-- **Clientes e operação:** contatos múltiplos e etiquetas, Operação/LGPD e
-  convite por e-mail.
-- **"Sem integração com banco"** = sem OFX/Open Finance. **Sem 2FA**, por
-  decisão do Ithalo.
-
-Estado e ordem de publicação:
-[HANDOFF-FINANCEIRO-DJEN.md](HANDOFF-FINANCEIRO-DJEN.md).
-
-**Marca FL — 09/10/2026 (local, sem commit, migração `20261009120000_marca_fl` não aplicada):**
-com a saída do Marlon a sociedade passou a **Fonseca Lisboa Advocacia (FL)**.
-Logo definitiva: `Fonseca Lisboa Logo final.png` — vetorizada e desmembrada em
-`LogosNovas/FL/` (paleta exata em `LogosNovas/FL/paleta.svg`). O **peixinho**
-(`Logo.jpg`, a marca antiga de pétalas) voltou em 09/10 e **foi retirado de
-todo o site em 13/10/2026**, a pedido dos advogados: a abertura da home mostra
-só a FL, centrada; favicon é o monograma FL; não há mais marcas d'água.
-Detalhes: README §Identidade. As menções a "FHL" abaixo são
-histórico.
+**Marca FL — 09/10/2026:** com a saída do Marlon a sociedade passou a
+**Fonseca Lisboa Advocacia (FL)**. Logo definitiva: `Fonseca Lisboa Logo
+final.png` — vetorizada e desmembrada em `LogosNovas/FL/` (paleta exata em
+`LogosNovas/FL/paleta.svg`). O **peixinho** (`Logo.jpg`, a marca antiga de
+pétalas) **foi retirado de todo o site em 13/10/2026**, a pedido dos
+advogados: a abertura da home mostra só a FL, centrada; favicon é o monograma
+FL; não há marcas d'água. Detalhes: README §Identidade. As menções a "FHL"
+abaixo são histórico.
 
 **Pedidos do grupo do escritório — 19/10/2026:** e-mail oficial
 `contato@advocaciafl.com.br`; áreas **Criminal** (Vinícius) e **Imobiliário**
 (Guilherme) no site; no Financeiro, **fixo + êxito** no mesmo contrato,
 **contrato encadeado** (começa quando outro termina) e **acordo com repasse
 ao cliente** (cota do escritório por parcela; a parte do cliente fica fora da
-divisão entre sócios). Preparação, decisões e perguntas abertas:
-[preparacao-pedidos-advogados.md](preparacao-pedidos-advogados.md); detalhes
-técnicos no `sistema/README.md`. Domínio `advocaciafl.com.br` no ar desde 19/10/2026; fotos, SMTP do e-mail
-novo e Google Agenda estão sendo ajustados pelo Ithalo.
+divisão entre sócios). Decisões D1–D9 e perguntas abertas:
+[`docs/historico/preparacao-pedidos-advogados.md`](docs/historico/preparacao-pedidos-advogados.md).
+Domínio `advocaciafl.com.br` no ar desde 19/10/2026.
 
 **Respostas dos advogados — 20/10/2026:** o dinheiro do acordo cai na conta do
 escritório "na maioria das vezes" (depende do processo) → o recebimento agora
@@ -74,13 +45,12 @@ em multa e juros. Detalhes: `sistema/README.md` (Respostas dos advogados).
 
 **Google Agenda — 20/10/2026:** o escritório mantém **uma agenda só**, na conta
 `contato@advocaciafl.com.br` (Google Workspace), com uma subagenda por advogado;
-a página de agendamento de cada um consulta só a subagenda dele. "Pôr no Google
-Agenda" passou a abrir nessa conta e na subagenda do responsável
-(`membros.google_agenda`). No mesmo dia, a pedido do Ithalo, **sincronização
-automática nos dois sentidos** (função `google-agenda`, a cada 2 minutos e logo
-depois de cada mudança): o que se marca no sistema vai sozinho para a subagenda
-do responsável, e o que se marca no Google (inclusive a reserva do cliente)
-aparece no sistema. Detalhes: `sistema/README.md` (Agenda).
+a página de agendamento de cada um consulta só a subagenda dele. A pedido do
+Ithalo, **sincronização automática nos dois sentidos** (função `google-agenda`,
+a cada 2 minutos e logo depois de cada mudança): o que se marca no sistema vai
+sozinho para a subagenda do responsável, e o que se marca no Google (inclusive
+a reserva do cliente) aparece no sistema. O sistema só altera no Google o que
+ele mesmo criou. Detalhes: `HANDOFF.md` §8 e `sistema/README.md` (Agenda).
 
 ---
 
@@ -148,6 +118,10 @@ vamos só fazer o site" [~23:00].
 Ele espera que a gente analise, proponha escopo e **preço mensal**: "vocês vão
 tendo essa ideia, vão refinando — ó Vinícius, para fazer isso vai dar X, vai dar
 Y" [~23:30]. Nada foi fechado.
+
+> **Situação em 20/10/2026:** o sistema foi construído como **piloto** (Supabase
+> + Vercel, planos gratuitos) e os advogados usam desde 15/10. O preço mensal
+> e a contratação formal da fase 2 não estão registrados aqui como fechados.
 
 **Prioridade nº 1 dentro da fase 2, dita por ele:** o **Financeiro**. "Se pudesse
 ter uma área dentro do financeiro… seria mais urgente" [~23:40]. Quer saber
@@ -281,7 +255,7 @@ auto-hospedadas. Já implementado; não regredir.
 ## 8. Bug que apareceu na reunião — corrigido
 
 `src/pages/escritorio.mjs` dizia **"A I&D Legal atua em direito cível e
-contratual…"** — texto herdado de `preparacao-ied-legal.md`, de quando o cliente
+contratual…"** — texto herdado de `docs/historico/preparacao-ied-legal.md`, de quando o cliente
 era chamado de "I&D". **Ficou visível na tela durante a reunião** [37:59 e
 46:14]. Já corrigido; ao mexer em texto institucional, procurar "I&D" antes de
 qualquer demo.
@@ -289,6 +263,12 @@ qualquer demo.
 ---
 
 ## 9. Caminho sugerido para Ithalo e Rodrigo
+
+> **Situação em 20/10/2026:** feitos os itens 1 e 4 de "Agora" (o formulário
+> do site já cai em Contatos), e-mail e domínio do item 2, a logo FL no site, e
+> os quatro módulos de "Depois" (Publicações/DJEN inclusive). Continuam abertos:
+> OAB da sociedade, anos de atuação, a questão das avaliações (item 3) e o
+> arquivo vetorial original da logo. Lista completa em `HANDOFF.md` §10.
 
 **Agora (fecha a fase 1):**
 1. Corrigir o texto "I&D Legal".

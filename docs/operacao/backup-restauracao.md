@@ -1,7 +1,7 @@
 # Cópia de segurança e restauração: área dos advogados
 
-Este guia faz parte da preparação T16 (`preparacao-financeiro-docx.md`).
-Estado em 09/10/2026: **nada disto está configurado**. A tela
+Este guia faz parte da preparação T16 (`docs/historico/preparacao-financeiro-docx.md`).
+Estado em 20/10/2026: **nada disto está configurado**. A tela
 **Operação e LGPD** mostra "Última cópia boa: Nenhuma" até a rotina existir.
 
 ## O que já existe e o que não existe

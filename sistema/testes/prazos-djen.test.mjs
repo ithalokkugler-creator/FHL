@@ -1,5 +1,5 @@
 // Contagem de prazos, feriados e DJEN — vetores do Apêndice C de
-// preparacao-novas-funcoes.md, conferidos à mão. Se falhar, o erro está no
+// docs/historico/preparacao-novas-funcoes.md, conferidos à mão. Se falhar, o erro está no
 // código, não no vetor.
 import test from 'node:test';
 import assert from 'node:assert/strict';

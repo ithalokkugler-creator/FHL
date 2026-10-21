@@ -1,83 +1,48 @@
 # Fonseca Lisboa Advocacia — área dos advogados
 
-Sistema interno do escritório: **Agenda**, **Financeiro** e o **Site** — as
-publicações e campanhas que aparecem no site público —, com login
-individual, permissão por módulo e histórico de tudo. É o piloto da fase 2
-descrita em [`preparacao-area-dos-advogados.md`](../preparacao-area-dos-advogados.md)
-— ainda não contratado, rodando nos planos gratuitos do Supabase e da Vercel.
+Sistema interno do escritório: **Hoje**, **Agenda** (ligada ao Google Agenda
+nos dois sentidos), **Contatos**, **Clientes e processos**, **Documentos**,
+**Atualizações** com cronômetro, **Tarefas e prazos**, **Intimações/DJEN**,
+**Financeiro**, o **Site** (publicações e campanhas do site público),
+**Membros**, **Operação e LGPD** e o **Histórico** — com login individual,
+permissão por módulo e registro de tudo. É o piloto da fase 2 descrita em
+[`docs/historico/preparacao-area-dos-advogados.md`](../docs/historico/preparacao-area-dos-advogados.md)
+(as referências "preparação 5.2", "6.5" etc. abaixo são a esse arquivo),
+rodando nos planos gratuitos do Supabase e da Vercel.
+
+**Estado (20/10/2026):** tudo o que este arquivo descreve está **em
+produção** em <https://advocaciafl.com.br/sistema> — as 39 migrações
+aplicadas e as 5 funções de borda publicadas — e os advogados usam desde
+15/10. **180/180 testes JS e 576/576 verificações SQL.** Contas, como
+publicar, armadilhas e pendências: [`HANDOFF.md`](../HANDOFF.md). As
+especificações originais (E0/F1–F9, DOCX T01–T17, pedidos de 19/10, red
+team de 11/10) estão em [`docs/historico/`](../docs/historico/).
 
 A área **vai ao ar junto com o site**, em `/sistema`, no mesmo deploy e no mesmo
 repositório. O site tem um link discreto para ela no rodapé; ela tem "Ver o
 site" na lateral e "Voltar ao site" na tela de entrada.
 
-**Histórico de 05/10/2026 · estado daquela entrega:** E0/F1–F4 implementados e testados localmente: níveis de acesso
-Clientes/Prazos, Contatos, cadastro completo, processos, documentos e atualizações.
-F5/F6 estão parcialmente implementadas com tarefas, prazos manuais, feriados
-cadastrados e intimações manuais. Contagem automática, datas móveis e
-busca/importação DJEN permanecem pendentes. F7 acrescenta os avisos de Hoje,
-aniversários, lembretes e contadores conforme o acesso. F8 acrescenta botão
-Google, exportação `.ics`, lembrete no detalhe e feriados cadastrados na grade;
-feriados nacionais automáticos continuam pendentes. As oito migrações e `receber-contato`
-continuam pendentes de aplicação/publicação. Para testar sem login real e
-sem gravar na produção: `npm run testar:local` →
-<http://127.0.0.1:8125/__teste>. Roteiro completo em
-[TESTAR-NOVAS-FUNCOES.md](../TESTAR-NOVAS-FUNCOES.md).
+**Como chegou aqui, em poucas linhas**
 
-**05/10/2026 (noite) · revisão:** bugs funcionais e visuais corrigidos, código
-novo reescrito no estilo do projeto e migrações novas reformatadas, sem mudar
-regra nem texto jurídico. Detalhes em
-[REVISAO-NOVAS-FUNCOES.md](../REVISAO-NOVAS-FUNCOES.md).
-
-**08–09/10/2026 · Financeiro do DOCX (T01–T17) e DJEN, só local:**
-- **Financeiro:** pagamentos de despesa separados (parcial, estorno, reembolso),
-  contas financeiras e transferências, descontos e acréscimos autorizados,
-  encargos discriminados e código de contrato C001/AAAA.
-- **Contratos e fechamento:** formalização a confirmar, arquivamento,
-  redistribuição de parcelas, fechamento anual com versões e
-  `resumo_financeiro`.
-- **Relatórios e importação:** nove relatórios com exportação em XLSX/CSV, recibo
-  com valor por extenso, central de alertas e importação da planilha antiga com
-  área de conferência.
-- **Arquivos:** anexos privados com verificação no servidor.
-- **Acesso e operação:** perfis Consulta e Auditoria, convite por e-mail,
-  saída por inatividade, tela Operação e LGPD e registro de erros.
-- **Clientes:** vários contatos, nome fantasia, etiquetas e CEP.
-- **Intimações:** busca no DJEN pelo navegador, captura diária, contagem
-  automática de prazos sugerida e feriados nacionais na Agenda.
-- **Sem 2FA**, por decisão do Ithalo.
-
-Doze migrações (`20261008120000`–`20261008121100`) e duas funções de borda
-(`finalizar-anexo`, `administrar-usuarios`) estão **sem aplicar e sem
-publicar**. Estado, ordem de publicação e decisões a confirmar:
-[HANDOFF-FINANCEIRO-DJEN.md](../HANDOFF-FINANCEIRO-DJEN.md).
-
-**19/10/2026 · fixo + êxito, contrato encadeado e acordo com repasse:** ver
-[Financeiro](#fixo--êxito-contrato-encadeado-e-acordo-com-repasse-1910). Uma
-migração (`20261019120000`), 50 verificações SQL novas
-(`supabase/testes/honorarios-repasse.sql`) e 5 testes JS. Na mesma noite, sete
-testadores na prévia local acharam erros nessas funções; as correções estão em
-`20261019180000_correcoes_cacada` e em
-[Correções de 19/10](#correções-da-caça-a-bugs-1910) (17 verificações SQL e 1
-teste JS novos — **158/158 JS e 520/520 SQL**).
-
-**20/10/2026 · respostas dos advogados:** acordo com a parte do cliente paga
-direto a ele e cota própria em multa e juros — ver
-[Respostas dos advogados](#respostas-dos-advogados-2010). Migração
-`20261020120000`, 23 verificações SQL e 3 testes JS novos — **160/160 JS e
-543/543 SQL**. Revisão (`20261020150000`): contrato de honorários de acordo,
-redistribuição por grupo e painel — **161/161 JS e 546/546 SQL**.
-Google Agenda do escritório (`20261020180000`): "Pôr no Google Agenda" abre
-na conta contato@ e na subagenda do responsável — ver
-[Agenda](#agenda) e o Google Agenda em "Parado" — **162/162 JS e 552/552 SQL**.
-
-**09/10/2026 · revisão de código, banco e visual:** correções de permissões,
-captura DJEN, filtros e previsões financeiras, recibos históricos, importação,
-anexos, indisponibilidade dos serviços e seleção de cliente no editor.
-**150/150 testes JavaScript, 440/440 verificações SQL e 17 páginas do site.**
-Correções do QA de 09/10 (444/444 SQL): [HANDOFF §9](../HANDOFF-FINANCEIRO-DJEN.md#9-correções-do-qa-de-09102026).
-Telas conferidas no navegador em computador e celular, com dados fictícios e
-PostgreSQL isolado. Resultados, limites da validação e preparação da publicação:
-[REVISAO-FINANCEIRO-DJEN.md](../REVISAO-FINANCEIRO-DJEN.md).
+- **15–16/09:** Agenda, Financeiro (6.x) e Site; união com o site num deploy.
+- **05–06/10 · E0/F1–F8:** níveis Clientes/Prazos, Contatos (o formulário do
+  site cai aqui), cadastro completo, processos, 8 modelos de documento,
+  atualizações com cronômetro, tarefas, prazos e intimações manuais, avisos
+  de Hoje, botão Google e `.ics`.
+- **08–09/10 · Financeiro do DOCX (T01–T17) e DJEN:** pagamentos de despesa,
+  contas financeiras, C001/AAAA, fechamento anual, 9 relatórios XLSX/CSV,
+  recibo, anexos, alertas, importação da planilha; perfis Consulta e
+  Auditoria, convite, Operação/LGPD; busca e captura DJEN e contagem
+  automática de prazos sugerida. **Sem 2FA**, por decisão do Ithalo.
+- **11/10:** red team e correções (`20261011120000`).
+- **12/10:** Hoje com "Seu dia" e tarefas clicáveis.
+- **19/10:** fixo + êxito, contrato encadeado e acordo com repasse — ver
+  [Financeiro](#fixo--êxito-contrato-encadeado-e-acordo-com-repasse-1910) —
+  e a [caça a bugs](#correções-da-caça-a-bugs-1910).
+- **20/10:** [respostas dos advogados](#respostas-dos-advogados-2010)
+  (parte paga direto ao cliente, cota própria de encargos); Google Agenda do
+  contato@ com sincronização nos dois sentidos, Remarcar e a caça a bugs 2 —
+  ver [Agenda](#agenda).
 
 ---
 
@@ -311,7 +276,7 @@ contrato.
 ### Fixo + êxito, contrato encadeado e acordo com repasse (19/10)
 
 Pedidos do Vinícius no grupo do escritório, preparados em
-[`preparacao-pedidos-advogados.md`](../preparacao-pedidos-advogados.md).
+[`docs/historico/preparacao-pedidos-advogados.md`](../docs/historico/preparacao-pedidos-advogados.md).
 Migração `20261019120000_honorarios_misto_repasse`.
 
 - **Fixo + êxito** (`tipo_honorario = 'misto'`): o valor fixo gera as
@@ -800,23 +765,20 @@ Não existe mais um segundo projeto com Root Directory `sistema`: os cabeçalhos
 que ficavam em `sistema/vercel.json` estão no `vercel.json` da raiz, aplicados
 só às rotas `/sistema` e `/sistema/*`.
 
-Com o endereço definido:
+**Cada push na `main` publica.** Por isso a ordem de toda entrega é: banco
+(`db push`) → funções de borda (`functions deploy`) → push das telas — o
+frontend novo pode não abrir sem as colunas e funções novas. Comandos e
+conferências no [`HANDOFF.md`](../HANDOFF.md) §5.
 
-Para E0/F1–F4, seguir a ordem de publicação em
-[TESTAR-NOVAS-FUNCOES.md](../TESTAR-NOVAS-FUNCOES.md): banco, segredo,
-função pública e então frontend. Nenhuma dessas ações remotas foi feita.
+Configuração que já está feita (refazer só se o domínio ou o projeto mudar):
 
-Para a entrega de 08/10, a ordem está em
-[HANDOFF-FINANCEIRO-DJEN.md](../HANDOFF-FINANCEIRO-DJEN.md): migrações
-`20261008*` → funções `finalizar-anexo` e `administrar-usuarios` → push. O
-frontend novo **não abre** sem as migrações (colunas e funções novas).
-
-1. Supabase → **Authentication → URL Configuration** → pôr `https://<domínio>/sistema`
-   em *Site URL* e *Redirect URLs*, para o link de "Esqueci a senha" voltar para
-   o lugar certo.
-2. Vercel → projeto do site → **Settings → Git → Deploy Hooks** → criar um hook
-   para a branch `main`, copiar a URL e guardá-la no Supabase, em
-   **Edge Functions → Secrets**, como `VERCEL_DEPLOY_HOOK`.
+1. Supabase → **Authentication → URL Configuration**: *Site URL*
+   `https://advocaciafl.com.br/sistema` e *Redirect URL*
+   `https://advocaciafl.com.br/**`, para o link de convite e de "Esqueci a
+   senha" voltar para o lugar certo.
+2. Vercel → projeto do site → **Settings → Git → Deploy Hooks**: hook da
+   branch `main`, guardado no Supabase em **Edge Functions → Secrets** como
+   `VERCEL_DEPLOY_HOOK`.
 
 ## Custos
 

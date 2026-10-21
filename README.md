@@ -2,21 +2,23 @@
 
 **Fonseca Lisboa Advocacia (FL).** Paranaguá — PR. Até out/2026 a sociedade
 era FHL — Fonseca Hespanha Lisboa; com a saída do Marlon, passou a FL.
-Site institucional construído a partir de [`preparacao-ied-legal.md`](preparacao-ied-legal.md)
+Site institucional construído a partir de [`docs/historico/preparacao-ied-legal.md`](docs/historico/preparacao-ied-legal.md)
 (escrito quando o cliente ainda era chamado de "I&D"; a marca real veio depois).
 Conteúdo em português do Brasil.
+
+Este arquivo cobre o **site público**. Estado geral do projeto, contas, como
+publicar e pendências: [`HANDOFF.md`](HANDOFF.md). Área dos advogados:
+[`sistema/README.md`](sistema/README.md).
 
 ---
 
 ## Como rodar
 
-**Financeiro do DOCX e DJEN (08–09/10/2026):** use `npm run testar:local` e abra
-<http://127.0.0.1:8125/__teste>. Essa prévia usa dados fictícios e não acessa a
-produção. Estado atual e ordem das migrações: [HANDOFF-FINANCEIRO-DJEN.md](HANDOFF-FINANCEIRO-DJEN.md).
-As funções de 08/10 ainda não foram publicadas; a revisão de código e visual
-de 09/10 está em [REVISAO-FINANCEIRO-DJEN.md](REVISAO-FINANCEIRO-DJEN.md).
-`npm run dev` mantém a conexão
-com o Supabase configurado no projeto.
+**Área dos advogados com dados fictícios:** use `npm run testar:local` e abra
+<http://127.0.0.1:8125/__teste>. Essa prévia roda todas as migrações num banco
+em memória e não acessa a produção (detalhes no `HANDOFF.md` §5).
+`npm run dev` mantém a conexão com o Supabase **de produção** configurado no
+projeto.
 
 Precisa de Node.js 20 ou mais novo. Não há dependências para instalar — o
 gerador usa só a biblioteca padrão, então não existe `node_modules`.
@@ -446,12 +448,9 @@ números. A seção Linguagem mostra o texto já traduzido.
    (`src/partials/equipe.mjs`). A foto entra pelo campo `foto` de
    `src/data/equipe.mjs`. Foto de banco de imagens derrubaria o site.
 6. **Política de Privacidade revisada pelo próprio escritório.**
-7. **Backend do formulário — implementado localmente (E0/F1, 05/10/2026).**
+7. ~~**Backend do formulário.**~~ Em produção desde 06/10/2026: a função
    `receber-contato` grava no módulo Contatos com página, campanha e
-   consentimento. Falta aprovação do teste, aplicação das oito migrações (E0/F1–F4, F5/F6 manuais e F7),
-   configuração do segredo e publicação da função antes do frontend.
-   Ver [TESTAR-NOVAS-FUNCOES.md](TESTAR-NOVAS-FUNCOES.md). A produção atual
-   continua com o comportamento anterior até essa publicação.
+   consentimento.
 
 **Já resolvidos com os dados reais:** endereço (Rua Dr. Leocádio, 282 — Centro,
 Paranaguá/PR), telefone, WhatsApp e e-mail, as áreas de atuação, os nomes
