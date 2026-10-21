@@ -96,6 +96,7 @@ const CAMPOS = {
   publicada_em:'publicação', intimacao_id:'intimação de origem', texto:'teor',
   tipo_pessoa: 'tipo de pessoa', flexao: 'concordância nos documentos', rg: 'RG / inscrição estadual',
   filiacao: 'filiação (texto antigo)', filiacao_mae: 'filiação materna (mãe)', filiacao_pai: 'filiação paterna (pai)',
+  posicao_cliente: 'posição do cliente no processo',
   nascimento: 'nascimento / constituição', recado_nome: 'nome para recados', recado_relacao: 'relação / parentesco',
   recado_telefone: 'telefone para recados', recado_observacao: 'observação para recados',
   representante_nome: 'nome do representante', representante_documento: 'CPF / CNPJ do representante',

@@ -28,7 +28,21 @@ export function lerEtiquetas(v) {
   if (unicas.length > 20) throw new Error('Use no máximo 20 etiquetas por cliente.');
   return unicas.sort();
 }
-export const COLUNAS_PROCESSO = 'id,cliente_id,numero,referencia,titulo,area,tribunal,orgao,responsavel_id,situacao,observacoes,criado_em,alterado_em';
+export const COLUNAS_PROCESSO = 'id,cliente_id,numero,referencia,titulo,area,tribunal,orgao,responsavel_id,situacao,observacoes,posicao_cliente,criado_em,alterado_em';
+
+/**
+ * Como o nosso cliente figura no processo (pedido do Guilherme, 21/10) — os
+ * nomes que o Projudi e o PJe dão às partes. Grava-se o próprio texto; "Outra"
+ * aceita qualquer um (inventariante, vítima…), até 60 letras.
+ */
+export const POSICOES_CLIENTE = [
+  ['Polo ativo', ['Autor(a)', 'Requerente', 'Reclamante', 'Exequente', 'Recorrente', 'Apelante', 'Agravante', 'Embargante', 'Impetrante']],
+  ['Polo passivo', ['Réu/Ré', 'Requerido(a)', 'Reclamado(a)', 'Executado(a)', 'Recorrido(a)', 'Apelado(a)', 'Agravado(a)', 'Embargado(a)']],
+  ['Outros', ['Terceiro(a) interessado(a)']],
+];
+export const POSICAO_OUTRA = '__outra';
+const POSICOES_CONHECIDAS = new Set(POSICOES_CLIENTE.flatMap(([, lista]) => lista));
+export const posicaoConhecida = (valor) => POSICOES_CONHECIDAS.has(valor);
 
 export const ESTADOS_CIVIS = {
   solteiro: 'Solteiro(a)',
@@ -118,6 +132,11 @@ export function prepararProcesso(d, areas) {
   if (!areas[d.area]) throw new Error('Escolha a área jurídica.');
   if (!SITUACOES_PROCESSO[d.situacao]) throw new Error('Escolha a situação do processo.');
   if (!d.cliente_id) throw new Error('Escolha um cliente.');
+  const posicao = d.posicao_cliente === POSICAO_OUTRA ? texto(d.posicao_outra) : texto(d.posicao_cliente);
+  // `campo` leva a mensagem ao campo certo (nucleo/formularios.js).
+  const erroPosicao = (mensagem) => Object.assign(new Error(mensagem), { campo: 'posicao_outra' });
+  if (d.posicao_cliente === POSICAO_OUTRA && !posicao) throw erroPosicao('Escreva como o cliente figura no processo, ou escolha da lista.');
+  if (posicao.length > 60) throw erroPosicao('A posição do cliente pode ter até 60 letras.');
   return {
     cliente_id: d.cliente_id,
     numero: numero || null,
@@ -129,6 +148,7 @@ export function prepararProcesso(d, areas) {
     responsavel_id: d.responsavel_id || null,
     situacao: d.situacao,
     observacoes: texto(d.observacoes) || null,
+    posicao_cliente: posicao || null,
   };
 }
 
@@ -273,7 +293,9 @@ export function filtrarProcessos(processos, clientes, f) {
     if ((f.situacao || 'abertos') === 'abertos' && p.situacao === 'encerrado') return false;
     if (f.situacao && !['abertos', 'todos'].includes(f.situacao) && p.situacao !== f.situacao) return false;
     if ((f.area && p.area !== f.area) || (f.responsavel && p.responsavel_id !== f.responsavel) || (f.tribunal && p.tribunal !== f.tribunal)) return false;
-    return !busca || corresponde(busca, [p.numero, p.referencia, p.titulo, p.tribunal, p.orgao, nomes.get(p.cliente_id)]);
+    // "sem" = posição do cliente ainda não informada.
+    if (f.posicao && (f.posicao === 'sem' ? p.posicao_cliente : p.posicao_cliente !== f.posicao)) return false;
+    return !busca || corresponde(busca, [p.numero, p.referencia, p.titulo, p.tribunal, p.orgao, nomes.get(p.cliente_id), p.posicao_cliente]);
   });
 }
 

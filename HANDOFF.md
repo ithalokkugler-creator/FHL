@@ -33,7 +33,7 @@ histórico deles está no git e, para as especificações, em
      modules **sem build**, sobre Supabase. Piloto da "fase 2", ainda não
      contratado formalmente, mas **em uso real desde 15/10/2026**.
 - **Tudo está em produção** em <https://advocaciafl.com.br> e
-  <https://advocaciafl.com.br/sistema>. Testes: **189/189 JS, 611/611
+  <https://advocaciafl.com.br/sistema>. Testes: **193/193 JS, 640/640
   SQL**, site 19 páginas OK. Último pacote: pedidos de 21/10 (§9).
 - **Planos gratuitos** (Supabase Free, Vercel Hobby). Para uso comercial de
   verdade: Vercel Pro US$ 20 + Supabase Pro US$ 25/mês (backup diário).
@@ -174,7 +174,7 @@ sistema/              SPA (index.html, css/sistema.css, js/)
   js/escritorio.js    identidade (nome, endereço, e-mail, CONTA_GOOGLE)
   testes/             node --test (*.test.mjs), inclusive o ponta a ponta do Google
 supabase/
-  migrations/         40 migrações (15/09 → 21/10/2026), aplicadas em produção
+  migrations/         41 migrações (15/09 → 21/10/2026), aplicadas em produção
   functions/          5 funções de borda (handler.js testável + index.ts)
   testes/             SQL por módulo (pg_temp.t, bloco desfeito no fim)
 docs/operacao/        backup-restauracao.md
@@ -210,8 +210,8 @@ dist/                 saída do build (fora do git)
 ### Testar
 | Comando | O quê | Hoje |
 |---|---|---|
-| `npm run sistema:test` | regras JS + ponta a ponta do Google (PGlite + Google fictício) | 189/189 |
-| `npm run banco:test [filtro]` | todas as migrações no PGlite + `supabase/testes/*.sql` + ensaio da migração sobre dados antigos | 611/611 |
+| `npm run sistema:test` | regras JS + ponta a ponta do Google (PGlite + Google fictício) | 193/193 |
+| `npm run banco:test [filtro]` | todas as migrações no PGlite + `supabase/testes/*.sql` + ensaio da migração sobre dados antigos | 640/640 |
 | `npm run build` / `npm run check` | gera `dist/` / links, âncoras, meta e SEO do site | 19 páginas OK |
 
 - **Navegador automatizado:** Playwright do runtime do Codex
@@ -279,12 +279,12 @@ Detalhes técnicos de cada um no `sistema/README.md`.
 | Módulo | O essencial |
 |---|---|
 | **Hoje** (`#/inicio`) | Quadro "Seu dia" (compromissos + tarefas numa linha do tempo, "Agora", amanhã ao lado), Financeiro, intimações, contatos, aniversários. Botões rápidos Chegou/Realizado/Faltou/Iniciar atendimento. |
-| **Agenda** | Grade semanal (lista no celular), filtro "Todos / Só eu" + chips (lembrado no navegador), particular = "Ocupado" para os outros, conflito com intervalo mínimo, Remarcar (pede nova data; liga antigo↔novo), Voltar para agendado, Exportar .ics, Imprimir, Configurar (admin), **Google Agenda nos dois sentidos** (§8). |
+| **Agenda** | Grade semanal (lista no celular), filtro "Todos / Só eu" + chips (lembrado no navegador), particular = "Ocupado" para os outros, conflito com intervalo mínimo, Remarcar (pede nova data; liga antigo↔novo), Voltar para agendado, Exportar .ics, Imprimir, Configurar (admin), **Google Agenda nos dois sentidos** (§8). "Iniciar atendimento" também sem cliente vinculado (escolhe-se na hora). |
 | **Contatos** | Leads do formulário do site (`receber-contato`), com página/campanha/consentimento. |
 | **Clientes / Processos** | Cadastro completo, vários contatos, etiquetas, CEP, filiação em mãe e pai; processos CNJ validados. O campo Cliente dos formulários acha por parte do nome, sem acento, e pelo CPF com ou sem pontos. |
 | **Documentos** | 8 modelos (procuração, contratos, declaração, ficha de atendimento…), editor estilo Word, imprimir. **Textos jurídicos ainda sem revisão do escritório.** |
-| **Atualizações** | Relato de atendimento com **cronômetro** (prova de tempo ao cliente); não se apaga. |
-| **Tarefas e Prazos** | Delegação, cores por prazo, prazo em horas, contagem automática sugerida (CPC/CLT/CPP) — sempre com conferência humana. |
+| **Atualizações** | Relato de atendimento com **cronômetro** (prova de tempo ao cliente); "Anotar" escreve o relato com o relógio correndo; não se apaga. |
+| **Tarefas e Prazos** | Delegação, cores por prazo, prazo em horas, contagem automática sugerida (CPC/CLT/CPP) — sempre com conferência humana. A intimação gera prazo **ou tarefa**. |
 | **Intimações / DJEN** | Busca no DJEN **pelo navegador** (a API recusa fora do Brasil), captura diária, conferência → prazo/audiência/tarefa. Feriados em "Feriados e prazos". **Processos que o escritório não acompanha** (os do Marlon): as intimações deles chegam já arquivadas. Filtro por advogado. |
 | **Financeiro** | Painel, alertas, recebíveis, em atraso, contratos (C001/AAAA, fixo, êxito, **fixo + êxito**, **encadeado**, **acordo com repasse**), contas do escritório, contas financeiras, fechamento mensal/anual, 9 relatórios (XLSX/CSV), recibos, anexos, importação da planilha antiga. Sem integração bancária (decisão). |
 | **Site** | Publicações e campanhas no banco; "Publicar o site" chama o Deploy Hook (salvar ≠ publicar). Provimento 205/2021 lembrado no editor. |
@@ -376,7 +376,7 @@ orquestração, `eventos.js` = tradução pura), migrações `2026102018…` a
 | 15/10 | **Começa o uso real** pelos advogados |
 | 19/10 | Pedidos do grupo: e-mail contato@, Criminal/Imobiliário, fixo+êxito, encadeado, acordo com repasse; caça a bugs 1; domínio `advocaciafl.com.br` |
 | 20/10 | Respostas dos advogados (direto ao cliente, cota de encargos); limpeza dos dados de teste; convites; DNS de e-mail; Search Console; **Google Agenda nos dois sentidos**; Remarcar; caça a bugs 2 + revisão de design |
-| 21/10 | Pedidos do grupo: campo Cliente com busca por nome/CPF, processos que o escritório não acompanha (intimações do Marlon), filiação em mãe e pai (migração 38; `sistema/README.md` → Pedidos dos advogados); esqueleto de carregamento nas telas principais; validade do link de e-mail de volta a 1 h |
+| 21/10 | Pedidos do grupo: campo Cliente com busca por nome/CPF, processos que o escritório não acompanha (intimações do Marlon), filiação em mãe e pai (migração 38; `sistema/README.md` → Pedidos dos advogados); esqueleto de carregamento nas telas principais; validade do link de e-mail de volta a 1 h; pedidos do Guilherme: tarefa da intimação, posição do cliente no processo, atendimento sem cliente e "Anotar" (migração 39) |
 
 ---
 

@@ -58,7 +58,11 @@ CPF; as intimações dos processos do Marlon continuam chegando porque a
 procuração tem os outros advogados (Vinícius) → **"não acompanhar" por
 processo**, nunca pela OAB dele (esconderia processos do escritório);
 filiação em dois campos, mãe e pai (Guilherme). Detalhes: `sistema/README.md`
-(Pedidos dos advogados).
+(Pedidos dos advogados). No mesmo dia, o Guilherme: tarefa (não só prazo) a
+partir da intimação; **posição do cliente no processo** (autor, réu,
+exequente…); atendimento sem cliente vinculado não deixava ligar o
+cronômetro, e não dava para escrever durante → "Iniciar atendimento" sempre
+e "Anotar" no cronômetro. Detalhes: `sistema/README.md` (Pedidos do Guilherme).
 
 ---
 

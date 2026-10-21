@@ -1795,6 +1795,11 @@ a.dia-item__corpo:hover { background: var(--c-realce); }
   color: var(--c-ink-claro);
 }
 .cronometro-global .botao:hover { border-color: var(--c-mint); }
+/* Na lateral: nome, tempo e, embaixo, Anotar e Parar do mesmo tamanho. */
+.lateral__rodape .cronometro-global__tempo { flex: 1 1 100%; }
+.lateral__rodape .cronometro-global .botao { flex: 1 1 0; margin-left: 0; }
+/* No topo do celular, os dois à direita do tempo. */
+.cronometro-global .botao + .botao { margin-left: 0; }
 
 /* No celular, o relógio cabe na própria linha do topo (que tem altura fixa):
    o "Advocacia" da marca dá lugar a ele, e o nome do cliente encurta. */
@@ -1804,7 +1809,8 @@ a.dia-item__corpo:hover { background: var(--c-realce); }
   .topo-movel .cronometro-global__tempo { font-size: 13px; }
   .topo-movel:has(.cronometro-global:not([hidden])) .marca__nome { display: none; }
 }
-@media (max-width: 380px) {
+/* Com Anotar e Parar, o nome do cliente só cabe no topo de celular largo. */
+@media (max-width: 480px) {
   .topo-movel .cronometro-global__nome { display: none; }
 }
 

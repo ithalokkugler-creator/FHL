@@ -79,7 +79,8 @@ export default async function telaInicio(ctx) {
         avisarErro(erro);
       }
     },
-    chegou: (el) => alterar(el.dataset.id, { chegada_em: new Date().toISOString() }, 'Chegada registrada.'),
+    chegou: (el) => alterar(el.dataset.id, { chegada_em: new Date().toISOString() },
+      pode.clientes() ? 'Chegada registrada. Ao começar, use “Iniciar atendimento”: o cronômetro liga e dá para anotar durante.' : 'Chegada registrada.'),
     realizado: (el) => alterar(el.dataset.id, { situacao: 'realizado' }, 'Marcado como realizado.'),
     faltou: (el) => alterar(el.dataset.id, { situacao: 'faltou' }, 'Marcado como falta.'),
   });
@@ -397,7 +398,7 @@ function itemCompromisso(c, agora) {
         ${esperando ? html`<span class="dia-item__selos"><span class="selo selo--alerta">Cliente aguardando há ${minutos} min</span></span>` : ''}
         ${acoes
           ? html`<span class="dia-item__acoes">
-            ${pode.clientes() && c.cliente_id && c.tipo === 'atendimento'
+            ${pode.clientes() && c.tipo === 'atendimento'
               ? html`<button type="button" class="botao botao--pequeno botao--primario" data-acao="iniciar-atendimento" data-id="${c.id}">Iniciar atendimento</button>`
               : ''}
             ${c.tipo === 'atendimento' && !c.chegada_em ? html`<button type="button" class="botao botao--pequeno" data-acao="chegou" data-id="${c.id}">Chegou</button>` : ''}

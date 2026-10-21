@@ -73,8 +73,8 @@ begin
   insert into public.clientes_contatos (cliente_id, tipo, nome, telefone, email, recebe_cobranca)
   values (c_emp, 'financeiro', 'Financeiro da Loja Fictícia', '41900000009', 'financeiro@example.test', true);
 
-  insert into public.processos (id, cliente_id, numero, titulo, area, tribunal, orgao, responsavel_id, situacao) values
-    (v_proc, c_jose, '00012342220258160001', 'Ação Fictícia de Demonstração', 'civel', 'TJPR', 'Vara fictícia', m_socia, 'em_andamento');
+  insert into public.processos (id, cliente_id, numero, titulo, area, tribunal, orgao, responsavel_id, situacao, posicao_cliente) values
+    (v_proc, c_jose, '00012342220258160001', 'Ação Fictícia de Demonstração', 'civel', 'TJPR', 'Vara fictícia', m_socia, 'em_andamento', 'Autor(a)');
 
   insert into public.contatos (canal, nome, email, telefone, mensagem, pagina, consentimento_em, situacao) values
     ('site', 'João Fictício — Site', 'joao@example.test', '41900000010', 'Mensagem de demonstração.', '/contato.html', now(), 'novo'),
@@ -280,6 +280,11 @@ begin
      ((hoje)::text || ' 15:00:00-03')::timestamptz, c_jose),
     (m_admin, 'atendimento', 'online', 'Retorno fictício', ((hoje + 2)::text || ' 10:00:00-03')::timestamptz,
      ((hoje + 2)::text || ' 10:30:00-03')::timestamptz, c_emp);
+  -- Pedido do Guilherme (21/10): atendimento de hoje SEM cliente vinculado,
+  -- como a reserva que vem do Google — "Iniciar atendimento" pede o cliente.
+  insert into public.compromissos (membro_id, tipo, modalidade, titulo, inicio, fim) values
+    (m_admin, 'atendimento', 'presencial', 'Atendimento — rapaz sem cadastro (fictício)', ((hoje)::text || ' 17:00:00-03')::timestamptz,
+     ((hoje)::text || ' 18:00:00-03')::timestamptz);
 
   perform set_config('request.jwt.claims', '', false);
 end

@@ -11,9 +11,9 @@ permissão por módulo e registro de tudo. É o piloto da fase 2 descrita em
 rodando nos planos gratuitos do Supabase e da Vercel.
 
 **Estado (21/10/2026):** tudo o que este arquivo descreve está **em
-produção** em <https://advocaciafl.com.br/sistema> — as 40 migrações
+produção** em <https://advocaciafl.com.br/sistema> — as 41 migrações
 aplicadas e as 5 funções de borda publicadas — e os advogados usam desde
-15/10. **189/189 testes JS e 611/611 verificações SQL.** Contas, como
+15/10. **193/193 testes JS e 640/640 verificações SQL.** Contas, como
 publicar, armadilhas e pendências: [`HANDOFF.md`](../HANDOFF.md). As
 especificações originais (E0/F1–F9, DOCX T01–T17, pedidos de 19/10, red
 team de 11/10) estão em [`docs/historico/`](../docs/historico/).
@@ -43,6 +43,9 @@ site" na lateral e "Voltar ao site" na tela de entrada.
   (parte paga direto ao cliente, cota própria de encargos); Google Agenda do
   contato@ com sincronização nos dois sentidos, Remarcar e a caça a bugs 2 —
   ver [Agenda](#agenda).
+- **21/10:** [pedidos do Guilherme](#pedidos-do-guilherme-2110): tarefa a
+  partir da intimação, posição do cliente no processo, atendimento sem
+  cliente vinculado e "Anotar" com o cronômetro correndo.
 - **21/10:** [pedidos dos advogados](#pedidos-dos-advogados-2110): campo
   Cliente que acha por parte do nome e pelo CPF, processos que o escritório
   não acompanha (as intimações do Marlon) e filiação em mãe e pai.
@@ -462,6 +465,38 @@ Migração `20261021120000_pedidos_advogados_2110`, teste
   mãe e pai, ou o texto antigo enquanto não for separado. `salvar_cliente`
   não apaga mãe e pai quando uma tela antiga (sem os campos) salva.
 
+## Pedidos do Guilherme (21/10)
+
+Migração `20261021200000_pedidos_guilherme_2110`, testes
+`supabase/testes/pedidos-guilherme-2110.sql` e
+`sistema/testes/pedidos-guilherme-2110.test.mjs`.
+
+- **Tarefa a partir da intimação** ("não consigo lançar tarefa, o sistema
+  exige que seja prazo"). `criar_prazo_intimacao` recusava tudo que não fosse
+  prazo — trocar o tipo no formulário dava "Escolha prazo processual". Agora
+  aceita tarefa comum, ligada à intimação e com a conferência gravada junto;
+  a conferência tem "Gerar tarefa" ao lado de "Gerar prazo".
+- **Posição do cliente no processo** (`processos.posicao_cliente`, até 60
+  letras). O formulário oferece, por polo, as posições que o Projudi/PJe dão
+  às partes — Autor(a), Requerente, Reclamante, Exequente, Recorrente,
+  Apelante, Agravante, Embargante, Impetrante; Réu/Ré, Requerido(a),
+  Reclamado(a), Executado(a), Recorrido(a), Apelado(a), Agravado(a),
+  Embargado(a); Terceiro(a) interessado(a) — e "Outra…" com texto livre
+  (`POSICOES_CLIENTE` em `dominio/clientes.js`). Aparece na lista de
+  Processos (com filtro), na ficha do cliente e no processo escolhido na
+  conferência da intimação.
+- **Atendimento sem cliente vinculado.** O atendimento das 17h do Vinícius
+  (21/10) não tinha cliente: "Iniciar atendimento" nem aparecia, ele marcou
+  "Chegou" e depois "Realizado", sem cronômetro. Agora o botão aparece sempre
+  (Agenda e Hoje); sem cliente, o diálogo pede para escolher ou cadastrar
+  ("Novo"), e `iniciar_cronometro` liga o cliente ao compromisso na mesma
+  transação. "Chegou" avisa como ligar o cronômetro.
+- **"Anotar" no cronômetro** (lateral; no celular, no topo). Escreve o relato
+  e a próxima providência com o relógio correndo: grava sozinho a cada 20 s
+  de digitação, ao fechar (Esc, ×, Fechar) e em "Salvar" — sem um registro no
+  histórico por tecla. Só grava na atividade ainda aberta: parada em outra
+  aba, avisa e não reescreve. O "Parar" já abre com o texto.
+
 ## Operação, segurança e LGPD (08/10)
 
 - **Saída por inatividade**: minutos em Operação e LGPD (padrão 30), com
@@ -698,6 +733,7 @@ quem não é sócio.
 | 20261020210000 | `agenda_google_destravar` | `where unica` em destravar e desligar (o `safeupdate` do Supabase recusava) |
 | 20261020220000 | `agenda_remarcar` | Remarcar com a nova data (`remarcar_compromisso`, `compromissos.remarcado_para`) e voltar para agendado |
 | 20261020230000 | `agenda_revisao` | Caça a bugs 2: histórico de particular só do dono (nem quem audita), `remarcado_para` só do mesmo responsável e "remarcado" só com o novo horário, situação no Google sem particular alheio |
+| 20261021200000 | `pedidos_guilherme_2110` | Tarefa a partir da intimação (`criar_prazo_intimacao` aceita `tarefa`), `processos.posicao_cliente` e `iniciar_cronometro` que liga o cliente ao atendimento sem cliente |
 | 20261021120000 | `pedidos_advogados_2110` | Filiação em mãe e pai (`clientes_detalhes.filiacao_mae/_pai`, `salvar_cliente`) e processos que o escritório não acompanha (`processos_nao_acompanhados`, `nao_acompanhar_processo()`, `importar_intimacoes` arquiva na chegada) |
 
 As seis primeiras versões foram conferidas no projeto remoto. As oito novas

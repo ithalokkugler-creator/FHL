@@ -66,8 +66,8 @@ const camposDoBloqueio = () => html`
 
 /**
  * Nova tarefa (com `cliente_id` ou `iniciais`) ou edição (`tarefa`). Com
- * `iniciais.intimacao_id`, o prazo nasce ligado à intimação e a conferência
- * dela é gravada junto (criar_prazo_intimacao). Com `sugerir`, a data fatal
+ * `iniciais.intimacao_id`, a tarefa ou o prazo nasce ligado à intimação e a
+ * conferência dela é gravada junto (criar_prazo_intimacao). Com `sugerir`, a data fatal
  * sugerida já vem calculada ao abrir.
  */
 export async function formularioTarefa({ tarefa = null, cliente_id = null, iniciais = {}, sugerir = false } = {}) {
@@ -90,7 +90,8 @@ export async function formularioTarefa({ tarefa = null, cliente_id = null, inici
     if (antigo) responsaveis.push(antigo);
   }
   const tipos = [['tarefa', 'Tarefa'], ...(editaPrazo || t.tipo === 'prazo' ? [['prazo', 'Prazo processual']] : [])];
-  const titulo = tarefa ? 'Editar tarefa / prazo' : t.intimacao_id ? 'Gerar prazo da intimação' : 'Nova tarefa / prazo';
+  const titulo = tarefa ? 'Editar tarefa / prazo'
+    : t.intimacao_id ? `Gerar ${t.tipo === 'prazo' ? 'prazo' : 'tarefa'} da intimação` : 'Nova tarefa / prazo';
   // Em andamento volta a pendente por aqui. Concluída só sai por "Reabrir",
   // que pede o motivo (o banco recusa de outro jeito).
   const mudaSituacao = tarefa && t.situacao !== 'concluida';

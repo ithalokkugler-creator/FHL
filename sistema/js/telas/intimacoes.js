@@ -43,8 +43,10 @@ const COLUNAS_NAO_ACOMPANHADOS = 'id,numero,motivo,criado_em,criado_por';
 /** "TJPR · Vara cível" sem separador sobrando quando falta um dos dois. */
 const juntar = (...partes) => partes.filter(Boolean).join(' · ');
 
+// A posição do cliente ajuda a ler a intimação (quem é intimado de quê).
 const preencherProcessos = (form, processos, atual) => desenhar(form.processo_id, opcoes(
-  processos.filter((p) => p.cliente_id === form.cliente_id.value).map((p) => [p.id, p.titulo]), atual, { vazio: 'Sem processo' }));
+  processos.filter((p) => p.cliente_id === form.cliente_id.value)
+    .map((p) => [p.id, p.posicao_cliente ? `${p.titulo} (nosso cliente: ${p.posicao_cliente})` : p.titulo]), atual, { vazio: 'Sem processo' }));
 
 /** Advogados do escritório na comunicação — "Guilherme, Marlon (saiu)". */
 const doEscritorio = (i) => membrosNaComunicacao(i.advogados, estado.membros)
@@ -144,7 +146,7 @@ async function buscarDiario(consultas) {
 // Conferência
 // ---------------------------------------------------------------------------
 
-const PEDEM_CONFERENCIA = ['conferir', 'prazo', 'audiencia'];
+const PEDEM_CONFERENCIA = ['conferir', 'prazo', 'tarefa', 'audiencia'];
 const PEDEM_MOTIVO = ['arquivar', 'nao_acompanhar'];
 
 async function conferirIntimacao(i, clientes, processos, naoAcompanhados = []) {
@@ -154,6 +156,7 @@ async function conferirIntimacao(i, clientes, processos, naoAcompanhados = []) {
   const acoes = [
     ['conferir', 'Só conferir'],
     ['prazo', 'Gerar prazo'],
+    ['tarefa', 'Gerar tarefa'],
     ...(pode.agenda() && !i.compromisso_id ? [['audiencia', 'Lançar audiência']] : []),
     ['vincular', 'Salvar vínculo / observações'],
     ['arquivar', 'Arquivar'],
@@ -280,6 +283,23 @@ async function conferirIntimacao(i, clientes, processos, naoAcompanhados = []) {
   const processo = processos.find((p) => p.id === n.processo_id);
   const responsavel = processo?.responsavel_id || n.membro_id || estado.membro.id;
 
+  if (resultado.acao === 'tarefa') {
+    // Providência que não é prazo processual (juntar documento, falar com o
+    // cliente…): nasce ligada à intimação e a confere, como o prazo (pedido
+    // do Guilherme, 21/10). Dá para trocar para prazo no próprio formulário.
+    return formularioTarefa({
+      iniciais: {
+        tipo: 'tarefa',
+        titulo: n.tipo_comunicacao || 'Tarefa da intimação',
+        descricao: n.texto,
+        cliente_id: n.cliente_id,
+        processo_id: n.processo_id,
+        responsavel_id: responsavel,
+        ...(n.publicada_em ? { base_em: instante(n.publicada_em) } : {}),
+        intimacao_id: n.id,
+      },
+    });
+  }
   if (resultado.acao === 'prazo') {
     // Sugestão lida do teor ("no prazo de 15 (quinze) dias"); a contagem
     // segue a área do processo (criminal: corridos). O formulário calcula a

@@ -11,13 +11,31 @@ import { dataHora, numeroCnj, numeroCnjValido, tribunalDoNumero } from '../nucle
 import { $, aoClicar, desenhar, html } from '../nucleo/html.js';
 import { guardarConsulta } from '../nucleo/rotas.js';
 import { db } from '../nucleo/supabase.js';
-import { COLUNAS_CLIENTE, COLUNAS_PROCESSO, filtrarProcessos, prepararProcesso, SITUACOES_PROCESSO } from '../dominio/clientes.js';
+import {
+  COLUNAS_CLIENTE, COLUNAS_PROCESSO, filtrarProcessos, POSICAO_OUTRA, POSICOES_CLIENTE, posicaoConhecida, prepararProcesso, SITUACOES_PROCESSO,
+} from '../dominio/clientes.js';
 import { AREAS_JURIDICAS, cabecalho, opcoes, vazio } from './comum.js';
 import { campoCliente, ligarCampoCliente } from './clientes.js';
 import { opcoesResponsaveis } from './clientes/formulario.js';
 import { abrirHistorico } from './historico.js';
 
 const TONS = { encerrado: 'escuro', em_andamento: 'ok' };
+
+/** "Nosso cliente é": as posições usuais por polo e "Outra…" com texto livre. */
+function campoPosicao(atual) {
+  const outra = Boolean(atual) && !posicaoConhecida(atual);
+  return html`
+    <label class="campo campo--6"><span>Nosso cliente é</span>
+      <select name="posicao_cliente">
+        <option value="">Não informado</option>
+        ${POSICOES_CLIENTE.map(([grupo, lista]) => html`
+          <optgroup label="${grupo}">${lista.map((p) => html`<option value="${p}" ${p === atual ? 'selected' : ''}>${p}</option>`)}</optgroup>`)}
+        <option value="${POSICAO_OUTRA}" ${outra ? 'selected' : ''}>Outra…</option>
+      </select>
+      <span class="campo__ajuda">Como o cliente aparece neste processo: autor, réu, exequente…</span></label>
+    <label class="campo campo--6" data-posicao-outra ${outra ? '' : 'hidden'}><span>Qual posição?</span>
+      <input name="posicao_outra" value="${outra ? atual : ''}" maxlength="60" placeholder="Ex.: Inventariante, Vítima" ${outra ? 'required' : 'disabled'}></label>`;
+}
 export const seloProcesso = (situacao) => html`<span class="selo selo--${TONS[situacao] ?? 'alerta'}">${SITUACOES_PROCESSO[situacao] ?? situacao}</span>`;
 
 /** Também usada na ficha do cliente, sem a coluna Cliente. */
@@ -32,7 +50,8 @@ export function tabelaProcessos(processos, clientes = [], { mostrarCliente = tru
       </tr></thead>
       <tbody>${processos.map((p) => html`
         <tr>
-          <td><strong>${p.titulo}</strong><span class="sub num">${p.numero ? numeroCnj(p.numero) : p.referencia || 'Sem número judicial'}</span></td>
+          <td><strong>${p.titulo}</strong><span class="sub num">${p.numero ? numeroCnj(p.numero) : p.referencia || 'Sem número judicial'}</span>
+            ${p.posicao_cliente ? html`<span class="sub">Nosso cliente: <strong>${p.posicao_cliente}</strong></span>` : ''}</td>
           ${mostrarCliente ? html`<td><a href="#/clientes/${p.cliente_id}">${nomes.get(p.cliente_id) ?? 'Cliente'}</a></td>` : ''}
           <td>${AREAS_JURIDICAS[p.area]}</td>
           <td>${p.tribunal ?? '—'}<span class="sub">${p.orgao ?? ''}</span></td>
@@ -71,6 +90,7 @@ export async function formularioProcesso({ cliente_id = null, processo = null } 
           <span class="campo__ajuda">Caso consultivo ou extrajudicial pode ficar sem número.</span></label>
         <label class="campo campo--6"><span>Referência / protocolo</span><input name="referencia" value="${p.referencia ?? ''}" maxlength="200"></label>
         <label class="campo"><span>Título do processo ou caso</span><input name="titulo" value="${p.titulo ?? ''}" required maxlength="200"></label>
+        ${campoPosicao(p.posicao_cliente)}
         <label class="campo campo--6"><span>Área jurídica</span><select name="area" required>${opcoes(Object.entries(AREAS_JURIDICAS), p.area, { vazio: 'Escolha a área' })}</select></label>
         <label class="campo campo--6"><span>Situação</span><select name="situacao">${opcoes(Object.entries(SITUACOES_PROCESSO), p.situacao)}</select></label>
         <label class="campo campo--6"><span>Tribunal</span><input name="tribunal" value="${p.tribunal ?? ''}" maxlength="100" placeholder="TJPR, TRT9, TRF4…"></label>
@@ -81,6 +101,14 @@ export async function formularioProcesso({ cliente_id = null, processo = null } 
       </div>`,
     aoAbrir: (dialogo, form) => {
       if (!fixo) ligarCampoCliente(form, ativos);
+      // "Outra…" abre o campo de texto; voltar à lista o fecha (e ele não vai junto).
+      form.posicao_cliente.addEventListener('change', () => {
+        const outra = form.posicao_cliente.value === POSICAO_OUTRA;
+        form.querySelector('[data-posicao-outra]').hidden = !outra;
+        form.posicao_outra.disabled = !outra;
+        form.posicao_outra.required = outra;
+        if (outra) form.posicao_outra.focus();
+      });
       form.numero.addEventListener('input', () => { form.querySelector('[data-outro-cliente]').hidden = true; });
       // Ao sair do campo: confere o dígito, aplica a máscara e sugere o tribunal.
       form.numero.addEventListener('input', () => form.numero.setCustomValidity(''));
@@ -133,6 +161,7 @@ export default async function telaProcessos(ctx) {
     area: AREAS_JURIDICAS[c.area] ? c.area : '',
     responsavel: c.responsavel ?? '',
     tribunal: c.tribunal ?? '',
+    posicao: c.posicao ?? '',
     busca: c.busca ?? '',
   };
   let processos = [];
@@ -147,6 +176,7 @@ export default async function telaProcessos(ctx) {
     ]);
     if (!ctx.ativa()) return;
     const tribunais = [...new Set(processos.map((p) => p.tribunal).filter(Boolean))].sort();
+    const posicoes = [...new Set(processos.map((p) => p.posicao_cliente).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
 
     desenhar(ctx.raiz, html`
       ${cabecalho('Processos', 'Casos judiciais, administrativos, consultivos e extrajudiciais', html`
@@ -156,6 +186,7 @@ export default async function telaProcessos(ctx) {
         <label class="campo"><span>Área</span><select name="area">${opcoes(Object.entries(AREAS_JURIDICAS), f.area, { vazio: 'Todas' })}</select></label>
         <label class="campo"><span>Responsável</span><select name="responsavel">${opcoesResponsaveis(f.responsavel, { vazio: 'Todos' })}</select></label>
         <label class="campo"><span>Tribunal</span><select name="tribunal">${opcoes(tribunais.map((t) => [t, t]), f.tribunal, { vazio: 'Todos' })}</select></label>
+        <label class="campo"><span>Nosso cliente é</span><select name="posicao">${opcoes([...posicoes.map((p) => [p, p]), ['sem', 'Não informado']], f.posicao, { vazio: 'Todas as posições' })}</select></label>
         <label class="campo campo--busca"><span>Buscar</span><input type="search" name="busca" value="${f.busca}" placeholder="Cliente, número, título ou referência"></label>
       </form>
       <section class="painel" data-lista></section>`);

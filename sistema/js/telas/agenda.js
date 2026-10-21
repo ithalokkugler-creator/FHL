@@ -585,7 +585,8 @@ function detalhe(c, { google = null, estadoGoogle = null, remarcacao = null } = 
   // Realizado, faltou e remarcado se desfazem (clique errado, teste).
   const podeVoltar = c.pode_editar && c.situacao !== 'agendado';
   const doGoogle = estadoGoogle?.origem === 'google' && estadoGoogle.no_google;
-  const podeIniciar = podeMarcar && pode.clientes() && c.cliente_id && c.tipo === 'atendimento' && noFuso(c.inicio).dia === hoje();
+  // Também sem cliente vinculado (reserva do Google): o cliente se escolhe ao iniciar.
+  const podeIniciar = podeMarcar && pode.clientes() && c.tipo === 'atendimento' && noFuso(c.inicio).dia === hoje();
   // Ligado ao Google com agenda do responsável: vai sozinho, e o botão só
   // duplicaria. Sem isso, a cópia manual: particular só pelas mãos do dono,
   // na conta do escritório e na subagenda do responsável.
@@ -658,7 +659,9 @@ function detalhe(c, { google = null, estadoGoogle = null, remarcacao = null } = 
           } else if (alvo.dataset.papel === 'situacao') {
             const valor = alvo.dataset.valor;
             await db.alterar('compromissos', [['id', 'eq', c.id]], valor === 'chegou' ? { chegada_em: new Date().toISOString() } : { situacao: valor }, 'id');
-            avisar(valor === 'chegou' ? 'Chegada registrada.' : 'Situação atualizada.');
+            avisar(valor !== 'chegou' ? 'Situação atualizada.'
+              : podeIniciar ? 'Chegada registrada. Ao começar, use “Iniciar atendimento”: o cronômetro liga e dá para anotar durante.'
+                : 'Chegada registrada.', 'ok', valor === 'chegou' && podeIniciar ? 8000 : undefined);
             fechar(true);
           } else if (alvo.dataset.papel === 'remarcar') {
             const novo = await remarcar(c, { doGoogle });
