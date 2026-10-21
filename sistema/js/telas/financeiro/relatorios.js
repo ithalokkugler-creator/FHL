@@ -563,7 +563,7 @@ async function copiaOperacional() {
   if (pode.agenda()) tabelas.push('config_agenda', 'compromissos');
   if (pode.site()) tabelas.push('publicacoes', 'campanhas', 'site_deploys');
   tabelas.push('processos', 'tarefas', 'feriados');
-  if (pode.prazos()) tabelas.push('intimacoes', 'intimacoes_consultas');
+  if (pode.prazos()) tabelas.push('intimacoes', 'intimacoes_consultas', 'processos_nao_acompanhados');
   if (pode.clientes()) tabelas.push('contatos', 'clientes_detalhes', 'clientes_contatos', 'documentos', 'atualizacoes');
 
   const copia = {

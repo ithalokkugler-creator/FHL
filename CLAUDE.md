@@ -52,6 +52,14 @@ sozinho para a subagenda do responsável, e o que se marca no Google (inclusive
 a reserva do cliente) aparece no sistema. O sistema só altera no Google o que
 ele mesmo criou. Detalhes: `HANDOFF.md` §8 e `sistema/README.md` (Agenda).
 
+**Pedidos de 21/10/2026:** o campo Cliente dos formulários não achava a
+cliente pelo nome nem pelo CPF (Vinícius) → busca própria por parte do nome e
+CPF; as intimações dos processos do Marlon continuam chegando porque a
+procuração tem os outros advogados (Vinícius) → **"não acompanhar" por
+processo**, nunca pela OAB dele (esconderia processos do escritório);
+filiação em dois campos, mãe e pai (Guilherme). Detalhes: `sistema/README.md`
+(Pedidos dos advogados).
+
 ---
 
 ## 1. Quem é quem

@@ -168,7 +168,9 @@ function dadosCompletos(cliente, d, pj) {
       ['Nacionalidade', d.nacionalidade],
       ['Estado civil', ESTADOS_CIVIS[d.estado_civil]],
       ['Profissão', d.profissao],
-      ['Filiação', d.filiacao],
+      ['Filiação materna (mãe)', d.filiacao_mae],
+      ['Filiação paterna (pai)', d.filiacao_pai],
+      ...(d.filiacao ? [['Filiação (como estava antes — separe em mãe e pai em "Editar dados")', d.filiacao]] : []),
       ['Concordância nos documentos', d.flexao === 'm' ? 'O cliente' : d.flexao === 'f' ? 'A cliente' : 'Neutra (a)'],
     ])}
     ${grupo('Endereço', [

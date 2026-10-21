@@ -15,7 +15,7 @@ import { guardarConsulta } from '../nucleo/rotas.js';
 import { db } from '../nucleo/supabase.js';
 import { COLUNAS_CONTATO, filtrarContatos, origemContato, resumirOrigens } from '../dominio/contatos.js';
 import { mensagemRespostaContato } from '../dominio/mensagens.js';
-import { campoCliente, carregarClientes, ligarCampoCliente, rotuloCliente } from './clientes.js';
+import { campoCliente, carregarClientes, definirCliente, ligarCampoCliente } from './clientes.js';
 import { formularioCompleto } from './clientes/formulario.js';
 import { cabecalho, CANAIS_CONTATO, indicador, opcoes, seloContato, SITUACOES_CONTATO, vazio } from './comum.js';
 import { abrirHistorico } from './historico.js';
@@ -280,13 +280,7 @@ async function converterContato(c) {
         try {
           const novo = await formularioCompleto(null, { nome: c.nome, email: c.email, telefone: c.telefone });
           if (!novo) return;
-          clientes.push(novo);
-          const opcao = document.createElement('option');
-          opcao.value = rotuloCliente(novo);
-          $(`#${form.cliente_texto.getAttribute('list')}`, dialogo).append(opcao);
-          form.cliente_texto.value = rotuloCliente(novo);
-          form.cliente_texto.setCustomValidity('');
-          form.cliente_id.value = novo.id;
+          definirCliente(form, novo);
           avisar('Cliente cadastrado. Clique em Vincular cliente para concluir.');
         } catch (erro) {
           avisarErro(erro);

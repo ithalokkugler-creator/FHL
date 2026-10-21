@@ -303,6 +303,11 @@ const declaracaoComparecimento = modelo({
 /** Linha da ficha: rótulo e valor, ou dois pares lado a lado. */
 const linhaFicha = (rotulo, valor, rotulo2, valor2, classe = '') => html`<tr><th>${rotulo}</th><td ${rotulo2 ? '' : html`colspan="3"`} ${classe ? html`class="${classe}"` : ''}>${valor}</td>${rotulo2 ? html`<th>${rotulo2}</th><td>${valor2}</td>` : ''}</tr>`;
 
+/** Mãe e pai em campos próprios desde 21/10; cadastro antigo tem só o texto "Filiação". */
+const linhaFiliacao = (d) => (d.filiacao && !d.filiacao_mae && !d.filiacao_pai
+  ? linhaFicha('Filiação', d.filiacao)
+  : linhaFicha('Mãe', dado(d.filiacao_mae, 'mãe'), 'Pai', dado(d.filiacao_pai, 'pai')));
+
 const fichaAtendimento = modelo({
   id: 'ficha_atendimento',
   titulo: 'Ficha de Atendimento ao Assistido',
@@ -316,7 +321,7 @@ const fichaAtendimento = modelo({
     <table class="doc-ficha"><tbody>
       ${linhaFicha('Nome', dado(c.nome, 'NOME DO CLIENTE'), 'CPF/CNPJ', dado(documento(c.documento), 'CPF/CNPJ'))}
       ${linhaFicha('Nacionalidade', dado(d.nacionalidade, 'nacionalidade'), 'DN', dado(data(d.nascimento), 'nascimento'))}
-      ${linhaFicha('Filiação', dado(d.filiacao, 'filiação'))}
+      ${linhaFiliacao(d)}
       ${linhaFicha('Endereço', endereco(d))}
       ${linhaFicha('Estado civil', estadoCivil(d), 'Profissão', dado(d.profissao, 'profissão'))}
       ${linhaFicha('e-mail', dado(c.email, 'e-mail'), 'Telefone', dado(telefone(c.telefone), 'telefone'))}

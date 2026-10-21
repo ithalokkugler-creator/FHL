@@ -11,7 +11,7 @@ import { proximoAniversario } from './aniversarios.js';
 export const COLUNAS_CLIENTE = 'id,nome,documento,telefone,email,observacoes,ativo,criado_em,alterado_em';
 export const CAMPOS_DETALHES = [
   'tipo_pessoa', 'flexao', 'rg', 'nascimento', 'nacionalidade', 'estado_civil', 'profissao', 'filiacao',
-  'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf',
+  'filiacao_mae', 'filiacao_pai', 'cep', 'logradouro', 'numero', 'complemento', 'bairro', 'cidade', 'uf',
   'recado_nome', 'recado_relacao', 'recado_telefone', 'recado_observacao',
   'representante_nome', 'representante_documento', 'representante_relacao', 'representante_qualificacao',
   'banco', 'agencia', 'conta', 'pix', 'responsavel_id', 'nome_fantasia',
@@ -80,6 +80,10 @@ export function prepararCliente(d, id = null) {
   if (detalhes.nascimento && !dataValida(detalhes.nascimento)) throw new Error('Confira a data de nascimento ou constituição.');
   if (detalhes.nascimento && detalhes.nascimento > hoje()) throw new Error('A data de nascimento ou constituição não pode ser posterior a hoje.');
   if (detalhes.nascimento && detalhes.nascimento < '1900-01-01') throw new Error('Confira a data de nascimento ou constituição: anterior a 1900.');
+  if ((detalhes.filiacao_mae?.length ?? 0) > 300 || (detalhes.filiacao_pai?.length ?? 0) > 300) throw new Error('Nome da mãe ou do pai: até 300 letras.');
+  // Mãe e pai em campos próprios (pedido de 21/10). Preenchido um deles, o
+  // texto antigo ("MÃE / PAI") sai do cadastro — fica no histórico.
+  if (detalhes.filiacao_mae || detalhes.filiacao_pai) detalhes.filiacao = null;
 
   detalhes.cep = soDigitos(d.cep) || null;
   if (texto(d.cep) && (!/^[\d\s-]+$/.test(d.cep) || detalhes.cep?.length !== 8)) throw new Error('CEP precisa de 8 dígitos.');
@@ -136,6 +140,104 @@ function corresponde(busca, valores) {
   if (normal.includes(busca)) return true;
   const alvo = compacto(busca);
   return busca.length >= 3 && Boolean(alvo) && valores.some((v) => v && compacto(v).includes(alvo));
+}
+
+// ---------------------------------------------------------------------------
+// Campo Cliente dos formulários (21/10/2026)
+// ---------------------------------------------------------------------------
+//
+// Antes era a lista do navegador (<datalist>): só achava do jeito que o nome
+// estava escrito, não achava CPF sem os pontos e, aberta pela seta, mostrava
+// todo mundo em vez dos que batiam — o Vinícius digitou "rosane" e não viu a
+// Rosane. Aqui: parte do nome, em qualquer ordem, com ou sem acento; CPF/CNPJ
+// e número de processo pelos dígitos, com ou sem pontuação.
+
+const normal = (s) => semAcento(s).toLocaleLowerCase('pt-BR').replace(/\s+/g, ' ').trim();
+const LIGACOES = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'd']);
+const palavras = (s) => normal(s).split(/[^a-z0-9]+/).filter((p) => p && !LIGACOES.has(p));
+
+/** O que aparece no campo depois de escolher: "Nome — 123.456.789-00". */
+const SEPARADOR = ' — ';
+
+/**
+ * Clientes que batem com o que foi digitado, os mais parecidos primeiro.
+ * Sem texto, todos em ordem alfabética. Com `processos`, o número do
+ * processo (7 dígitos ou mais) também acha o cliente — e diz qual processo.
+ * @returns {{ cliente: object, processo: object|null }[]}
+ */
+export function buscarClientes(clientes, texto, { processos = [] } = {}) {
+  const [parteNome, parteDoc = ''] = String(texto ?? '').split(SEPARADOR);
+  const busca = normal(parteNome);
+  const termos = busca.split(/[^a-z0-9]+/).filter(Boolean);
+  const digitos = soDigitos(parteDoc || (/[a-z]/.test(busca) ? '' : busca));
+  const porNome = (a, b) => a.cliente.nome.localeCompare(b.cliente.nome, 'pt-BR', { sensitivity: 'base' });
+  if (!busca && !digitos) return clientes.map((cliente) => ({ cliente, processo: null, nota: 3 })).sort(porNome);
+
+  const achados = [];
+  for (const cliente of clientes) {
+    const nome = normal(cliente.nome);
+    const doNome = palavras(cliente.nome);
+    const doc = soDigitos(cliente.documento);
+    let nota = null;
+    let processo = null;
+    if (digitos.length >= 3 && doc.includes(digitos)) nota = doc.startsWith(digitos) ? 0 : 1;
+    if (nota == null && termos.length && /[a-z]/.test(busca)) {
+      if (nome.startsWith(busca)) nota = 0;
+      else if (termos.every((t) => doNome.some((p) => p.startsWith(t)) || LIGACOES.has(t))) nota = 1;
+      else if (termos.every((t) => nome.includes(t))) nota = 2;
+    }
+    if (nota == null && digitos.length >= 7) {
+      processo = processos.find((p) => p.cliente_id === cliente.id && (p.numero ?? '').includes(digitos)) ?? null;
+      if (processo) nota = 2;
+    }
+    if (nota != null) achados.push({ cliente, processo, nota });
+  }
+  return achados.sort((a, b) => a.nota - b.nota || porNome(a, b));
+}
+
+/**
+ * O cliente que o texto do campo identifica sem dúvida: o rótulo escolhido na
+ * lista, o nome completo (sem acento/maiúsculas) ou o CPF/CNPJ inteiro.
+ * Dois clientes com o mesmo nome não se resolvem pelo nome.
+ */
+export function acharCliente(clientes, texto, rotulo) {
+  const valor = String(texto ?? '').trim();
+  if (!valor) return null;
+  const pelo = clientes.find((c) => rotulo(c) === valor);
+  if (pelo) return pelo;
+  const nome = normal(valor);
+  const mesmos = clientes.filter((c) => normal(c.nome) === nome);
+  if (mesmos.length === 1) return mesmos[0];
+  const digitos = soDigitos(valor);
+  if (!/[a-z]/i.test(semAcento(valor)) && (digitos.length === 11 || digitos.length === 14)) {
+    const doc = clientes.filter((c) => soDigitos(c.documento) === digitos);
+    if (doc.length === 1) return doc[0];
+  }
+  return null;
+}
+
+/**
+ * Destinatários da intimação que já são clientes: o nome do cliente inteiro
+ * (sem "de/da/dos") está no nome do destinatário. "ROSANE GONCALVES DOS
+ * SANTOS" acha "Rosane Gonçalves dos Santos" e "Rosane Santos"; nunca um
+ * cliente de um nome só. É sugestão: quem escolhe é o advogado — por isso
+ * diz se o nome é o mesmo (`exato`) ou só parecido, e os iguais vêm primeiro.
+ * @returns {{ cliente: object, destinatario: string, exato: boolean }[]}
+ */
+export function clientesDosDestinatarios(destinatarios, clientes) {
+  const vistos = new Set();
+  const sugestoes = [];
+  for (const d of destinatarios ?? []) {
+    const doDestinatario = new Set(palavras(d?.nome));
+    if (!doDestinatario.size) continue;
+    for (const cliente of clientes) {
+      const doCliente = palavras(cliente.nome);
+      if (vistos.has(cliente.id) || doCliente.length < 2 || !doCliente.every((p) => doDestinatario.has(p))) continue;
+      vistos.add(cliente.id);
+      sugestoes.push({ cliente, destinatario: d.nome, exato: doCliente.length === doDestinatario.size });
+    }
+  }
+  return sugestoes.sort((a, b) => b.exato - a.exato);
 }
 
 export function agruparProcessos(processos) {

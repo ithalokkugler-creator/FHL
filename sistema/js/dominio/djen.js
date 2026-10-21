@@ -26,7 +26,27 @@ export function lerOab(texto) {
   return uf && numero ? { uf, numero } : null;
 }
 
-export function urlDaConsulta(base, { numero, uf, de, ate, pagina = 1, itensPorPagina = 100 }) {
+/** A mesma chave de oabsDosMembros: "131898/PR" (sem pontos nem zeros à esquerda). */
+export function chaveOab(numero, uf) {
+  const n = String(numero ?? '').replace(/\D/g, '').replace(/^0+/, '');
+  const u = String(uf ?? '').trim().toUpperCase();
+  return n && UFS.has(u) ? `${n}/${u}` : null;
+}
+
+/**
+ * Membros do escritório — ativos ou não — entre os advogados da comunicação.
+ * Mostra, por exemplo, que a intimação veio para o Guilherme porque a
+ * procuração tem também o Marlon (que saiu).
+ */
+export function membrosNaComunicacao(advogados, membros) {
+  const chaves = new Set((advogados ?? []).map((a) => chaveOab(a?.numero_oab, a?.uf_oab)).filter(Boolean));
+  return membros.filter((m) => {
+    const oab = lerOab(m.oab);
+    return oab && chaves.has(`${oab.numero}/${oab.uf}`);
+  });
+}
+
+export function urlDaConsulta(base,{ numero, uf, de, ate, pagina = 1, itensPorPagina = 100 }) {
   const p = new URLSearchParams({
     numeroOab: numero, ufOab: uf, dataDisponibilizacaoInicio: de, dataDisponibilizacaoFim: ate,
     pagina: String(pagina), itensPorPagina: String(itensPorPagina),

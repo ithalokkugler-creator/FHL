@@ -252,6 +252,29 @@ begin
           'Comunicação fictícia cadastrada à mão. Intime-se a parte autora para manifestação no prazo de 15 (quinze) dias.',
           m_socia, c_jose, v_proc);
 
+  -- Pedidos de 21/10: a cliente já cadastrada que é destinatária de uma
+  -- intimação do DJEN (busca por nome e CPF), com o ex-sócio na procuração
+  -- (processos não acompanhados), e uma filiação antiga num texto só.
+  insert into public.clientes (id, nome, documento, telefone) values
+    ('00000000-0000-4000-8000-000000000206', 'Rosana Fictícia Gonçalves dos Santos', '11144477735', '41900000007');
+  update public.clientes_detalhes set filiacao = 'Mãe Fictícia da Silva / Pai Fictício da Silva' where cliente_id = c_jose;
+  -- Direto na tabela (a semente roda como dono): importar_intimacoes registraria uma consulta ao diário.
+  insert into public.intimacoes (fonte, djen_id, djen_hash, disponibilizada_em, publicada_em, tribunal, orgao, tipo_comunicacao,
+                                 tipo_documento, classe, numero_processo, texto, destinatarios, advogados, membro_id)
+  values
+    ('djen', 9100000001, 'ficticio9100000001', hoje - 3, hoje - 2, 'TRT9', '2ª Turma', 'Intimação', 'Acórdão',
+     'RECURSO ORDINÁRIO - RITO SUMARÍSSIMO', '00009699820255090022',
+     'PODER JUDICIÁRIO FICTÍCIO. Ficam as partes intimadas de que o acórdão proferido nos autos está disponibilizado.',
+     '[{"nome": "EMPRESA DE ONIBUS FICTICIA LTDA", "polo": "A"}, {"nome": "ROSANA FICTICIA GONCALVES DOS SANTOS", "polo": "P"}]',
+     '[{"nome": "EX-SOCIO FICTICIO", "numero_oab": "4", "uf_oab": "PR"}, {"nome": "ADMIN FICTICIO", "numero_oab": "1", "uf_oab": "PR"}]',
+     m_admin),
+    ('djen', 9100000002, 'ficticio9100000002', hoje - 3, hoje - 2, 'TJPR', 'Vara Cível Fictícia', 'Intimação', 'Despacho',
+     'Procedimento Comum Cível', '00174456020138160129',
+     'PROCESSO FICTÍCIO DO EX-SÓCIO. Intime-se a parte para se manifestar no prazo de 5 (cinco) dias.',
+     '[{"nome": "PARTE FICTICIA DO EX-SOCIO", "polo": "A"}]',
+     '[{"nome": "EX-SOCIO FICTICIO", "numero_oab": "4", "uf_oab": "PR"}, {"nome": "SOCIO FICTICIO", "numero_oab": "3", "uf_oab": "PR"}]',
+     m_socio);
+
   insert into public.compromissos (membro_id, tipo, modalidade, titulo, inicio, fim, cliente_id) values
     (m_socia, 'atendimento', 'presencial', 'Atendimento fictício', ((hoje)::text || ' 14:00:00-03')::timestamptz,
      ((hoje)::text || ' 15:00:00-03')::timestamptz, c_jose),

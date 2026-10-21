@@ -40,6 +40,53 @@ const longo = (c, nome, rotulo, max = 1000) => html`
 const grupo = (titulo, campos) => html`
   <fieldset class="cadastro-grupo"><legend>${titulo}</legend><div class="campos">${campos}</div></fieldset>`;
 
+/** "MÃE / PAI" do cadastro antigo → as duas partes, se a barra separar duas. */
+const partesDaFiliacao = (texto) => {
+  const partes = String(texto ?? '').split('/').map((p) => p.trim());
+  return partes.length === 2 && partes.every(Boolean) ? partes : null;
+};
+
+/**
+ * Até 21/10/2026 a filiação era um texto só. Ele não foi dividido sozinho (a
+ * ordem mãe / pai não é a mesma em todos os cadastros): quem abre o cadastro
+ * escolhe com um clique, e o texto antigo sai ao salvar (fica no histórico).
+ */
+function filiacaoAntiga(c) {
+  if (!c.filiacao || c.filiacao_mae || c.filiacao_pai) return '';
+  const partes = partesDaFiliacao(c.filiacao);
+  return html`
+    <div class="campo filiacao-antiga" data-filiacao-antiga>
+      <input type="hidden" name="filiacao" value="${c.filiacao}">
+      <p class="nota" data-filiacao-texto>Filiação do cadastro antigo, num campo só: <strong>${c.filiacao}</strong>.
+        ${partes ? 'Para separar nos campos acima: quem é a mãe? (O outro nome vai para o pai.)' : 'Para levar ao campo certo acima: este nome é'}</p>
+      <div class="filiacao-antiga__botoes">
+        ${partes ? html`
+          <button type="button" class="botao botao--pequeno" data-separar="mae-pai">${partes[0]}</button>
+          <button type="button" class="botao botao--pequeno" data-separar="pai-mae">${partes[1]}</button>` : html`
+          <button type="button" class="botao botao--pequeno" data-separar="mae">da mãe</button>
+          <button type="button" class="botao botao--pequeno" data-separar="pai">do pai</button>`}
+      </div>
+    </div>`;
+}
+
+function ligarFiliacaoAntiga(form) {
+  const bloco = form.querySelector('[data-filiacao-antiga]');
+  if (!bloco) return;
+  const texto = form.filiacao.value;
+  const partes = partesDaFiliacao(texto);
+  bloco.addEventListener('click', (e) => {
+    const escolha = e.target.closest('[data-separar]')?.dataset.separar;
+    if (!escolha) return;
+    const [mae, pai] = { 'mae-pai': partes ?? [], 'pai-mae': [...(partes ?? [])].reverse(), mae: [texto, ''], pai: ['', texto] }[escolha];
+    form.filiacao_mae.value = mae ?? '';
+    form.filiacao_pai.value = pai ?? '';
+    form.filiacao.value = '';
+    bloco.querySelector('[data-filiacao-texto]').textContent = `Separado. Confira os nomes acima. Ao salvar, o texto antigo ("${texto}") sai do cadastro e fica no histórico.`;
+    bloco.querySelector('.filiacao-antiga__botoes').hidden = true;
+    form.filiacao_mae.focus();
+  });
+}
+
 function corpo(c) {
   const rotulos = ROTULOS[c.tipo_pessoa] ?? ROTULOS.fisica;
   return html`
@@ -54,7 +101,9 @@ function corpo(c) {
       ${campo(c, 'nacionalidade', 'Nacionalidade')}
       <label class="campo campo--6"><span>Estado civil</span><select name="estado_civil">${opcoes(Object.entries(ESTADOS_CIVIS), c.estado_civil, { vazio: 'Não informado' })}</select></label>
       ${campo(c, 'profissao', 'Profissão')}
-      ${campo(c, 'filiacao', 'Filiação', { classe: '', max: 500 })}`)}
+      ${campo(c, 'filiacao_mae', 'Filiação materna (mãe)', { max: 300 })}
+      ${campo(c, 'filiacao_pai', 'Filiação paterna (pai)', { max: 300 })}
+      ${filiacaoAntiga(c)}`)}
     ${grupo('Contato', html`
       ${campo(c, 'telefone', 'Telefone / WhatsApp', { tipo: 'tel', max: 20 })}
       ${campo(c, 'email', 'E-mail', { tipo: 'email' })}`)}
@@ -162,6 +211,7 @@ export async function formularioCompleto(clienteId = null, iniciais = {}) {
       };
       form.tipo_pessoa.addEventListener('change', atualizarRotulos);
       ligarCep(form);
+      ligarFiliacaoAntiga(form);
       form.nome.focus();
     },
     aoEnviar: async (d) => {

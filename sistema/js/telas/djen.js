@@ -49,7 +49,7 @@ export function oabsDosMembros() {
 
 /**
  * Busca, importa e registra a consulta.
- * @returns {Promise<{ encontradas: number, novas: number, situacao: 'ok'|'parcial'|'falhou', detalhe: string }>}
+ * @returns {Promise<{ encontradas: number, novas: number, arquivadas: number, situacao: 'ok'|'parcial'|'falhou', detalhe: string }>}
  */
 export async function buscarNoDiario({ de, ate, automatica = false, aoProgresso, sinal } = {}) {
   const { usadas } = oabsDosMembros();
@@ -109,7 +109,7 @@ export async function buscarNoDiario({ de, ate, automatica = false, aoProgresso,
     p: { itens, consulta: { de, ate, oabs: usadas.map((o) => o.chave), situacao, detalhe, automatica } },
   });
   dispatchEvent(new CustomEvent('fhl:gravou', { detail: { caminho: 'intimacoes' } }));
-  return { encontradas: r.encontradas, novas: r.novas, situacao, detalhe };
+  return { encontradas: r.encontradas, novas: r.novas, arquivadas: r.arquivadas ?? 0, situacao, detalhe };
 }
 
 let capturando = null;
@@ -141,7 +141,9 @@ export function capturarDoDia() {
     const ultimaCompleta = consultas.find((c) => c.situacao === 'ok');
     const periodo = periodoDaBusca(ultimaCompleta, dia, config.dias_primeira_busca);
     const r = await buscarNoDiario({ ...periodo, automatica: true });
-    if (r.novas) avisar(`Diário de hoje: ${r.novas} intimação(ões) nova(s) para conferir.`, 'ok', 8000);
+    // As de processo não acompanhado chegam arquivadas: não há o que conferir.
+    const pendentes = r.novas - r.arquivadas;
+    if (pendentes) avisar(`Diário de hoje: ${pendentes} intimação(ões) nova(s) para conferir.`, 'ok', 8000);
     else if (r.situacao !== 'ok') avisar('A busca automática no diário ficou incompleta. Veja em Intimações.', 'erro', 8000);
     return r;
   })().catch((erro) => {

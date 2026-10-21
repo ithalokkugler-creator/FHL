@@ -10,10 +10,10 @@ permissão por módulo e registro de tudo. É o piloto da fase 2 descrita em
 (as referências "preparação 5.2", "6.5" etc. abaixo são a esse arquivo),
 rodando nos planos gratuitos do Supabase e da Vercel.
 
-**Estado (20/10/2026):** tudo o que este arquivo descreve está **em
-produção** em <https://advocaciafl.com.br/sistema> — as 39 migrações
+**Estado (21/10/2026):** tudo o que este arquivo descreve está **em
+produção** em <https://advocaciafl.com.br/sistema> — as 40 migrações
 aplicadas e as 5 funções de borda publicadas — e os advogados usam desde
-15/10. **180/180 testes JS e 576/576 verificações SQL.** Contas, como
+15/10. **189/189 testes JS e 611/611 verificações SQL.** Contas, como
 publicar, armadilhas e pendências: [`HANDOFF.md`](../HANDOFF.md). As
 especificações originais (E0/F1–F9, DOCX T01–T17, pedidos de 19/10, red
 team de 11/10) estão em [`docs/historico/`](../docs/historico/).
@@ -43,6 +43,9 @@ site" na lateral e "Voltar ao site" na tela de entrada.
   (parte paga direto ao cliente, cota própria de encargos); Google Agenda do
   contato@ com sincronização nos dois sentidos, Remarcar e a caça a bugs 2 —
   ver [Agenda](#agenda).
+- **21/10:** [pedidos dos advogados](#pedidos-dos-advogados-2110): campo
+  Cliente que acha por parte do nome e pelo CPF, processos que o escritório
+  não acompanha (as intimações do Marlon) e filiação em mãe e pai.
 
 ---
 
@@ -410,6 +413,54 @@ diferença de centavos fica com o último da lista.
   sugeridas por ano em Feriados e prazos; só contam depois de cadastradas.
 - Prazo e audiência vêm sugeridos a partir do teor ("15 (quinze) dias",
   "audiência … 12/11/2026, às 14h30"); quem confirma é a pessoa.
+- **Processos que o escritório não acompanha** (21/10): ver
+  [pedidos dos advogados](#pedidos-dos-advogados-2110).
+
+## Pedidos dos advogados (21/10)
+
+Migração `20261021120000_pedidos_advogados_2110`, teste
+`supabase/testes/pedidos-2110.sql` e `sistema/testes/pedidos-2110.test.mjs`.
+
+- **Campo Cliente** (Vinícius: "quando tento localizar o cliente ou processo
+  ele não puxa pelo nome ou CPF"). Era o `<datalist>` do navegador: só achava
+  o nome do jeito que estava escrito, não achava CPF sem os pontos e, aberto
+  pela seta, mostrava todo mundo — ele digitou "rosane" e viu outros nomes. A
+  Rosane fora cadastrada às 09h43 e a mensagem é das 09h45: a tela de
+  Intimações, aberta antes, também tinha a lista velha. Agora é uma lista do
+  sistema (`campoCliente`/`ligarCampoCliente` em `telas/clientes.js`, regras
+  em `buscarClientes`/`acharCliente` de `dominio/clientes.js`), usada em todos
+  os formulários com cliente: parte do nome em qualquer ordem, sem acento,
+  CPF/CNPJ com ou sem pontuação e, onde há processos (Intimações), o número do
+  processo. Escolhe por clique, setas + Enter ou — se só um bate — ao sair do
+  campo; Esc fecha só a lista. Nome que não aparece faz buscar o cadastro de
+  novo (o cliente pode ter sido cadastrado depois de a tela abrir).
+- **Conferir intimação** sugere o cliente: destinatário que já é cliente vira
+  um botão ("destinatário" quando o nome é igual, "parecido com …" quando o do
+  cadastro é mais curto), e processo cadastrado com o mesmo número já preenche
+  cliente e processo. Mostra também os advogados do escritório que o DJEN
+  intimou ("Guilherme, Marlon (saiu)"); a lista tem o filtro **Advogado**.
+- **Processos que o escritório não acompanha** (Vinícius: "como o Marlon
+  saiu, as intimações dele vêm para nós também"). A busca já não usava a OAB
+  do Marlon (desativado em Membros): elas chegam porque a procuração desses
+  processos tem também Vinícius, Guilherme ou Juliana, e o DJEN intima todos.
+  Filtrar pela OAB do Marlon esconderia processos do escritório (em 21/10, 47
+  das 92 intimações tinham o Marlon; 19 em processos cadastrados aqui) — por
+  isso a escolha é **por processo**. Na conferência, "Não acompanhar este
+  processo" (com motivo) chama `nao_acompanhar_processo()`: grava em
+  `processos_nao_acompanhados` e arquiva as pendentes do número, numa
+  transação; `importar_intimacoes` passa a gravar as próximas já arquivadas
+  (com o motivo nas observações) e devolve quantas (`arquivadas`). A tela de
+  Intimações lista esses processos, com "Voltar a acompanhar" (cancelamento
+  com motivo; o que foi arquivado continua em Arquivadas). A busca no diário
+  diz quem ficou de fora e por quê.
+- **Filiação em mãe e pai** (Guilherme). `clientes_detalhes.filiacao_mae` e
+  `filiacao_pai`. O texto antigo (`filiacao`, 24 cadastros em 21/10) **não foi
+  dividido pela migração**: nos 11 com barra, a ordem não é sempre mãe / pai.
+  O cadastro mostra o texto antigo e pergunta "quem é a mãe?", com um botão
+  por nome (sem barra: "da mãe" / "do pai"); preenchido mãe ou pai, o
+  texto antigo sai ao salvar e fica na auditoria. A ficha de atendimento usa
+  mãe e pai, ou o texto antigo enquanto não for separado. `salvar_cliente`
+  não apaga mãe e pai quando uma tela antiga (sem os campos) salva.
 
 ## Operação, segurança e LGPD (08/10)
 
@@ -647,6 +698,7 @@ quem não é sócio.
 | 20261020210000 | `agenda_google_destravar` | `where unica` em destravar e desligar (o `safeupdate` do Supabase recusava) |
 | 20261020220000 | `agenda_remarcar` | Remarcar com a nova data (`remarcar_compromisso`, `compromissos.remarcado_para`) e voltar para agendado |
 | 20261020230000 | `agenda_revisao` | Caça a bugs 2: histórico de particular só do dono (nem quem audita), `remarcado_para` só do mesmo responsável e "remarcado" só com o novo horário, situação no Google sem particular alheio |
+| 20261021120000 | `pedidos_advogados_2110` | Filiação em mãe e pai (`clientes_detalhes.filiacao_mae/_pai`, `salvar_cliente`) e processos que o escritório não acompanha (`processos_nao_acompanhados`, `nao_acompanhar_processo()`, `importar_intimacoes` arquiva na chegada) |
 
 As seis primeiras versões foram conferidas no projeto remoto. As oito novas
 foram geradas pela CLI e executadas somente em PostgreSQL isolado. Elas ainda
