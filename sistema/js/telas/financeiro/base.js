@@ -236,8 +236,9 @@ export function memoriaGravada(m) {
  */
 export async function receberParcela(p) {
   const acordo = temRepasse(p);
+  const dia = hoje();
   const [{ formas, contasFinanceiras }, [{ calculo: inicial }], anteriores, ultimo, doContrato] = await Promise.all([
-    apoio(), atualizarParcelas([p]),
+    apoio(), atualizarParcelas([p], dia),
     // Acordo pago em partes: a divisão é sobre o acumulado da parcela, como no banco.
     acordo ? db.todos('recebimentos', {
       select: 'valor,valor_repasse,valor_principal,valor_encargos',
@@ -266,8 +267,9 @@ export async function receberParcela(p) {
     ? `${percentual(cotas.cota)}; multa e juros, ${percentual(cotas.cotaEncargos)}` : percentual(cotas.cota);
   let calculo = inicial;
   let recalculo = Promise.resolve();
+  let versaoCalculo = 0;
   let valorDigitado = false;
-  const dia = hoje();
+  let dataCalculada = dia;
 
   return abrirDialogo({
     titulo: `Receber — ${p.cliente_nome}`,
@@ -387,12 +389,26 @@ export async function receberParcela(p) {
       };
 
       form.data.addEventListener('change', () => {
-        if (!form.data.value) return;
-        recalculo = atualizarParcelas([p], form.data.value).then(([r]) => {
+        const versao = ++versaoCalculo;
+        const dataPedido = form.data.value;
+        if (!dataPedido) return;
+        // Um índice de uma data anterior pode chegar depois do pedido atual.
+        // Só a seleção vigente pode alterar o valor, os encargos e a antecipação.
+        const botao = $('[type="submit"]', form);
+        botao.disabled = true;
+        $('[data-papel="efeito"]', dialogo).textContent = 'Atualizando o cálculo para a data do pagamento…';
+        recalculo = atualizarParcelas([p], dataPedido).then(([r]) => {
+          if (versao !== versaoCalculo || form.data.value !== dataPedido || !dialogo.isConnected) return;
           calculo = r.calculo;
+          dataCalculada = dataPedido;
           if (!valorDigitado) form.valor.value = decimal(calculo.total);
           redesenhar();
+        }).finally(() => {
+          if (versao === versaoCalculo && form.getAttribute('aria-busy') !== 'true') botao.disabled = false;
         });
+        // O submit também aguarda a promessa e apresenta eventual erro no
+        // formulário; a mudança de campo, sozinha, não deixa rejeição sem dono.
+        recalculo.catch(() => {});
       });
       form.valor.addEventListener('input', () => {
         valorDigitado = true;
@@ -405,8 +421,16 @@ export async function receberParcela(p) {
       redesenhar();
     },
 
-    aoEnviar: async (dados) => {
-      await recalculo;
+    aoEnviar: async (dados, form) => {
+      const pedido = recalculo;
+      await pedido;
+      if (pedido !== recalculo || dados.data !== form.data.value || dataCalculada !== dados.data) {
+        throw new ErroCampo('data', 'A data mudou durante o cálculo. Confira a data e o valor antes de registrar.');
+      }
+      // FormData é uma fotografia anterior ao await. Se o valor ainda era a
+      // sugestão automática, use a sugestão atualizada; nunca troque um parcial.
+      if (!valorDigitado) dados.valor = form.valor.value;
+      else if (dados.valor !== form.valor.value) throw new ErroCampo('valor', 'O valor mudou durante o cálculo. Confira antes de registrar.');
       const valor = lerMoeda(dados.valor);
       if (!(valor > 0)) throw new Error('Informe o valor recebido.');
       if (dados.data > hoje()) throw new Error('A data do pagamento não pode estar no futuro.');

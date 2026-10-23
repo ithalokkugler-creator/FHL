@@ -1,0 +1,9 @@
+{
+  "name": "pdf-lib",
+  "version": "1.17.1",
+  "url": "https://registry.npmjs.org/pdf-lib/-/pdf-lib-1.17.1.tgz",
+  "integrity": "sha512-V/mpyJAoTsN4cnP31vc0wfNA1+p20evqqnap0KLoRUN0Yk/p3wN52DOEsL4oBFcLdb76hlpKPtzJIgo67j/XLw==",
+  "upstreamSha256": "4bd8dd3155d7b1062a161567bf68168c55283bd5fad6a638b16ae028846b52c5",
+  "localSha256": "2f0471e2fac8d54890e619f7f94e82db41bcd625442013a0066b04e87f23afee",
+  "modifications": "Limites de descompressão, quantidade de objetos/nós e profundidade, por documento. Reprodução: scripts/preparar-verificador-pdf.mjs. Sem alterações de serialização."
+}

@@ -119,6 +119,9 @@ export function lerEvento(ev) {
   return {
     ...base,
     status: 'confirmed',
+    ical_uid: ev.iCalUID ?? null,
+    ocorrencia: ev.originalStartTime?.dateTime || ev.originalStartTime?.date || null,
+    organizador: ev.organizer?.email?.toLowerCase() ?? null,
     titulo: (String(ev.summary ?? '').trim() || '(sem título)').slice(0, 200),
     inicio,
     fim,

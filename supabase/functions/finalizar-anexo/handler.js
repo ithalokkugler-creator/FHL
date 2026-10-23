@@ -13,7 +13,10 @@
 //   3. calcula o SHA-256 e grava o resultado (finalizar_anexo_servico).
 //
 // Não é antivírus. Arquivo recusado fica registrado como recusado, com o
-// motivo, e nunca vira anexo válido. Sem dependências: roda na borda e no Node.
+// motivo, e nunca vira anexo válido. O parser local tem versão fixa e limites
+// de expansão/profundidade; roda na borda e no Node, sem buscar código na rede.
+
+import { riscoEstruturalNoPdf } from '../_shared/verificar-pdf.js';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -102,7 +105,7 @@ export function criarFinalizador({ url, chave, buscar = fetch }) {
     if (!bytes.length) motivo = 'Arquivo vazio.';
     else if (bytes.length > LIMITE_BYTES) motivo = 'Arquivo maior que 10 MB.';
     else if (!mime) motivo = 'Tipo de arquivo não aceito. Envie PDF, PNG, JPG ou WEBP.';
-    else if (mime === 'application/pdf') motivo = riscoNoPdf(bytes);
+    else if (mime === 'application/pdf') motivo = riscoNoPdf(bytes) || await riscoEstruturalNoPdf(bytes);
 
     // 3 · O resultado.
     const hash = await sha256(bytes);

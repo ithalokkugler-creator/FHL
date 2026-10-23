@@ -170,7 +170,10 @@ export function ligarCampoCliente(form, clientes, { aoMudar, processos = [] } = 
   const resolver = ({ sempre = false } = {}) => {
     const valor = texto.value.trim();
     const antes = oculto.value;
-    const achado = acharCliente(clientes, valor, rotuloCliente);
+    // Uma escolha por id continua inequívoca, mesmo que dois homônimos
+    // sem CPF tenham o mesmo rótulo. Digitar esse nome exige escolher.
+    const escolhido = clientes.find((c) => c.id === antes && rotuloCliente(c) === valor);
+    const achado = escolhido ?? acharCliente(clientes, valor, rotuloCliente);
     oculto.value = achado?.id ?? '';
     texto.setCustomValidity(valor && !achado ? 'Escolha um cliente da lista, ou cadastre um novo.' : '');
     if (sempre || oculto.value !== antes) avisarMudanca(achado ?? null);

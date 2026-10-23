@@ -14,6 +14,7 @@ import { montarConsulta } from './consulta.js';
 import { descreverErroBanco } from './erros-banco.js';
 
 const CHAVE_LOCAL = 'fhl.sessao';
+const CHAVE_GERACAO = 'fhl.sessao.geracao';
 
 // Renova um pouco antes de expirar: token que vence no meio de uma requisição
 // vira um 401 sem motivo aparente.
@@ -38,6 +39,7 @@ const agora = () => Math.floor(Date.now() / 1000);
 // ---------------------------------------------------------------------------
 
 let sessao = lerGuardada();
+let geracao = lerGeracao();
 const ouvintes = new Set();
 let timer = null;
 
@@ -50,7 +52,19 @@ function lerGuardada() {
   }
 }
 
-function guardar(nova) {
+function lerGeracao() {
+  try { return localStorage.getItem(CHAVE_GERACAO) ?? ''; } catch { return ''; }
+}
+
+function geracaoAtual() {
+  return lerGeracao() || geracao;
+}
+
+function guardar(nova, trocarIdentidade = false) {
+  if (trocarIdentidade) {
+    geracao = `${Date.now()}-${Math.random()}`;
+    try { localStorage.setItem(CHAVE_GERACAO, geracao); } catch { /* sessão só nesta aba */ }
+  }
   sessao = nova;
   try {
     if (nova) localStorage.setItem(CHAVE_LOCAL, JSON.stringify(nova));
@@ -71,7 +85,8 @@ function agendar() {
 
 // Outra aba entrou, saiu ou renovou.
 addEventListener('storage', (e) => {
-  if (e.key !== CHAVE_LOCAL) return;
+  if (e.key !== CHAVE_LOCAL && e.key !== CHAVE_GERACAO) return;
+  geracao = lerGeracao();
   sessao = lerGuardada();
   agendar();
   for (const fn of ouvintes) fn(sessao);
@@ -172,13 +187,13 @@ async function auth(caminho, { metodo = 'POST', corpo, token } = {}) {
 }
 
 export async function entrar(email, senha) {
-  guardar(sessaoDe(await auth('token?grant_type=password', { corpo: { email, password: senha } })));
+  guardar(sessaoDe(await auth('token?grant_type=password', { corpo: { email, password: senha } })), true);
   return sessao;
 }
 
 export async function sair() {
   const token = sessao?.access_token;
-  guardar(null);
+  guardar(null, true);
   if (token) await auth('logout?scope=local', { token }).catch(() => {});
 }
 
@@ -192,8 +207,13 @@ let renovacao = null;
  *  guardada ainda for ele, renova mesmo sem estar perto de expirar. */
 export function renovar(recusado = null) {
   renovacao ??= comTrava(async () => {
-    const guardada = lerGuardada() ?? sessao;
+    const daGeracao = geracaoAtual();
+    const persistida = lerGuardada();
+    const guardada = persistida ?? sessao;
     if (!guardada) return null;
+    const aindaAtual = () => geracaoAtual() === daGeracao
+      && sessao?.refresh_token === guardada.refresh_token
+      && (!persistida || lerGuardada()?.refresh_token === guardada.refresh_token);
 
     const outraAbaRenovou = guardada.access_token !== (recusado ?? sessao?.access_token);
     const perto = guardada.expires_at - agora() <= MARGEM;
@@ -206,11 +226,15 @@ export function renovar(recusado = null) {
       const d = await auth('token?grant_type=refresh_token', {
         corpo: { refresh_token: guardada.refresh_token },
       });
+      // Sair ou entrar com outra identidade invalida respostas antigas,
+      // inclusive quando isso aconteceu em outra aba antes do evento storage.
+      if (!aindaAtual()) return sessao;
       guardar(sessaoDe(d));
       return sessao;
     } catch (erro) {
+      if (!aindaAtual()) return sessao;
       // Token recusado: a sessão acabou. Falha de rede: tenta de novo depois.
-      if (erro.status >= 400 && erro.status < 500) guardar(null);
+      if (erro.status >= 400 && erro.status < 500 && erro.status !== 429) guardar(null, true);
       else agendar();
       throw erro;
     }
@@ -263,7 +287,7 @@ export function sessaoDoLink() {
     refresh_token: p.get('refresh_token'),
     expires_at: p.get('expires_at'),
     expires_in: p.get('expires_in'),
-  }));
+  }), true);
   return p.get('type') || 'link';
 }
 

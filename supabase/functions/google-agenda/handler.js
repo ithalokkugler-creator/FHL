@@ -203,6 +203,28 @@ export function criarSincronizador({
 
     // Primeiro o que existe (um evento levado para outra subagenda aparece
     // nela e como excluído na antiga), depois as exclusões.
+    // Antes de aplicar qualquer exclusão, diferencia transferência de cópia.
+    for (const { calendario, lista } of lidas) {
+      const confirmados = lista.filter((e) => e.status === 'confirmed');
+      if (!confirmados.length) continue;
+      const candidatos = await rpc('google_agenda_possiveis_transferencias', { p_calendario: calendario, p_eventos: confirmados }) ?? [];
+      for (const origem of candidatos) {
+        const e = confirmados.find((x) => x.id === origem.id);
+        if (!e?.ical_uid) continue;
+        const x = await api(acesso, 'GET', eventos(origem.calendario, origem.id));
+        if (!x.ok && !SUMIU.includes(x.status)) throw new Error('Não foi possível conferir uma possível transferência no Google. Nova tentativa em 2 minutos.');
+        if (x.ok && x.dados?.status !== 'cancelled') continue; // cópia: o original continua lá
+        const identidade = origem.ical_uid || x.dados?.iCalUID;
+        const ocorrencia = origem.ical_uid ? origem.ocorrencia : x.dados?.originalStartTime?.dateTime || x.dados?.originalStartTime?.date || null;
+        if (!identidade || identidade !== e.ical_uid || (ocorrencia ?? null) !== (e.ocorrencia ?? null)) {
+          throw new Error('Uma possível transferência antiga do Google precisa ser conferida: faltam dados para preservar o vínculo com segurança. Nenhuma exclusão desta rodada foi aplicada.');
+        }
+        if (e.transferido_de && e.transferido_de !== origem.calendario) throw new Error('Há mais de uma origem possível para uma transferência do Google. Confira os vínculos antes de sincronizar de novo.');
+        e.transferido_de = origem.calendario;
+        e.ical_uid_origem = identidade;
+        e.ocorrencia_origem = ocorrencia;
+      }
+    }
     for (const status of ['confirmed', 'cancelled']) {
       for (const { calendario, lista } of lidas) {
         const parte = lista.filter((e) => e.status === status);

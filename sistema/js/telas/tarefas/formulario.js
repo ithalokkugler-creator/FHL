@@ -71,10 +71,11 @@ const camposDoBloqueio = () => html`
  * sugerida já vem calculada ao abrir.
  */
 export async function formularioTarefa({ tarefa = null, cliente_id = null, iniciais = {}, sugerir = false } = {}) {
+  let feriadosDisponiveis = true;
   const [clientes, processos, feriados, configPrazos] = await Promise.all([
     carregarClientes({ inativos: true }),
     db.todos('processos', { select: COLUNAS_PROCESSO }),
-    pode.prazos() ? db.todos('feriados', { select: 'id,data,nome,tribunal,ativo' }).catch(() => []) : [],
+    pode.prazos() ? db.todos('feriados', { select: 'id,data,nome,tribunal,ativo' }).catch(() => { feriadosDisponiveis = false; return []; }) : [],
     pode.prazos() ? db.um('config_prazos', { select: 'entrega_dias_uteis' }).catch(() => null) : null,
   ]);
   const t = tarefa ?? { tipo: 'tarefa', responsavel_id: estado.membro.id, prioridade: 'normal', cliente_id, ...iniciais };
@@ -117,6 +118,9 @@ export async function formularioTarefa({ tarefa = null, cliente_id = null, inici
         <label class="campo campo--6"><span>Responsável</span><select name="responsavel_id" required>${opcoes(responsaveis.map((m) => [m.id, m.nome_curto + (m.ativo ? '' : ' (inativo)')]), t.responsavel_id)}</select></label>
         <label class="campo campo--6"><span>Data de entrega (opcional)</span><input type="date" name="entrega" value="${t.entrega ?? ''}"><span class="campo__ajuda">Data interna para terminar a tarefa. Pode ficar em branco.</span></label>
         ${camposDoPrazo(t, base, fatal, editaPrazo)}
+        <p class="nota campo" data-feriados-indisponiveis ${t.tipo === 'prazo' && !feriadosDisponiveis ? '' : 'hidden'}>
+          Não foi possível carregar os feriados cadastrados. A sugestão em dias está indisponível; você pode informar e conferir as datas manualmente.
+          <button type="button" class="botao botao--pequeno" data-recarregar-feriados>Tentar carregar feriados</button></p>
         <label class="campo"><span>Descrição / orientação</span><textarea name="descricao" rows="3" maxlength="20000">${t.descricao ?? ''}</textarea></label>
         ${bloquear ? camposDoBloqueio() : ''}
         ${t.compromisso_id ? html`<p class="nota">O bloqueio já vinculado continua na Agenda. Ajuste ou cancele por lá.</p>` : ''}
@@ -135,6 +139,7 @@ export async function formularioTarefa({ tarefa = null, cliente_id = null, inici
       // Os campos do prazo só existem para prazo; as horas, só para prazo em horas.
       const ajustarTipo = () => {
         const prazo = form.tipo.value === 'prazo';
+        $('[data-feriados-indisponiveis]', form).hidden = !prazo || feriadosDisponiveis;
         $('[data-ajuda-tarefa]', form).hidden = prazo;
         $('[data-prazo]', form).hidden = !prazo;
         $('.tarefa-prazo', form).disabled = !prazo || !editaPrazo;
@@ -168,6 +173,11 @@ export async function formularioTarefa({ tarefa = null, cliente_id = null, inici
       const calcular = ({ forcar = false } = {}) => {
         if (!editaPrazo || form.tipo.value !== 'prazo' || (fatalAMao && !forcar)) return;
         const contagem = form.contagem.value;
+        if (contagem !== 'horas' && !feriadosDisponiveis) {
+          aviso.textContent = 'Feriados indisponíveis: informe a data fatal manualmente ou tente carregar os feriados de novo.';
+          sugestao = null;
+          return;
+        }
         const quantidade = Number(form.quantidade.value);
         if (!form.base_dia.value || !Number.isInteger(quantidade) || quantidade < 1) {
           if (forcar) aviso.textContent = 'Informe a quantidade e a data da publicação ou intimação.';
@@ -209,6 +219,19 @@ export async function formularioTarefa({ tarefa = null, cliente_id = null, inici
       $('[data-calcular]', form)?.addEventListener('click', () => {
         fatalAMao = false;
         calcular({ forcar: true });
+      });
+      $('[data-recarregar-feriados]', form).addEventListener('click', async (e) => {
+        const botao = e.currentTarget;
+        botao.disabled = true;
+        try {
+          const lista = await db.todos('feriados', { select: 'id,data,nome,tribunal,ativo' });
+          feriados.splice(0, feriados.length, ...lista);
+          feriadosDisponiveis = true;
+          $('[data-feriados-indisponiveis]', form).hidden = true;
+          aviso.textContent = 'Feriados carregados. Use “Sugerir data fatal” se quiser calcular; as datas informadas foram mantidas.';
+        } catch {
+          aviso.textContent = 'Os feriados continuam indisponíveis. Você pode preencher as datas manualmente.';
+        } finally { botao.disabled = false; }
       });
       form.fatal_dia.addEventListener('input', () => { fatalAMao = true; });
       form.fatal_hora.addEventListener('input', () => { fatalAMao = true; });

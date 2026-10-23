@@ -5,6 +5,14 @@ Substitui todos os handoffs, roteiros e relatórios antigos da raiz (o
 histórico deles está no git e, para as especificações, em
 [`docs/historico/`](docs/historico/)).
 
+**23/10/2026 — trabalho local:** correções da auditoria na branch
+`AjusteFinanceiro`, ainda sem commit, push, migração remota ou publicação.
+São 223 testes JS e 756 verificações SQL aprovados, além dos ensaios no
+navegador e de preservação de dados. Ver o
+[relatório desta entrega](docs/relatorios/ajustes-financeiro-2026-10-23.md).
+As referências a produção abaixo descrevem a versão anterior a essas
+correções. As duas novas migrações são apenas locais.
+
 **Ordem de leitura**
 
 | Arquivo | Para quê |

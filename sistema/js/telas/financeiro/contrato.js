@@ -15,6 +15,7 @@
 // recebimento delas, marcada, e só se estorna junto com o pagamento.
 
 import { divisaoDoRepasse, gerarParcelas, nomeDaParcela, posicoes } from '../../dominio/parcelas.js';
+import { paginarRecebimentos } from '../../dominio/recebimentos.js';
 import { avisar, avisarErro } from '../../nucleo/avisos.js';
 import { abrirDialogo, pedirMotivo } from '../../nucleo/dialogo.js';
 import { membrosAtivos, nomeDe, pode } from '../../nucleo/estado.js';
@@ -25,7 +26,7 @@ import { $, aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { db } from '../../nucleo/supabase.js';
 import { editarCliente } from '../clientes.js';
 import {
-  cabecalho, CANAIS, indicador, plural, seloContrato, seloParcela, seloRepasse, TIPOS_HONORARIO, vazio,
+  cabecalho, CANAIS, indicador, paginacao, plural, seloContrato, seloParcela, seloRepasse, TIPOS_HONORARIO, vazio,
 } from '../comum.js';
 import { abrirHistorico } from '../historico.js';
 import {
@@ -39,11 +40,13 @@ import { navegar } from '../../nucleo/rotas.js';
 export default async function telaContrato(ctx) {
   const id = ctx.params.id;
   let dados;
+  let paginaRecebimentos = 1;
+  const desenharContrato = () => desenhar(ctx.raiz, tela({ ...dados, paginaRecebimentos }));
 
   const mostrar = async () => {
     dados = await carregar(id);
     if (!ctx.ativa()) return;
-    desenhar(ctx.raiz, dados.contrato ? tela(dados) : html`
+    desenhar(ctx.raiz, dados.contrato ? tela({ ...dados, paginaRecebimentos }) : html`
       <a class="pagina__voltar" href="#/financeiro/contratos">← Contratos</a>
       <h1 class="pagina__titulo">Contrato não encontrado</h1>`);
   };
@@ -54,6 +57,11 @@ export default async function telaContrato(ctx) {
   const recebimento = (el) => dados.recebimentos.find((r) => r.id === el.dataset.id);
 
   return aoClicar(ctx.raiz, {
+    pagina: (el) => {
+      paginaRecebimentos = Number(el.dataset.pagina);
+      desenharContrato();
+      $('#recebimentos-contrato', ctx.raiz)?.scrollIntoView({ block: 'start' });
+    },
     receber: (el) => depois(receberParcela(parcela(el))),
     renegociar: () => depois(renegociarContrato(id)),
     ajuste: (el) => depois(concederAjuste(parcela(el))),
@@ -209,9 +217,9 @@ async function carregar(id) {
   const [contrato, parcelas, recebimentos, renegociacoes, ajustes, suporte] = await Promise.all([
     db.um('v_contratos', { select: '*', filtros: [['id', 'eq', id]] }),
     db.todos('v_parcelas', { select: '*', filtros: [['contrato_id', 'eq', id]] }),
-    db.listar('v_recebimentos', { select: '*', filtros: [['contrato_id', 'eq', id]], ordem: 'data.desc,criado_em.desc' }),
-    db.listar('renegociacoes', { select: '*', filtros: [['contrato_id', 'eq', id]], ordem: 'criado_em.desc' }),
-    db.listar('v_ajustes', { select: '*', filtros: [['contrato_id', 'eq', id]], ordem: 'data.desc,criado_em.desc' }),
+    db.todos('v_recebimentos', { select: '*', filtros: [['contrato_id', 'eq', id]], ordem: 'data.desc,criado_em.desc,id.asc' }),
+    db.todos('renegociacoes', { select: '*', filtros: [['contrato_id', 'eq', id]], ordem: 'criado_em.desc,id.asc' }),
+    db.todos('v_ajustes', { select: '*', filtros: [['contrato_id', 'eq', id]], ordem: 'data.desc,criado_em.desc,id.asc' }),
     apoio(),
   ]);
   parcelas.sort((a, b) => a.numero - b.numero);
@@ -219,17 +227,17 @@ async function carregar(id) {
     db.listar('cobrancas', { select: '*', filtros: [['cliente_id', 'eq', contrato.cliente_id]], ordem: 'criado_em.desc', limite: 50 }),
     // O recibo já emitido de cada recebimento (o mais recente).
     recebimentos.length
-      ? db.listar('documentos', {
+      ? db.todos('documentos', {
         select: 'id,recebimento_id,criado_em',
         filtros: [['modelo', 'eq', 'recibo'], ['contrato_id', 'eq', id], ['cancelado_em', 'is', null]],
-        ordem: 'criado_em.asc',
+        ordem: 'criado_em.asc,id.asc',
       }).catch(() => [])
       : [],
     // Contrato encadeado: o que vem antes deste e os que começam depois dele.
     contrato.inicia_apos_contrato_id
       ? db.um('v_contratos', { select: 'id,codigo,descricao,cancelado_em', filtros: [['id', 'eq', contrato.inicia_apos_contrato_id]] }).catch(() => null)
       : null,
-    db.listar('v_contratos', { select: 'id,codigo,descricao,cancelado_em', filtros: [['inicia_apos_contrato_id', 'eq', id]], ordem: 'criado_em.asc' }).catch(() => []),
+    db.todos('v_contratos', { select: 'id,codigo,descricao,cancelado_em', filtros: [['inicia_apos_contrato_id', 'eq', id]], ordem: 'criado_em.asc,id.asc' }).catch(() => []),
   ]) : [[], [], null, []];
   return {
     contrato, parcelas, recebimentos, renegociacoes, ajustes, cobrancas, apoio: suporte, anterior, seguintes,
@@ -267,9 +275,6 @@ function partesDe(recebimentos, parcelas, id) {
 /** Valor da parcela ou do recebimento, com a parte do escritório embaixo quando é acordo. */
 const comCota = (valor, escritorio) => html`${moeda(centavos(valor))}<span class="sub">escritório ${moeda(centavos(escritorio))}</span>`;
 
-/** Quanto um pagamento antecipou nas últimas parcelas (centavos; 0 sem antecipação). */
-const antecipadoDe = (recebimentos, id) => recebimentos.filter((x) => x.antecipacao_de === id).reduce((soma, x) => soma + centavos(x.valor), 0);
-
 /** A parte antecipada, logo abaixo do pagamento: compacta, sem repetir data,
  *  conta e quem lançou; recibo, comprovante e estorno ficam no pagamento. */
 const linhaParte = (r) => html`
@@ -284,7 +289,7 @@ const linhaParte = (r) => html`
     <td class="acoes">${r.estornado_em ? html`<span class="selo selo--escuro">Estornado</span>` : html`<span class="sub">Recibo e estorno no pagamento acima</span>`}</td>
   </tr>`;
 
-function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cobrancas, recibos, anterior, seguintes, apoio: { config } }) {
+function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cobrancas, recibos, anterior, seguintes, apoio: { config }, paginaRecebimentos = 1 }) {
   // Consulta só lê; arquivado não muda sem desarquivar.
   const lanca = pode.lancar();
   const ativo = !c.cancelado_em && !c.arquivado_em && lanca;
@@ -300,10 +305,9 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
       && !['renegociada', 'cancelada'].includes(p.situacao))
     .map((p) => `${percentual(p.cota_escritorio_pct)} do acordo e ${percentual(p.cota_encargos_pct)} da multa, dos juros e da correção`))];
   const diretoAoCliente = recebimentos.filter((r) => !r.estornado_em).reduce((s, r) => s + centavos(r.valor_direto_cliente ?? 0), 0);
-  // Antecipação: cada pagamento seguido das partes que abateu nas últimas parcelas.
-  const ids = new Set(recebimentos.map((r) => r.id));
-  const linhasRecebimentos = recebimentos.filter((r) => !r.antecipacao_de || !ids.has(r.antecipacao_de))
-    .flatMap((r) => [r, ...partesDe(recebimentos, parcelas, r.id)]);
+  const pagina = paginarRecebimentos(recebimentos, parcelas, paginaRecebimentos);
+  const antecipados = new Map();
+  for (const r of recebimentos) if (r.antecipacao_de) antecipados.set(r.antecipacao_de, (antecipados.get(r.antecipacao_de) ?? 0) + centavos(r.valor));
 
   const subtitulo = html`
     ${c.codigo ? html`<strong>${c.codigo}</strong> · ` : ''}${c.cliente_nome}${c.cliente_telefone ? ` · ${telefone(c.cliente_telefone)}` : ''}${c.processo ? ` · processo ${c.processo}` : ''}
@@ -399,8 +403,8 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
         <p class="painel__rodape sub">Êxito de ${percentual(c.exito_pct)} a apurar: as parcelas dele entram aqui quando o resultado sair.</p>` : ''}
     </section>
 
-    <section class="painel secao">
-      <header class="painel__topo"><h2 class="painel__titulo">Recebimentos</h2></header>
+    <section class="painel secao" id="recebimentos-contrato">
+      <header class="painel__topo"><h2 class="painel__titulo">Recebimentos</h2><span class="sub">${plural(pagina.total, 'pagamento', 'pagamentos')}${recebimentos.length !== pagina.total ? ` · ${recebimentos.length} lançamentos, incluindo antecipações` : ''}</span></header>
       ${recebimentos.length ? html`
         <div class="tabela-rolagem">
           <table class="tabela tabela--recebimentos">
@@ -411,13 +415,13 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
               </tr>
             </thead>
             <tbody>
-              ${linhasRecebimentos.map((r) => (r.antecipacao_de ? linhaParte(r) : html`
+              ${pagina.linhas.map((r) => (r.antecipacao_de ? linhaParte(r) : html`
                 <tr class="${r.estornado_em ? 'apagada' : ''}">
                   <td class="num">${data(r.data)}</td>
                   <td>${nomeDaParcela(r.parcela_numero)}${r.observacao ? html`<span class="sub">${r.observacao}</span>` : ''}</td>
-                  <td class="num">${moeda(centavos(r.valor))}${antecipadoDe(recebimentos, r.id) ? html`
-                    <span class="sub">+ ${moeda(antecipadoDe(recebimentos, r.id))} antecipados</span>
-                    <span class="sub">pagamento de ${moeda(centavos(r.valor) + antecipadoDe(recebimentos, r.id))}</span>` : ''}${Number(r.valor_direto_cliente) > 0 ? html`
+                  <td class="num">${moeda(centavos(r.valor))}${antecipados.get(r.id) ? html`
+                    <span class="sub">+ ${moeda(antecipados.get(r.id))} antecipados</span>
+                    <span class="sub">pagamento de ${moeda(centavos(r.valor) + antecipados.get(r.id))}</span>` : ''}${Number(r.valor_direto_cliente) > 0 ? html`
                     <span class="sub">honorários, na conta</span>
                     <span class="sub">+ ${moeda(centavos(r.valor_direto_cliente))} direto ao cliente</span>
                     ${r.estornado_em ? '' : html`<span class="sub">${seloRepasse('direto')}</span>`}` : Number(r.valor_repasse) > 0 ? html`
@@ -444,7 +448,7 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
                 </tr>`))}
             </tbody>
           </table>
-        </div>` : vazio('Nenhum recebimento ainda.')}
+        </div>${paginacao(pagina.pagina, pagina.paginas, pagina.total)}` : vazio('Nenhum recebimento ainda.')}
     </section>
 
     ${renegociacoes.length ? html`
@@ -469,7 +473,7 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
               <span>${({ desconto: 'Desconto', abatimento: 'Abatimento', acrescimo: 'Acréscimo' })[a.tipo]} · ${rotuloParcela({ numero: a.parcela_numero })} · ${a.motivo}
                 <span class="sub">${data(a.data)} · autorizado por ${nomeDe(a.autorizado_por)}${a.estornado_em ? ` · estornado: ${a.motivo_estorno}` : ''}</span></span>
               <span class="num">${a.tipo === 'acrescimo' ? '+' : '−'}${moeda(centavos(a.valor))}
-                ${!a.estornado_em && pode.ajustar() ? html`<button type="button" class="botao botao--pequeno botao--discreto" data-acao="estornar-ajuste" data-id="${a.id}">Estornar</button>` : ''}</span>
+                ${!a.estornado_em && !c.arquivado_em && pode.ajustar() ? html`<button type="button" class="botao botao--pequeno botao--discreto" data-acao="estornar-ajuste" data-id="${a.id}">Estornar</button>` : ''}</span>
             </li>`)}
         </ul>
       </section>` : ''}

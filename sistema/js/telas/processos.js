@@ -177,6 +177,7 @@ export default async function telaProcessos(ctx) {
   let processos = [];
   let clientes = [];
   let documentos = new Map();
+  let documentosDisponiveis = false;
 
   // "Aguardando retorno" inclui os atrasados; "Com retorno atrasado", só eles.
   const peloRetorno = (p) => {
@@ -189,18 +190,25 @@ export default async function telaProcessos(ctx) {
     : f.documentos === 'atrasado' ? 'Nenhum processo com retorno de documento atrasado, com esses filtros.'
       : f.documentos === 'aguardando' ? 'Nenhum processo aguardando retorno de documento, com esses filtros.'
         : 'Nenhum processo encontrado com esses filtros.');
-  const mostrar = () => desenhar($('[data-lista]', ctx.raiz),
-    tabelaProcessos(filtrarProcessos(processos, clientes, f).filter(peloRetorno), clientes, { documentos, semResultado: semResultado() }));
+  const mostrar = () => {
+    const aviso = documentosDisponiveis ? '' : html`<p class="nota" role="status">Não foi possível carregar os documentos.
+      ${f.documentos ? 'O filtro de retorno está suspenso; a lista abaixo considera os outros filtros.' : 'Os resumos de retorno estão indisponíveis.'}
+      <button type="button" class="botao botao--pequeno" data-acao="recarregar-documentos">Tentar de novo</button></p>`;
+    const lista = filtrarProcessos(processos, clientes, f).filter((p) => !documentosDisponiveis || peloRetorno(p));
+    desenhar($('[data-lista]', ctx.raiz), html`${aviso}${tabelaProcessos(lista, clientes, {
+      documentos, semResultado: documentosDisponiveis ? semResultado() : 'Nenhum processo encontrado com os demais filtros.',
+    })}`);
+  };
 
   const carregar = async () => {
     let lista;
     [processos, clientes, lista] = await Promise.all([
       db.todos('processos', { select: COLUNAS_PROCESSO, ordem: 'criado_em.desc,id.desc' }),
       db.todos('clientes', { select: COLUNAS_CLIENTE }),
-      // O resumo dos documentos é a mais: se não vier, a lista abre sem ele.
-      db.todos('processos_documentos', { select: COLUNAS_RESUMO_DOCUMENTOS, filtros: [['cancelado_em', 'is', null]] }).catch(() => []),
+      db.todos('processos_documentos', { select: COLUNAS_RESUMO_DOCUMENTOS, filtros: [['cancelado_em', 'is', null]] }).catch(() => null),
     ]);
-    documentos = documentosPorProcesso(lista);
+    documentosDisponiveis = lista !== null;
+    documentos = documentosPorProcesso(lista ?? []);
     if (!ctx.ativa()) return;
     const tribunais = [...new Set(processos.map((p) => p.tribunal).filter(Boolean))].sort();
     const posicoes = [...new Set(processos.map((p) => p.posicao_cliente).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
@@ -241,6 +249,17 @@ export default async function telaProcessos(ctx) {
     }
   };
   return aoClicar(ctx.raiz, {
+    'recarregar-documentos': async (botao) => {
+      botao.disabled = true;
+      try {
+        const lista = await db.todos('processos_documentos', { select: COLUNAS_RESUMO_DOCUMENTOS, filtros: [['cancelado_em', 'is', null]] });
+        if (!ctx.ativa()) return;
+        documentos = documentosPorProcesso(lista);
+        documentosDisponiveis = true;
+        mostrar();
+      } catch (erro) { avisarErro(erro); }
+      finally { botao.disabled = false; }
+    },
     'novo-processo': () => depois(formularioProcesso()),
     'editar-processo': (el) => depois(formularioProcesso({ processo: processoDe(el) })),
     'historico-processo': (el) => abrirHistorico({ titulo: processoDe(el).titulo, registros: [el.dataset.id] }),

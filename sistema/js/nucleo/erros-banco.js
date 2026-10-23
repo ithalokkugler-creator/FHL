@@ -64,6 +64,7 @@ export function descreverErroBanco(d, status) {
   }
   if (status === 401) return { mensagem: 'Sua sessão expirou. Entre de novo para continuar.' };
   const mensagens = {
+    40001: 'Este registro mudou em outra operação ou está sendo alterado. Seus dados continuam no formulário; copie o rascunho e atualize a tela antes de tentar novamente.',
     23505: 'Já existe um registro com esses dados. Confira o cadastro existente antes de salvar novamente.',
     23503: 'Um registro vinculado não existe mais ou não está disponível. Selecione novamente o cliente, processo ou responsável.',
     23514: 'Um campo não atende às regras do cadastro. Confira o formato e os limites indicados nos campos.',

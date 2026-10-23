@@ -223,8 +223,9 @@ export function buscarClientes(clientes, texto, { processos = [] } = {}) {
 export function acharCliente(clientes, texto, rotulo) {
   const valor = String(texto ?? '').trim();
   if (!valor) return null;
-  const pelo = clientes.find((c) => rotulo(c) === valor);
-  if (pelo) return pelo;
+  const pelo = clientes.filter((c) => rotulo(c) === valor);
+  if (pelo.length === 1) return pelo[0];
+  if (pelo.length > 1) return null;
   const nome = normal(valor);
   const mesmos = clientes.filter((c) => normal(c.nome) === nome);
   if (mesmos.length === 1) return mesmos[0];

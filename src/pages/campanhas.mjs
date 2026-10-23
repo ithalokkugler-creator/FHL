@@ -8,7 +8,7 @@
 import { AREAS } from '../data/areas.mjs';
 import { CAMPANHAS } from '../data/campanhas.mjs';
 import { CIDADE, HORARIO, TEL, TEL_HREF, whatsappUrl } from '../data/site.mjs';
-import { ARROW, page, prefix } from '../lib/html.mjs';
+import { ARROW, attr, page, prefix, textoHtml } from '../lib/html.mjs';
 import { canaisDiretos, contatoAside, contatoForm } from '../partials/contato.mjs';
 
 /** Data de hoje em Paranaguá, AAAA-MM-DD. O build da Vercel roda em UTC. */
@@ -33,11 +33,11 @@ export const campanhasAtivas = () => CAMPANHAS.filter((c) => campanhaStatus(c) =
 export function campanhasCallout(campanhas, { depth = 0, flushTop = false } = {}) {
   if (!campanhas.length) return '';
 
-  const links = campanhas.map((c) => `      <a class="campanha-callout" href="${prefix(depth)}campanhas/${c.slug}.html" data-reveal="rise">
+  const links = campanhas.map((c) => `      <a class="campanha-callout" href="${attr(`${prefix(depth)}campanhas/${c.slug}.html`)}" data-reveal="rise">
         <span class="campanha-callout__body">
           <span class="label">Campanha em andamento</span>
-          <span class="h3 campanha-callout__title">${c.titulo}</span>
-          <span class="campanha-callout__text">${c.subtitulo}</span>
+          <span class="h3 campanha-callout__title">${textoHtml(c.titulo)}</span>
+          <span class="campanha-callout__text">${textoHtml(c.subtitulo)}</span>
         </span>
         <span class="campanha-callout__cta">
           <span class="link-arrow">Ver a campanha ${ARROW}</span>
@@ -65,7 +65,7 @@ const PASSOS = [
     'Do primeiro protocolo ao desfecho, com um advogado responsável pelo seu caso.'],
 ];
 
-const lista = (itens, indent) => itens.map((i) => `${indent}<li class="r-rise">${i}</li>`).join('\n');
+const lista = (itens, indent) => itens.map((i) => `${indent}<li class="r-rise">${textoHtml(i)}</li>`).join('\n');
 
 export function buildCampanha(c) {
   const status = campanhaStatus(c);
@@ -78,18 +78,18 @@ export function buildCampanha(c) {
   // Aviso de encerrada: sai pronto no HTML se a campanha já tinha acabado no
   // dia do build; senão vai escondido, e site.js o mostra quando a data passar.
   const aviso = c.fim ? `
-      <p class="campanha-aviso" data-campanha-fim="${c.fim}"${status === 'encerrada' ? '' : ' hidden'}>
-        Esta campanha foi encerrada em ${c.fim.split('-').reverse().join('/')}, mas o
+      <p class="campanha-aviso" data-campanha-fim="${attr(c.fim)}"${status === 'encerrada' ? '' : ' hidden'}>
+        Esta campanha foi encerrada em ${textoHtml(c.fim.split('-').reverse().join('/'))}, mas o
         escritório continua atendendo casos como este.
       </p>` : '';
 
   const hero = `  <section class="page-head campanha-hero">
     <div class="wrap page-head__inner">${aviso}
-      <p class="label" data-reveal="rise">${c.rotulo}</p>
-      <h1 class="h1 page-head__title campanha-hero__title r-mask" data-reveal="mask">${c.titulo}</h1>
-      <p class="lead" data-reveal="rise">${c.subtitulo}</p>
+      <p class="label" data-reveal="rise">${textoHtml(c.rotulo)}</p>
+      <h1 class="h1 page-head__title campanha-hero__title r-mask" data-reveal="mask">${textoHtml(c.titulo)}</h1>
+      <p class="lead" data-reveal="rise">${textoHtml(c.subtitulo)}</p>
       <div class="campanha-hero__cta" data-reveal="rise">
-        <a class="btn" href="${whatsappUrl(c.whatsapp)}" target="_blank" rel="noopener noreferrer" data-magnetic>
+        <a class="btn" href="${attr(whatsappUrl(c.whatsapp))}" target="_blank" rel="noopener noreferrer" data-magnetic>
           <span class="btn__label">Falar pelo WhatsApp</span>
         </a>
         <a class="link-arrow" href="#contato">Prefiro escrever ${ARROW}</a>
@@ -123,8 +123,8 @@ ${lista(c.situacoes, '        ')}
       <h2 class="h2 campanha__h2" data-reveal="rise">Direitos que podem existir no seu caso</h2>
       <div class="campanha-cards" data-reveal="rise-group">
 ${c.direitos.map(([titulo, texto]) => `        <div class="campanha-card r-rise">
-          <h3 class="h3 campanha-card__title">${titulo}</h3>
-          <p class="campanha-card__text">${texto}</p>
+          <h3 class="h3 campanha-card__title">${textoHtml(titulo)}</h3>
+          <p class="campanha-card__text">${textoHtml(texto)}</p>
         </div>`).join('\n')}
       </div>
     </div>
@@ -139,8 +139,8 @@ ${c.direitos.map(([titulo, texto]) => `        <div class="campanha-card r-rise"
       <ol class="campanha-steps" data-reveal="rise-group">
 ${(c.passos ?? PASSOS).map(([titulo, texto], i) => `        <li class="campanha-step r-rise">
           <span class="campanha-step__num numeral">${String(i + 1).padStart(2, '0')}</span>
-          <h3 class="h3 campanha-step__title">${titulo}</h3>
-          <p class="campanha-step__text">${texto}</p>
+          <h3 class="h3 campanha-step__title">${textoHtml(titulo)}</h3>
+          <p class="campanha-step__text">${textoHtml(texto)}</p>
         </li>`).join('\n')}
       </ol>
     </div>
@@ -153,7 +153,7 @@ ${(c.passos ?? PASSOS).map(([titulo, texto], i) => `        <li class="campanha-
       <div class="campanha__side">
         <p class="label" data-reveal="rise">Para a primeira conversa</p>
         <h2 class="h2 campanha__h2" data-reveal="rise">Documentos que ajudam</h2>${c.prazo ? `
-        <p class="campanha-prazo" data-reveal="rise">${c.prazo}</p>` : ''}
+        <p class="campanha-prazo" data-reveal="rise">${textoHtml(c.prazo)}</p>` : ''}
       </div>
       <div class="campanha__main" data-reveal="rise-group">
         <ul class="checklist checklist--doc">
@@ -177,8 +177,8 @@ ${lista(c.documentos, '          ')}
       </div>
       <div class="faq campanha__main" data-reveal="rise-group">
 ${c.faq.map(([pergunta, resposta]) => `        <details class="faq__item r-rise">
-          <summary class="faq__q">${pergunta}</summary>
-          <p class="faq__a">${resposta}</p>
+          <summary class="faq__q">${textoHtml(pergunta)}</summary>
+          <p class="faq__a">${textoHtml(resposta)}</p>
         </details>`).join('\n')}
       </div>
     </div>

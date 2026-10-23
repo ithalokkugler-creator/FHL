@@ -2,6 +2,7 @@
 import { data } from './formato.js';
 
 let proximoId = 0;
+const focandoErro = new WeakSet();
 
 export class ErroCampo extends Error {
   constructor(campo, mensagem) {
@@ -136,8 +137,14 @@ function marcar(campo, mensagem) {
 }
 
 function levarAoCampo(campo) {
-  campo.focus({ preventScroll: true });
-  campo.scrollIntoView({ block: 'center', behavior: 'instant' });
+  const form = campo.form || campo.closest('form');
+  // Focar o erro pode confirmar a edição do campo anterior e emitir change.
+  // Esse evento não é uma correção: não pode esconder o erro recém-exibido.
+  if (form) focandoErro.add(form);
+  try {
+    campo.focus({ preventScroll: true });
+    campo.scrollIntoView({ block: 'center', behavior: 'instant' });
+  } finally { if (form) focandoErro.delete(form); }
 }
 
 export function mostrarErroFormulario(form, falha) {
@@ -199,6 +206,7 @@ export function ligarValidacaoFormularios(raiz = document) {
   const aoCorrigir = (e) => {
     const campo = e.target;
     const form = campo.form;
+    if (form && focandoErro.has(form)) return;
     limparCampo(campo);
     if (form && !form.querySelector('[data-erro-formulario]')) {
       const caixa = form.querySelector('.dialogo__erro, .erro-formulario, [role="alert"]');

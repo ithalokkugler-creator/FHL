@@ -24,6 +24,7 @@ import { html } from '../../nucleo/html.js';
 import { navegar } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
 import { COLUNAS_ATUALIZACAO, minutosDe, TIPOS_ATUALIZACAO } from '../../dominio/tempo.js';
+import { camposDasAnotacoes, criarGravadorAnotacoes, textosDaAtividade } from '../../dominio/anotacoes-cronometro.js';
 import { campoCliente } from '../clientes.js';
 import { opcoes } from '../comum.js';
 import { apoioAtualizacao, atualizarSituacao, campoSituacao, ligarProcesso, notificarAtualizacoes } from './formulario.js';
@@ -167,23 +168,12 @@ export async function anotarCronometro(id = null, clienteNome = '') {
   if (!aberta || aberta.fim || aberta.cancelado_em) throw new Error('Este cronômetro não está rodando.');
   const nome = clienteNome || aberta.cliente_nome || '';
 
-  // O que já está no banco: só grava se mudou.
-  let salvo = { relato: aberta.relato ?? '', proxima: aberta.proxima_providencia ?? '' };
-  const gravar = async (relato, proxima) => {
-    if (relato === salvo.relato && proxima === salvo.proxima) return false;
-    // Só a atividade ainda aberta: parada em outro lugar, não se reescreve aqui
-    // (o alterar sem linha nenhuma vira o erro abaixo).
-    try {
-      await db.alterar('atualizacoes',
-        [['id', 'eq', aberta.id], ['fim', 'is', null], ['cancelado_em', 'is', null]],
-        { relato: relato.trim() || null, proxima_providencia: proxima.trim() || null }, 'id');
-    } catch (erro) {
-      if (!/não encontrado/i.test(erro.message)) throw erro;
-      throw new Error('O cronômetro já foi parado em outro lugar, e estas anotações não foram gravadas. Copie o texto e acrescente pela atividade, em Atualizações.');
-    }
-    salvo = { relato, proxima };
-    return true;
-  };
+  const gravador = criarGravadorAnotacoes(aberta, ({ versao, campos }) => db.rpc('salvar_anotacoes_cronometro', {
+    p_id: aberta.id, p_versao: versao, p_campos: campos,
+  }));
+  const gravar = (relato, proxima) => gravador({ relato, proxima_providencia: proxima });
+  let cancelarEspera = () => {};
+  let sinalizarFalha = () => {};
 
   return abrirDialogo({
     titulo: `Anotações do atendimento${nome ? ` — ${nome}` : ''}`,
@@ -196,36 +186,64 @@ export async function anotarCronometro(id = null, clienteNome = '') {
         <label class="campo"><span>Relato do atendimento</span><textarea name="relato" rows="10" maxlength="30000" autofocus>${aberta.relato ?? ''}</textarea></label>
         <label class="campo"><span>Próxima providência</span><textarea name="proxima" rows="2" maxlength="5000">${aberta.proxima_providencia ?? ''}</textarea></label>
       </div>
-      <p class="sub secao" data-salvo aria-live="polite">Grava sozinho enquanto você escreve. Ao parar o cronômetro, o relato já vem preenchido.</p>`,
-    aoAbrir: (dialogo, form) => {
+      <p class="sub secao" data-salvo aria-live="polite">Grava sozinho enquanto você escreve. Ao parar o cronômetro, o relato já vem preenchido.</p>
+      <button type="button" class="botao botao--discreto" data-descartar-rascunho hidden>Descartar rascunho e fechar</button>`,
+    aoAbrir: (dialogo, form, fechar) => {
       const situacao = dialogo.querySelector('[data-salvo]');
+      const descartar = dialogo.querySelector('[data-descartar-rascunho]');
+      sinalizarFalha = (erro) => {
+        situacao.textContent = `${erro.message} As anotações continuam nesta tela; copie o texto antes de sair.`;
+        descartar.hidden = false;
+      };
+      descartar.addEventListener('click', async () => {
+        cancelarEspera();
+        if (await abrirDialogo({ titulo: 'Descartar estas anotações?', rotuloOk: 'Descartar e fechar',
+          corpo: html`<p>O rascunho que não foi salvo será perdido. Copie o texto antes de confirmar; a versão já gravada não será alterada.</p>` })) {
+          cancelarEspera();
+          fechar();
+        }
+      });
       let espera = null;
+      cancelarEspera = () => { clearTimeout(espera); espera = null; };
       const agora = async () => {
         clearTimeout(espera);
         espera = null;
         try {
           if (await gravar(form.relato.value, form.proxima.value)) situacao.textContent = `Salvo às ${horaAgora()}. O cronômetro continua contando.`;
         } catch (erro) {
-          situacao.textContent = erro.message;
+          sinalizarFalha(erro);
         }
       };
       form.addEventListener('input', () => {
         situacao.textContent = 'Alterações ainda não gravadas…';
         if (!espera) espera = setTimeout(agora, SALVAR_A_CADA);
       });
-      // Fechou com texto novo (Esc, × ou Fechar): grava antes de o diálogo sumir.
-      const aoSair = () => {
-        clearTimeout(espera);
-        espera = null;
-        gravar(form.relato.value, form.proxima.value)
-          .then((mudou) => { if (mudou) avisar('Anotações gravadas. O cronômetro continua contando.'); })
-          .catch(avisarErro);
+      // O diálogo só desaparece após salvar; falha/conflito conserva o rascunho.
+      let fechando = false;
+      const aoSair = async (e) => {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (fechando) return;
+        fechando = true;
+        cancelarEspera();
+        form.relato.readOnly = form.proxima.readOnly = true;
+        try {
+          const mudou = await gravar(form.relato.value, form.proxima.value);
+          fechar();
+          if (mudou) avisar('Anotações gravadas. O cronômetro continua contando.');
+        } catch (erro) {
+          sinalizarFalha(erro);
+        } finally { fechando = false; form.relato.readOnly = form.proxima.readOnly = false; }
       };
       dialogo.addEventListener('cancel', aoSair);
-      dialogo.addEventListener('click', (e) => { if (e.target.closest('[data-fechar]')) aoSair(); }, true);
+      dialogo.addEventListener('click', (e) => { if (e.target.closest('[data-fechar]')) aoSair(e); }, true);
     },
-    aoEnviar: async (d) => {
-      await gravar(d.relato ?? '', d.proxima ?? '');
+    aoEnviar: async (d, form) => {
+      cancelarEspera();
+      form.relato.readOnly = form.proxima.readOnly = true;
+      try { await gravar(d.relato ?? '', d.proxima ?? ''); }
+      catch (erro) { sinalizarFalha(erro); throw erro; }
+      finally { form.relato.readOnly = form.proxima.readOnly = false; }
       notificarAtualizacoes();
       avisar('Anotações gravadas. O cronômetro continua contando.');
       return true;
@@ -269,7 +287,10 @@ export async function pararCronometro(id = null) {
     },
     aoEnviar: async (d) => {
       const fim = d.fim_real ? instante(d.fim.slice(0, 10), d.fim.slice(11)) : null;
-      await db.rpc('parar_cronometro', { p_id: aberta.id, p_relato: d.relato, p_proxima: d.proxima, p_fim: fim });
+      await db.rpc('parar_cronometro_seguro', {
+        p_id: aberta.id, p_versao: aberta.alterado_em ?? null,
+        p_campos: camposDasAnotacoes(textosDaAtividade(aberta), { relato: d.relato, proxima_providencia: d.proxima }), p_fim: fim,
+      });
       await atualizarSituacao(aberta.processo_id, d.situacao_processo);
       notificarAtualizacoes();
       avisar('Atividade registrada e cronômetro parado.');

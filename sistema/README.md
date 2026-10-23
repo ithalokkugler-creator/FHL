@@ -18,6 +18,13 @@ publicar, armadilhas e pendências: [`HANDOFF.md`](../HANDOFF.md). As
 especificações originais (E0/F1–F9, DOCX T01–T17, pedidos de 19/10, red
 team de 11/10) estão em [`docs/historico/`](../docs/historico/).
 
+**Alterações locais (23/10/2026):** a branch **`AjusteFinanceiro`** contém as
+correções da auditoria, com **223/223 testes JS e 756/756 verificações SQL**.
+As duas migrações novas, as funções de borda e o frontend desta branch
+**ainda não foram publicados**. Resultados, decisões de arredondamento,
+preservação dos dados e limites dos testes estão no
+[relatório de correções](../docs/relatorios/ajustes-financeiro-2026-10-23.md).
+
 A área **vai ao ar junto com o site**, em `/sistema`, no mesmo deploy e no mesmo
 repositório. O site tem um link discreto para ela no rodapé; ela tem "Ver o
 site" na lateral e "Voltar ao site" na tela de entrada.
@@ -801,14 +808,14 @@ quem não é sócio.
 | 20260915201001 | `ajustes_piloto` | Índices das chaves estrangeiras; correção pelo IPCA como padrão |
 | 20260916120520 | `conteudo` | Publicações, campanhas, `acesso_site`, pedidos de publicação, balde das imagens — e o conteúdo que já estava no site como semente |
 | 20260923111816 | `ajustes_financeiro` | Conta avulsa muda de mês junto com o vencimento; o fechamento gera as contas fixas do mês antes de tirar a foto |
-| 20261005130311 | `base_modulos` **(pendente no remoto)** | Clientes/Prazos, sessão e autorização de auditoria |
-| 20261005130317 | `contatos` **(pendente no remoto)** | Contatos, ingresso pelo servidor, limites, consentimento, conversão e auditoria |
-| 20261005140521 | `clientes_processos` **(pendente no remoto)** | Dados completos restritos, processos, CNJ válido, cadastro atômico e auditoria |
-| 20261005212635 | `documentos` **(pendente no remoto)** | Modelos, texto final imutável, vínculos e cancelamento auditado |
-| 20261005212642 | `atualizacoes` **(pendente no remoto)** | Atividades, participantes, relógio do servidor, autoria e vínculo com Agenda |
-| 20261005225741 | `tarefas_prazos` **(pendente no remoto)** | Tarefas, prazos informados manualmente, feriados cadastrados e bloqueio da Agenda |
-| 20261005225750 | `intimacoes` **(pendente no remoto)** | Registro/conferência manual e vínculos atômicos de prazo/audiência |
-| 20261005232739 | `avisos_do_dia` **(pendente no remoto)** | Contadores pessoais e por permissão, sem sobreposição de tarefas |
+| 20261005130311 | `base_modulos` | Clientes/Prazos, sessão e autorização de auditoria |
+| 20261005130317 | `contatos` | Contatos, ingresso pelo servidor, limites, consentimento, conversão e auditoria |
+| 20261005140521 | `clientes_processos` | Dados completos restritos, processos, CNJ válido, cadastro atômico e auditoria |
+| 20261005212635 | `documentos` | Modelos, texto final imutável, vínculos e cancelamento auditado |
+| 20261005212642 | `atualizacoes` | Atividades, participantes, relógio do servidor, autoria e vínculo com Agenda |
+| 20261005225741 | `tarefas_prazos` | Tarefas, prazos informados manualmente, feriados cadastrados e bloqueio da Agenda |
+| 20261005225750 | `intimacoes` | Registro/conferência manual e vínculos atômicos de prazo/audiência |
+| 20261005232739 | `avisos_do_dia` | Contadores pessoais e por permissão, sem sobreposição de tarefas |
 | 20261019120000 | `honorarios_misto_repasse` | Fixo + êxito, contrato encadeado, cota do escritório por parcela, `valor_repasse`, `repasses_cliente` e fechamento/painel pelos honorários |
 | 20261019180000 | `correcoes_cacada` | Correções da caça a bugs de 19/10: histórico de clientes, renegociação fixo × êxito, centavo do acordo em partes, duas casas, repasse em arquivado, saldo previsto anual |
 | 20261020120000 | `acordo_direto_encargos` | Acordo: parte do cliente paga direto a ele (`direto_ao_cliente`, `valor_direto_cliente`) e cota própria do escritório em multa e juros (`parcelas.cota_encargos_pct`) |
@@ -821,15 +828,18 @@ quem não é sócio.
 | 20261022120000 | `antecipacao_documentos_processo` | Antecipação de parcelas (`receber_com_antecipacao`, `recebimentos.antecipacao_de`, estorno junto com o pagamento, um alerta só; extrato marca a parte) e `processos_documentos` (documentos solicitados/entregues, retorno previsto) |
 | 20261021200000 | `pedidos_guilherme_2110` | Tarefa a partir da intimação (`criar_prazo_intimacao` aceita `tarefa`), `processos.posicao_cliente` e `iniciar_cronometro` que liga o cliente ao atendimento sem cliente |
 | 20261021120000 | `pedidos_advogados_2110` | Filiação em mãe e pai (`clientes_detalhes.filiacao_mae/_pai`, `salvar_cliente`) e processos que o escritório não acompanha (`processos_nao_acompanhados`, `nao_acompanhar_processo()`, `importar_intimacoes` arquiva na chegada) |
+| 20261023130752 | `ajustes_financeiro_integridade` **(somente local)** | Precisão e valores finitos, estornos seguros, contratos arquivados e coordenação das operações financeiras |
+| 20261023130757 | `ajustes_cronometro_google` **(somente local)** | Anotações com versão, limpeza explícita ao parar e preservação do vínculo em transferência comprovada do Google |
 
-As seis primeiras versões foram conferidas no projeto remoto. As oito novas
-foram geradas pela CLI e executadas somente em PostgreSQL isolado. Elas ainda
-não estão no histórico remoto. Preserve as versões ao aplicar; não execute
-`db push` antes da aprovação desta entrega.
+O quadro é um resumo histórico; a lista completa está em `supabase/migrations/`.
+Na auditoria de 23/10 foram conferidas **42 versões remotas**, até
+`20261022120000`. As duas versões de 23/10 foram criadas pela CLI e testadas
+somente localmente. Não executar `db push` para esta entrega sem autorização
+de publicação.
 
-Numa base **local ou isolada**, aplicar as quatorze migrações em ordem. Depois,
-executar os seis arquivos de teste. O piloto atual tem três sócios ativos;
-o teste antigo de divisão pressupõe Marlon desativado.
+`npm run banco:test` cria uma base isolada, aplica todas as migrações em ordem
+e executa os testes SQL e o ensaio de dados antigos. O piloto atual tem três
+sócios ativos; o teste antigo de divisão pressupõe Marlon desativado.
 
 | Arquivo | O que confere |
 |---|---|

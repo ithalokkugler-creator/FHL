@@ -34,3 +34,10 @@ test('RLS e falta de permissão não chegam em inglês técnico (red team 11/10)
   assert.equal(descreverErroBanco({ code: '42501', message: 'Seu acesso não inclui as intimações.' }, 403).mensagem,
     'Seu acesso não inclui as intimações.');
 });
+
+test('Conflito entre operações orienta preservar rascunho sem expor SQL ou a linha recusada', () => {
+  const r = descreverErroBanco({code:'40001',message:'could not serialize SQL PRIVADO',details:'CPF PRIVADO'},409);
+  assert.match(r.mensagem,/outra operação/);
+  assert.match(r.mensagem,/copie o rascunho/);
+  assert.doesNotMatch(r.mensagem,/SQL|CPF|PRIVADO/);
+});

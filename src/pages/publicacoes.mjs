@@ -1,7 +1,7 @@
 import { advogadoPorNome } from '../data/equipe.mjs';
 import { POSTS } from '../data/posts.mjs';
 import { imageSize } from '../lib/assets.mjs';
-import { ARROW, attr, nextBlock, page, pageHead, prefix } from '../lib/html.mjs';
+import { ARROW, attr, nextBlock, page, pageHead, prefix, textoHtml, textoInlineSeguro } from '../lib/html.mjs';
 import { ICONE } from '../lib/icones.mjs';
 import { absUrl } from '../lib/seo.mjs';
 import { assinatura } from '../partials/equipe.mjs';
@@ -14,15 +14,15 @@ import { assinatura } from '../partials/equipe.mjs';
 export function postItem(po, href, indent = '      ', { resumo = false } = {}) {
   const inner = indent + '  ';
   const extra = resumo
-    ? `\n${inner}  <span class="post__resumo">${po.resumo}</span>` +
-      `\n${inner}  <span class="post__autor">${po.autor}</span>`
+    ? `\n${inner}  <span class="post__resumo">${textoHtml(po.resumo)}</span>` +
+      `\n${inner}  <span class="post__autor">${textoHtml(po.autor)}</span>`
     : '';
-  return `${indent}<a class="post${resumo ? ' post--resumo' : ''}" href="${href}" data-thumb="${po.thumb}">
-${inner}<span class="post__date">${po.data}</span>
+  return `${indent}<a class="post${resumo ? ' post--resumo' : ''}" href="${attr(href)}" data-thumb="${attr(po.thumb)}">
+${inner}<span class="post__date">${textoHtml(po.data)}</span>
 ${inner}<span class="post__main">
-${inner}  <span class="post__title">${po.titulo}</span>${extra}
+${inner}  <span class="post__title">${textoHtml(po.titulo)}</span>${extra}
 ${inner}</span>
-${inner}<span class="post__area">${po.area}</span>
+${inner}<span class="post__area">${textoHtml(po.area)}</span>
 ${indent}</a>`;
 }
 
@@ -86,28 +86,59 @@ const REDES_SOCIAIS = {
 
 const PLAY = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8 5.5v13l11-6.5z"/></svg>';
 
+function urlHttps(url) {
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    parsed = null;
+  }
+  if (typeof url !== 'string' || !parsed || parsed.protocol !== 'https:' || !parsed.hostname
+      || /[\s"'<>]/.test(url)) {
+    throw new Error('Cartão social: o link precisa ser uma URL HTTPS válida.');
+  }
+  return attr(url);
+}
+
+function caminhoDeImagem(caminho) {
+  if (typeof caminho !== 'string' || !caminho.startsWith('assets/')
+      || !/^assets\/[a-z0-9._/-]+$/i.test(caminho)) {
+    throw new Error('Cartão social: a imagem precisa estar nos assets do site.');
+  }
+  const partes = caminho.split('/');
+  if (partes.some((parte) => !parte || parte === '.' || parte === '..')
+      || /[\\\u0000-\u001f"'<>]/.test(caminho)) {
+    throw new Error('Cartão social: caminho de imagem inválido.');
+  }
+  return caminho;
+}
+
 function cartaoSocial(rede, post) {
   const { nome, icone } = REDES_SOCIAIS[rede];
+  const imagem = caminhoDeImagem(post.imagem);
   // Imagem enviada pela área dos advogados não existe em assets/: ela é
   // baixada do Supabase durante o build e já chega com o tamanho medido
   // (src/data/conteudo.mjs). As que nasceram no repositório são medidas aqui.
-  const { width, height } = post.width ? post : imageSize(post.imagem);
+  const { width, height } = post.width ? post : imageSize(imagem);
+  if (![width, height].every((n) => Number.isInteger(n) && n > 0 && n <= 100000)) {
+    throw new Error('Cartão social: dimensões da imagem inválidas.');
+  }
   const play = post.video
     ? `\n            <span class="social-card__play" aria-hidden="true">${PLAY}</span>`
     : '';
 
   // Artigos ficam em publicacoes/, um nível abaixo da raiz.
   return `      <aside class="social-card r-rise" aria-label="Publicação no ${nome}">
-        <a class="social-card__link" href="${attr(post.url)}" target="_blank" rel="noopener noreferrer">
+        <a class="social-card__link" href="${urlHttps(post.url)}" target="_blank" rel="noopener noreferrer">
           <span class="social-card__media">
-            <img src="${prefix(1)}${post.imagem}" alt="${attr(post.alt ?? '')}" width="${width}" height="${height}" loading="lazy" decoding="async">${play}
+            <img src="${attr(`${prefix(1)}${imagem}`)}" alt="${attr(post.alt ?? '')}" width="${width}" height="${height}" loading="lazy" decoding="async">${play}
           </span>
           <span class="social-card__body">
             <span class="social-card__head">
               <svg class="social-card__icon" viewBox="0 0 24 24" aria-hidden="true">${icone}</svg>
               ${nome}
             </span>
-            <span class="social-card__caption">${post.legenda}</span>
+            <span class="social-card__caption">${textoHtml(post.legenda)}</span>
             <span class="link-arrow">Ver no ${nome} ${ARROW}</span>
           </span>
         </a>
@@ -119,13 +150,13 @@ function renderCorpo(corpo, slug) {
   const parts = [];
   for (const [kind, val] of corpo) {
     if (kind === 'p') {
-      parts.push(`      <p>${val}</p>`);
+      parts.push(`      <p>${textoInlineSeguro(val)}</p>`);
     } else if (kind === 'h2') {
-      parts.push(`      <h2>${val}</h2>`);
+      parts.push(`      <h2>${textoInlineSeguro(val)}</h2>`);
     } else if (kind === 'pq') {
-      parts.push(`      <blockquote class="pullquote">${val}</blockquote>`);
+      parts.push(`      <blockquote class="pullquote">${textoInlineSeguro(val)}</blockquote>`);
     } else if (kind === 'ul') {
-      const lis = val.map((i) => `        <li>${i}</li>`).join('\n');
+      const lis = val.map((i) => `        <li>${textoInlineSeguro(i)}</li>`).join('\n');
       parts.push(`      <ul>\n${lis}\n      </ul>`);
     } else if (Object.hasOwn(REDES_SOCIAIS, kind)) {
       parts.push(cartaoSocial(kind, val));
@@ -182,7 +213,7 @@ ${outrosHtml}
   const adv = advogadoPorNome(post.autor);
   const autor = `        <aside class="autor" aria-label="Quem escreveu">
           <p class="label label--mute">Quem escreveu</p>
-          ${adv ? assinatura(adv, 1) : `<p class="assinatura__nome">${post.autor}</p>`}
+          ${adv ? assinatura(adv, 1) : `<p class="assinatura__nome">${textoHtml(post.autor)}</p>`}
         </aside>`;
 
   // O cabeçalho do artigo fica na mesma coluna do texto: título à esquerda da
@@ -190,12 +221,12 @@ ${outrosHtml}
   const body = `  <section class="page-head page-head--article">
     <div class="wrap grid">
       <div class="article-col page-head__inner">
-        <p class="label" data-reveal="rise"><a class="link" href="../publicacoes.html">Publicações</a> · ${post.area}</p>
-        <h1 class="h1 page-head__title page-head__title--article r-mask" data-reveal="mask">${post.titulo}</h1>
-        <p class="lead" data-reveal="rise">${post.resumo}</p>
+        <p class="label" data-reveal="rise"><a class="link" href="../publicacoes.html">Publicações</a> · ${textoHtml(post.area)}</p>
+        <h1 class="h1 page-head__title page-head__title--article r-mask" data-reveal="mask">${textoHtml(post.titulo)}</h1>
+        <p class="lead" data-reveal="rise">${textoHtml(post.resumo)}</p>
         <div class="article-meta" data-reveal="rise">
-          <span>${post.autor}</span>
-          <time datetime="${post.datetime}">${post.data}</time>
+          <span>${textoHtml(post.autor)}</span>
+          <time datetime="${attr(post.datetime)}">${textoHtml(post.data)}</time>
           <span>${minutosDeLeitura(post.corpo)} min de leitura</span>
         </div>
       </div>

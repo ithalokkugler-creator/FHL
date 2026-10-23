@@ -18,6 +18,36 @@ export const attr = (s) => String(s)
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;');
 
+/** Escapa texto em contexto HTML sem transformar entidades já escritas. */
+export const textoHtml = (s) => String(s ?? '')
+  .replace(/&(?!(?:[a-z]+|#\d+|#x[\da-f]+);)/gi, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;');
+
+/**
+ * Formatação inline legada dos artigos estáticos.
+ * Mantém apenas <strong> sem atributos; todo o resto vira texto literal.
+ */
+export function textoInlineSeguro(valor) {
+  const partes = String(valor ?? '').split(/(<\/?strong\s*>)/gi);
+  let abertos = 0;
+  const seguro = partes.map((parte) => {
+    if (/^<strong\s*>$/i.test(parte)) {
+      abertos += 1;
+      return '<strong>';
+    }
+    if (/^<\/strong\s*>$/i.test(parte)) {
+      if (abertos > 0) {
+        abertos -= 1;
+        return '</strong>';
+      }
+      return textoHtml(parte);
+    }
+    return textoHtml(parte);
+  }).join('');
+  return seguro + '</strong>'.repeat(abertos);
+}
+
 export const ARROW =
   '<svg viewBox="0 0 22 8" fill="none" aria-hidden="true">' +
   '<path class="link-arrow__line" d="M0 4h20" stroke="currentColor"/>' +
