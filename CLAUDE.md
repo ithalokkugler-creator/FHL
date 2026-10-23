@@ -64,6 +64,13 @@ exequente…); atendimento sem cliente vinculado não deixava ligar o
 cronômetro, e não dava para escrever durante → "Iniciar atendimento" sempre
 e "Anotar" no cronômetro. Detalhes: `sistema/README.md` (Pedidos do Guilherme).
 
+**Pedidos do Vinícius — 22/10/2026:** **antecipar parcelas** (pagou R$ 750
+numa parcela de R$ 500 → quita o mês e abate R$ 250 da **última**, de trás
+para frente, inteira ou em parte; acordo fica de fora) e, em Processos e
+casos, **registrar documento solicitado ou entregue**, quem recebeu, a data e
+o prazo previsto para retorno. Detalhes: `sistema/README.md` (Pedidos do
+Vinícius).
+
 ---
 
 ## 1. Quem é quem

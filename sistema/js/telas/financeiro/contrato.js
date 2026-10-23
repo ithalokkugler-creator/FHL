@@ -10,7 +10,9 @@
 //
 // Out/2026: fixo + êxito (o êxito se apura no fim, à parte do fixo), acordo
 // com repasse (a parte do cliente em cada recebimento, a registrar quando sai)
-// e contrato encadeado (o anterior e o seguinte, com link).
+// e contrato encadeado (o anterior e o seguinte, com link). Antecipação
+// (22/10): a parte que um pagamento abateu das últimas parcelas aparece como
+// recebimento delas, marcada, e só se estorna junto com o pagamento.
 
 import { divisaoDoRepasse, gerarParcelas, nomeDaParcela, posicoes } from '../../dominio/parcelas.js';
 import { avisar, avisarErro } from '../../nucleo/avisos.js';
@@ -148,11 +150,25 @@ export default async function telaContrato(ctx) {
 
     estornar: async (el) => {
       const r = recebimento(el);
+      const nome = (x) => nomeDaParcela(x.parcela_numero).toLowerCase();
+      // As partes antecipadas deste pagamento são estornadas junto (o banco faz).
+      const partes = partesDe(dados.recebimentos, dados.parcelas, r.id).filter((x) => !x.estornado_em);
+      const total = centavos(r.valor) + partes.reduce((soma, x) => soma + centavos(x.valor), 0);
+      // Parcela renegociada ou cancelada depois do pagamento: o estorno não
+      // volta a cobrar o que ele abateu nela (já era assim; agora avisa).
+      const fechadas = [r, ...partes].map((x) => ({ x, p: dados.parcelas.find((q) => q.id === x.parcela_id) }))
+        .filter(({ p }) => p && ['renegociada', 'cancelada'].includes(p.situacao));
+      const atencao = fechadas.map(({ x, p }) => `a ${nome(x)} foi ${p.situacao} depois deste pagamento: estornar não volta a cobrar `
+        + `os ${moeda(centavos(x.valor_principal))} que ele abateu nela`).join('; ');
       const motivo = await pedirMotivo({
         titulo: 'Estornar recebimento',
-        texto: Number(r.valor_direto_cliente) > 0
+        texto: (Number(r.valor_direto_cliente) > 0
           ? `O recebimento de ${moeda(centavos(r.valor) + centavos(r.valor_direto_cliente))} em ${data(r.data)} (${moeda(centavos(r.valor))} na conta do escritório e ${moeda(centavos(r.valor_direto_cliente))} pagos direto ao cliente) deixa de contar, e o saldo volta para a parcela. O lançamento continua visível, como estornado.`
-          : `O recebimento de ${moeda(centavos(r.valor))} em ${data(r.data)} deixa de contar, e o saldo volta para a parcela. O lançamento continua visível, como estornado.`,
+          : partes.length
+            ? `O pagamento de ${moeda(total)} de ${data(r.data)} é estornado por inteiro: ${moeda(centavos(r.valor))} da ${nome(r)} e as partes antecipadas — `
+              + `${partes.map((x) => `${moeda(centavos(x.valor))} na ${nome(x)}`).join(', ')}. Os saldos voltam para as parcelas, e os lançamentos continuam visíveis, como estornados.`
+            : `O recebimento de ${moeda(centavos(r.valor))} em ${data(r.data)} deixa de contar, e o saldo volta para a parcela. O lançamento continua visível, como estornado.`)
+          + (atencao ? ` Atenção: ${atencao}. Se o cliente ainda deve esse valor, lance um acréscimo numa parcela em aberto.` : ''),
         rotuloOk: 'Estornar',
       });
       if (!motivo) return;
@@ -240,8 +256,33 @@ function honorarios(c) {
   return [moeda(centavos(c.valor_total)), `${TIPOS_HONORARIO[c.tipo_honorario]}${c.exito_pct ? ` de ${percentual(c.exito_pct)}` : ''}${resp}`];
 }
 
+/** As partes antecipadas de um pagamento, na ordem em que foram abatidas
+ *  (da parcela que vence por último para a primeira). */
+function partesDe(recebimentos, parcelas, id) {
+  const vence = new Map(parcelas.map((p) => [p.id, p.vencimento]));
+  return recebimentos.filter((x) => x.antecipacao_de === id)
+    .sort((a, b) => (vence.get(b.parcela_id) ?? '').localeCompare(vence.get(a.parcela_id) ?? '') || b.parcela_numero - a.parcela_numero);
+}
+
 /** Valor da parcela ou do recebimento, com a parte do escritório embaixo quando é acordo. */
 const comCota = (valor, escritorio) => html`${moeda(centavos(valor))}<span class="sub">escritório ${moeda(centavos(escritorio))}</span>`;
+
+/** Quanto um pagamento antecipou nas últimas parcelas (centavos; 0 sem antecipação). */
+const antecipadoDe = (recebimentos, id) => recebimentos.filter((x) => x.antecipacao_de === id).reduce((soma, x) => soma + centavos(x.valor), 0);
+
+/** A parte antecipada, logo abaixo do pagamento: compacta, sem repetir data,
+ *  conta e quem lançou; recibo, comprovante e estorno ficam no pagamento. */
+const linhaParte = (r) => html`
+  <tr class="linha-parte${r.estornado_em ? ' apagada' : ''}">
+    <td></td>
+    <td><span class="linha-parte__seta" aria-hidden="true">↳</span>${nomeDaParcela(r.parcela_numero)} <span class="selo">Antecipação</span></td>
+    <td class="num">${moeda(centavos(r.valor))}</td>
+    <td class="num">${moeda(centavos(r.valor_principal))}</td>
+    <td class="num">—</td>
+    <td></td>
+    <td></td>
+    <td class="acoes">${r.estornado_em ? html`<span class="selo selo--escuro">Estornado</span>` : html`<span class="sub">Recibo e estorno no pagamento acima</span>`}</td>
+  </tr>`;
 
 function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cobrancas, recibos, anterior, seguintes, apoio: { config } }) {
   // Consulta só lê; arquivado não muda sem desarquivar.
@@ -259,6 +300,10 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
       && !['renegociada', 'cancelada'].includes(p.situacao))
     .map((p) => `${percentual(p.cota_escritorio_pct)} do acordo e ${percentual(p.cota_encargos_pct)} da multa, dos juros e da correção`))];
   const diretoAoCliente = recebimentos.filter((r) => !r.estornado_em).reduce((s, r) => s + centavos(r.valor_direto_cliente ?? 0), 0);
+  // Antecipação: cada pagamento seguido das partes que abateu nas últimas parcelas.
+  const ids = new Set(recebimentos.map((r) => r.id));
+  const linhasRecebimentos = recebimentos.filter((r) => !r.antecipacao_de || !ids.has(r.antecipacao_de))
+    .flatMap((r) => [r, ...partesDe(recebimentos, parcelas, r.id)]);
 
   const subtitulo = html`
     ${c.codigo ? html`<strong>${c.codigo}</strong> · ` : ''}${c.cliente_nome}${c.cliente_telefone ? ` · ${telefone(c.cliente_telefone)}` : ''}${c.processo ? ` · processo ${c.processo}` : ''}
@@ -358,7 +403,7 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
       <header class="painel__topo"><h2 class="painel__titulo">Recebimentos</h2></header>
       ${recebimentos.length ? html`
         <div class="tabela-rolagem">
-          <table class="tabela">
+          <table class="tabela tabela--recebimentos">
             <thead>
               <tr>
                 <th>Data</th><th>Parcela</th><th class="num">Valor</th><th class="num">Saldo abatido</th>
@@ -366,11 +411,13 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
               </tr>
             </thead>
             <tbody>
-              ${recebimentos.map((r) => html`
+              ${linhasRecebimentos.map((r) => (r.antecipacao_de ? linhaParte(r) : html`
                 <tr class="${r.estornado_em ? 'apagada' : ''}">
                   <td class="num">${data(r.data)}</td>
                   <td>${nomeDaParcela(r.parcela_numero)}${r.observacao ? html`<span class="sub">${r.observacao}</span>` : ''}</td>
-                  <td class="num">${moeda(centavos(r.valor))}${Number(r.valor_direto_cliente) > 0 ? html`
+                  <td class="num">${moeda(centavos(r.valor))}${antecipadoDe(recebimentos, r.id) ? html`
+                    <span class="sub">+ ${moeda(antecipadoDe(recebimentos, r.id))} antecipados</span>
+                    <span class="sub">pagamento de ${moeda(centavos(r.valor) + antecipadoDe(recebimentos, r.id))}</span>` : ''}${Number(r.valor_direto_cliente) > 0 ? html`
                     <span class="sub">honorários, na conta</span>
                     <span class="sub">+ ${moeda(centavos(r.valor_direto_cliente))} direto ao cliente</span>
                     ${r.estornado_em ? '' : html`<span class="sub">${seloRepasse('direto')}</span>`}` : Number(r.valor_repasse) > 0 ? html`
@@ -394,7 +441,7 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
                       ? html`<span class="selo selo--escuro">Estornado</span><span class="sub">${nomeDe(r.estornado_por)}: ${r.motivo_estorno}</span>`
                       : lanca && !c.arquivado_em ? html`<button type="button" class="botao botao--pequeno botao--discreto" data-acao="estornar" data-id="${r.id}">Estornar</button>` : ''}
                   </td>
-                </tr>`)}
+                </tr>`))}
             </tbody>
           </table>
         </div>` : vazio('Nenhum recebimento ainda.')}

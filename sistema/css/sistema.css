@@ -721,6 +721,14 @@ a.lista__item:hover { background: var(--c-realce); }
 .tabela tfoot td { border-top: 1px solid var(--c-linha-forte); border-bottom: 0; font-weight: 700; }
 .tabela tr.apagada td { color: var(--c-texto-m); }
 .tabela tr.apagada td:not(.acoes) { text-decoration: line-through; text-decoration-color: var(--c-linha-forte); }
+/* Antecipação (22/10): a parte que um pagamento abateu, logo abaixo dele. */
+.tabela tr.linha-parte td { padding-top: 4px; padding-bottom: 4px; font-size: var(--t-pequeno); }
+.linha-parte__seta { margin-right: 6px; color: var(--c-texto-m); }
+/* Recebimentos do contrato: botões e cabeçalhos quebram linha para a tabela
+   caber em 1366 px ("Estornar" ficava fora da tela). */
+.tabela--recebimentos th { white-space: normal; }
+.tabela--recebimentos td.acoes { white-space: normal; min-width: 128px; }
+.tabela--recebimentos td.acoes .botao { margin: 2px 0 2px 4px; }
 .tabela a { font-weight: 600; text-decoration: none; }
 .tabela a:hover { text-decoration: underline; }
 
@@ -1493,7 +1501,26 @@ a.dia-item__corpo:hover { background: var(--c-realce); }
    CLIENTES E PROCESSOS
    -------------------------------------------------------------------------- */
 .tabela--processos td:first-child { min-width: 210px; }
-.tabela--processos td:last-child { min-width: 155px; }
+/* Editar, Documentos e Histórico um embaixo do outro: em 1366 px os três lado
+   a lado empurravam a tabela para fora da tela (22/10). */
+.tabela--processos td:last-child { min-width: 104px; }
+.tabela--processos td:last-child .registro-acoes { flex-direction: column; align-items: flex-start; gap: var(--s-1); }
+.tabela--processos th, .tabela--processos .selo { white-space: normal; }
+/* O resumo dos documentos na linha do processo também abre os documentos. */
+.processo-documentos {
+  display: block;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--t-pequeno);
+  color: var(--c-acao);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
 
 .cliente-dados { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4); }
 .cliente-dados dt { font-size: var(--t-pequeno); color: var(--c-texto-m); }
@@ -2026,6 +2053,18 @@ a.dia-item__corpo:hover { background: var(--c-realce); }
 .anexos > li { display: grid; gap: 2px; padding: var(--s-3) 0; border-bottom: 1px solid var(--c-linha); }
 .anexos > li:last-child { border-bottom: 0; }
 .anexos .registro-acoes { margin-top: var(--s-1); }
+/* Cancelado fica riscado, como nas tabelas (nada se apaga). */
+.anexos > li.apagada { color: var(--c-texto-m); }
+.anexos > li.apagada strong:first-child { text-decoration: line-through; text-decoration-color: var(--c-linha-forte); }
+
+/* Documentos do processo (22/10): mesma lista, com a situação do retorno.
+   Nome de arquivo ou link sem espaços quebra em qualquer ponto (celular). */
+.docs-processo > li { min-width: 0; overflow-wrap: anywhere; }
+.docs-processo__topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-2); }
+.docs-processo__obs { white-space: pre-line; padding-left: var(--s-2); border-left: 2px solid var(--c-linha); }
+[data-painel="documentos"] .lista__item { flex-wrap: wrap; }
+[data-painel="documentos"] .lista__item > span:first-child { min-width: 0; flex: 1 1 14em; overflow-wrap: anywhere; }
+.docs-processo__novo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); margin: 0 0 var(--s-3); }
 
 /* Gráfico do painel: a cor de cada série vem de data-vars (--cor). */
 rect.grafico__barra { fill: var(--cor, var(--c-teal)); }

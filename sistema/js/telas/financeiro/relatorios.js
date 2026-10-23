@@ -366,7 +366,11 @@ const GERAR = {
     // Parte de cliente repassada ou paga direto a ele: as duas são de acordo.
     if (f.repasse === 'com') filtros.push(['or', '(valor_repasse.gt.0,valor_direto_cliente.gt.0)']);
     if (f.repasse === 'pendente') filtros.push(['repasse_situacao', 'eq', 'pendente']);
-    const linhas = await db.todos('v_recebimentos', { select: '*', filtros, ordem: 'data.asc,criado_em.asc,id.asc' });
+    const lidas = await db.todos('v_recebimentos', { select: '*', filtros, ordem: 'data.asc,criado_em.asc,id.asc' });
+    // Antecipação: cada pagamento seguido das partes que abateu (gravadas no mesmo instante).
+    const ids = new Set(lidas.map((r) => r.id));
+    const linhas = lidas.filter((r) => !r.antecipacao_de || !ids.has(r.antecipacao_de))
+      .flatMap((r) => [r, ...lidas.filter((x) => x.antecipacao_de === r.id)]);
     const validos = linhas.filter((r) => !r.estornado_em);
     const repasses = somaCentavos(validos, 'valor_repasse');
     return {
@@ -377,7 +381,8 @@ const GERAR = {
       colunas: [
         { titulo: 'Data', valor: (r) => r.data, tipo: 'data' },
         { titulo: 'Cliente', valor: (r) => r.cliente_nome },
-        { titulo: 'Origem', valor: (r) => (r.parcela_id ? `${r.contrato_descricao} · ${nomeDaParcela(r.parcela_numero)}` : `${TIPOS_AVULSA[r.tipo_avulsa] ?? r.tipo_avulsa} (avulsa)`) },
+        // Antecipação (22/10): a descrição liga o pagamento às partes que ele abateu.
+        { titulo: 'Origem', valor: (r) => (r.parcela_id ? `${r.contrato_descricao} · ${nomeDaParcela(r.parcela_numero)}${r.descricao ? ` — ${r.descricao}` : ''}` : `${TIPOS_AVULSA[r.tipo_avulsa] ?? r.tipo_avulsa} (avulsa)`) },
         { titulo: 'Forma', valor: (r) => r.forma_nome },
         { titulo: 'Conta', valor: (r) => nomeContaFinanceira(r.conta_financeira_nome) },
         { titulo: 'Principal', valor: (r) => centavos(r.valor_principal), tipo: 'moeda' },
@@ -564,7 +569,7 @@ async function copiaOperacional() {
   if (pode.site()) tabelas.push('publicacoes', 'campanhas', 'site_deploys');
   tabelas.push('processos', 'tarefas', 'feriados');
   if (pode.prazos()) tabelas.push('intimacoes', 'intimacoes_consultas', 'processos_nao_acompanhados');
-  if (pode.clientes()) tabelas.push('contatos', 'clientes_detalhes', 'clientes_contatos', 'documentos', 'atualizacoes');
+  if (pode.clientes()) tabelas.push('contatos', 'clientes_detalhes', 'clientes_contatos', 'documentos', 'atualizacoes', 'processos_documentos');
 
   const copia = {
     gerado_em: new Date().toISOString(),

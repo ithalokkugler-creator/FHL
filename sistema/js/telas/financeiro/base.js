@@ -8,10 +8,13 @@
 import { atualizar, componentesDosEncargos, memoriaParaGravar } from '../../dominio/atraso.js';
 import { mensagemDeCobranca } from '../../dominio/cobranca.js';
 import { fatorDoPeriodo, INDICES, temMesParaCorrigir, variacoes } from '../../dominio/indices.js';
-import { divisaoDoRecebimento, divisaoDoRepasse, gerarParcelas, nomeDaParcela, somaDasParcelas } from '../../dominio/parcelas.js';
+import {
+  descreverAntecipacao, divisaoDoRecebimento, divisaoDoRepasse, gerarParcelas, nomeDaParcela, nomesDasParcelas, planoAntecipacao,
+  somaDasParcelas,
+} from '../../dominio/parcelas.js';
 import { avisar } from '../../nucleo/avisos.js';
 import { abrirDialogo } from '../../nucleo/dialogo.js';
-import { ErroCampo } from '../../nucleo/formularios.js';
+import { ErroCampo, limparErrosFormulario } from '../../nucleo/formularios.js';
 import { estado, pode } from '../../nucleo/estado.js';
 import { navegar } from '../../nucleo/rotas.js';
 import { montarRecibo, saldoDepoisDe } from '../../documentos/recibo.js';
@@ -226,10 +229,14 @@ export function memoriaGravada(m) {
  * Parcela de acordo (cota do escritório abaixo de 100%): a tela mostra quanto
  * do valor é honorário e quanto é do cliente — o banco congela a mesma conta
  * no recebimento — e deixa registrar o repasse junto, quando ele sai na hora.
+ *
+ * Antecipação (pedido do Vinícius, 22/10/2026): o que passar do total quita a
+ * parcela e abate as últimas do contrato, de trás para frente, num lançamento
+ * só (receber_com_antecipacao). Acordo não tem antecipação.
  */
 export async function receberParcela(p) {
   const acordo = temRepasse(p);
-  const [{ formas, contasFinanceiras }, [{ calculo: inicial }], anteriores, ultimo] = await Promise.all([
+  const [{ formas, contasFinanceiras }, [{ calculo: inicial }], anteriores, ultimo, doContrato] = await Promise.all([
     apoio(), atualizarParcelas([p]),
     // Acordo pago em partes: a divisão é sobre o acumulado da parcela, como no banco.
     acordo ? db.todos('recebimentos', {
@@ -242,7 +249,13 @@ export async function receberParcela(p) {
       filtros: [['contrato_id', 'eq', p.contrato_id], ['estornado_em', 'is', null]],
       ordem: 'criado_em.desc',
     }).catch(() => null) : null,
+    // Antecipação: as outras parcelas do contrato, que recebem o que passar do total.
+    acordo ? [] : db.todos('v_parcelas', {
+      select: 'id,numero,vencimento,saldo,situacao,parte,cota_escritorio_pct',
+      filtros: [['contrato_id', 'eq', p.contrato_id]],
+    }),
   ]);
+  const atual = doContrato.find((x) => x.id === p.id) ?? p;
   const anterior = anteriores.reduce((a, r) => ({
     principal: a.principal + centavos(r.valor_principal),
     encargos: a.encargos + centavos(r.valor_encargos),
@@ -290,19 +303,36 @@ export async function receberParcela(p) {
             <label class="opcao campo"><input type="radio" name="destino" value="direto" ${ultimo?.direto_ao_cliente ? 'checked' : ''}>
               A parte do cliente foi paga direto a ele — entrou na conta só a do escritório</label>
           </fieldset>` : ''}
+        ${acordo ? '' : html`<label class="opcao campo" data-papel="antecipar" hidden><input type="checkbox" name="antecipar" checked>
+          <span data-papel="rotulo-antecipar">Abater o que passar nas últimas parcelas do contrato (antecipação)</span></label>`}
         <label class="opcao campo"><input type="checkbox" name="recibo"> Emitir o recibo deste recebimento ao salvar</label>
         ${acordo ? html`<label class="opcao campo" data-papel="repassar"><input type="checkbox" name="repassar"> Registrar também o repasse ao cliente, na mesma data e saindo da mesma conta</label>` : ''}
       </div>
-      <div class="secao" data-papel="memoria"></div>
-      <p class="nota nota--info" data-papel="efeito"></p>`,
+      <p class="nota nota--info secao" data-papel="efeito" aria-live="polite"></p>
+      <p class="nota" data-papel="aviso-antecipacao" hidden></p>
+      <div class="secao" data-papel="memoria"></div>`,
 
     aoAbrir: (dialogo, form) => {
       const efeito = () => {
         const caixa = $('[data-papel="efeito"]', dialogo);
+        const aviso = $('[data-papel="aviso-antecipacao"]', dialogo);
         const valor = lerMoeda(form.valor.value);
         const passou = valor - calculo.total;
-        caixa.classList.toggle('nota--perigo', passou > 0);
+        // Antecipação: só sem acordo, com parcela a vencer que caiba o que passou.
+        const plano = !acordo && passou > 0 ? planoAntecipacao(doContrato, atual, form.data.value || dia, passou) : null;
+        const cabe = Boolean(plano?.itens.length) && plano.sobra === 0;
+        const opcao = $('[data-papel="antecipar"]', dialogo);
+        if (opcao) {
+          opcao.hidden = !cabe;
+          // O valor no rótulo, perto do campo: um dígito a mais não passa sem ser visto.
+          if (cabe) $('[data-papel="rotulo-antecipar"]', opcao).textContent = `Abater os ${moeda(passou)} que passam nas últimas parcelas do contrato (antecipação)`;
+        }
+        const antecipa = cabe && form.antecipar.checked;
+        // Recebimento comum em verde; antecipação em âmbar (mexe em outras parcelas); recusa em vermelho.
+        caixa.classList.toggle('nota--perigo', passou > 0 && !antecipa);
         caixa.classList.toggle('nota--info', !(passou > 0));
+        aviso.hidden = !(antecipa && plano.foraDaData.length);
+        if (!aviso.hidden) desenhar(aviso, html`<strong>Atenção:</strong> ${avisoForaDaData(plano.foraDaData, form.data.value || dia, calculo.total)}`);
         if (!(valor > 0)) {
           caixa.textContent = 'Informe o valor recebido.';
           return;
@@ -312,8 +342,21 @@ export async function receberParcela(p) {
         let texto;
         if (valor < calculo.saldo) {
           texto = `Pagamento parcial: abate ${moeda(principal)} e ficam ${moeda(calculo.saldo - principal)} em aberto na parcela.`;
+        } else if (antecipa) {
+          texto = `Quita a ${rotuloParcela(p).toLowerCase()} (${moeda(calculo.total)}${calculo.total > calculo.saldo ? ', com multa, juros e correção' : ''}). `
+            + `Os ${moeda(passou)} que passam ${descreverAntecipacao(plano.itens)}.`;
+        } else if (passou > 0 && plano?.itens.length && plano.sobra > 0) {
+          texto = `O valor passa ${moeda(plano.sobra)} do que cabe nesta parcela (${moeda(calculo.total)}) e nas que vencem depois desta data `
+            + `(${moeda(plano.disponivel)}). Registre até ${moeda(calculo.total + plano.disponivel)} e lance a diferença como entrada avulsa.`;
+        } else if (passou > 0 && acordo) {
+          texto = `O valor passa ${moeda(passou)} do total atualizado (${moeda(calculo.total)}). Acordo não tem antecipação de parcelas: `
+            + `registre até ${moeda(calculo.total)} e lance a diferença como entrada avulsa ou acréscimo autorizado no contrato.`;
+        } else if (passou > 0 && cabe) {
+          texto = `O valor passa ${moeda(passou)} do total atualizado (${moeda(calculo.total)}). Para abater o excedente nas últimas parcelas, `
+            + `marque a antecipação; ou registre até ${moeda(calculo.total)} e lance a diferença como entrada avulsa.`;
         } else if (passou > 0) {
-          texto = `O valor passa ${moeda(passou)} do total atualizado (${moeda(calculo.total)}). Registre até ${moeda(calculo.total)}; a diferença entra como entrada avulsa ou como acréscimo autorizado no contrato.`;
+          texto = `O valor passa ${moeda(passou)} do total atualizado (${moeda(calculo.total)}), e nenhuma parcela deste contrato vence depois desta data `
+            + `para receber a antecipação. Registre até ${moeda(calculo.total)} e lance a diferença como entrada avulsa ou acréscimo autorizado no contrato.`;
         } else if (valor < calculo.total) {
           // Quita o saldo, mas não todos os encargos: o resto deixa de ser cobrado.
           texto = `Quita a parcela: ${moeda(principal)} de saldo e ${moeda(encargos)} de multa, juros e correção. `
@@ -356,7 +399,8 @@ export async function receberParcela(p) {
         efeito();
       });
       form.addEventListener('change', (e) => {
-        if (e.target.name === 'destino') efeito();
+        if (e.target.name === 'antecipar') limparErrosFormulario(form);
+        if (e.target.name === 'destino' || e.target.name === 'antecipar') efeito();
       });
       redesenhar();
     },
@@ -367,9 +411,18 @@ export async function receberParcela(p) {
       if (!(valor > 0)) throw new Error('Informe o valor recebido.');
       if (dados.data > hoje()) throw new Error('A data do pagamento não pode estar no futuro.');
       // O que passa do total atualizado não vira encargo sem ninguém decidir
-      // (red team 11/10): vai como entrada avulsa ou acréscimo autorizado.
+      // (red team 11/10): antecipa as últimas parcelas (22/10), ou vai como
+      // entrada avulsa ou acréscimo autorizado.
       if (valor > calculo.total) {
-        throw new ErroCampo('valor', `O valor passa ${moeda(valor - calculo.total)} do total atualizado (${moeda(calculo.total)}). Registre até esse total e lance a diferença como entrada avulsa ou acréscimo autorizado.`);
+        const plano = acordo ? null : planoAntecipacao(doContrato, atual, dados.data, valor - calculo.total);
+        // Curta: a explicação inteira está na nota, logo abaixo dos campos.
+        if (plano?.itens.length && plano.sobra > 0) {
+          throw new ErroCampo('valor', `Passa ${moeda(plano.sobra)} do que cabe nesta parcela e nas próximas: registre até ${moeda(calculo.total + plano.disponivel)}.`);
+        }
+        if (!plano?.itens.length || !dados.antecipar) {
+          throw new ErroCampo('valor', `Passa ${moeda(valor - calculo.total)} do total atualizado: registre até ${moeda(calculo.total)}.`);
+        }
+        return anteciparParcelas({ p, calculo, valor, dados });
       }
 
       const principal = Math.min(valor, calculo.saldo);
@@ -408,6 +461,52 @@ export async function receberParcela(p) {
       return true;
     },
   });
+}
+
+/** As parcelas que vencem até a data do pagamento e ficam fora da antecipação. */
+function avisoForaDaData(lista, dataPagamento, total) {
+  const nome = (x) => nomeDaParcela(x.numero).toLowerCase();
+  const quando = (x) => (x.vencimento < dataPagamento ? `venceu em ${data(x.vencimento)}` : 'vence nesta data');
+  const uma = lista.length === 1;
+  const quais = uma
+    ? `a ${nome(lista[0])} (${quando(lista[0])}) continua em aberto`
+    : `as ${nomesDasParcelas(lista.map((x) => x.numero))} (vencidas ou vencendo até esta data) continuam em aberto`;
+  return `${quais}, e a antecipação só abate parcelas que vencem depois da data do pagamento. `
+    + `Se este dinheiro era para ${uma ? 'ela' : 'elas'}, desmarque a antecipação, registre aqui só ${moeda(total)} `
+    + `e receba ${uma ? `a ${nome(lista[0])}` : 'cada uma'} à parte.`;
+}
+
+/** Quita a parcela (com os encargos do dia) e manda o que passou para as
+ *  últimas do contrato — o banco faz o plano de novo e grava tudo junto. */
+async function anteciparParcelas({ p, calculo, valor, dados }) {
+  const encargos = calculo.total - calculo.saldo;
+  const k = componentesDosEncargos(calculo, encargos);
+  const excedente = valor - calculo.total;
+  const feito = await db.rpc('receber_com_antecipacao', {
+    p: {
+      recebimento: {
+        parcela_id: p.id,
+        data: dados.data,
+        valor: paraReais(calculo.total),
+        valor_principal: paraReais(calculo.saldo),
+        valor_encargos: paraReais(encargos),
+        valor_correcao: paraReais(k.correcao),
+        valor_multa: paraReais(k.multa),
+        valor_juros: paraReais(k.juros),
+        valor_acrescimo: paraReais(k.acrescimo),
+        forma_id: dados.forma_id || null,
+        conta_financeira_id: dados.conta_financeira_id || null,
+        observacao: dados.observacao || null,
+        memoria_calculo: memoriaParaGravar(calculo),
+      },
+      excedente: paraReais(excedente),
+    },
+  });
+  const numeros = (feito.antecipacoes ?? []).map((a) => Number(a.numero));
+  avisar(`Recebimento registrado: ${moeda(calculo.total)} na ${rotuloParcela(p).toLowerCase()} e ${moeda(excedente)} antecipados `
+    + `${numeros.length === 1 ? 'na' : 'nas'} ${nomesDasParcelas(numeros)}.`);
+  if (dados.recibo) await emitirRecibo(feito.id).catch((erro) => avisar(`Recebimento salvo, mas o recibo não: ${erro.message}`, 'erro', 8000));
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -467,29 +566,62 @@ export async function registrarRepasse(r) {
 export async function emitirRecibo(recebimentoId) {
   const r = await db.um('v_recebimentos', { select: '*', filtros: [['id', 'eq', recebimentoId]] });
   if (!r) throw new Error('Recebimento não encontrado.');
+  // A parte antecipada sai no recibo do pagamento de onde veio.
+  if (r.antecipacao_de) return emitirRecibo(r.antecipacao_de);
   if (r.estornado_em) throw new Error('Recebimento estornado não pode gerar um novo recibo.');
   if (!r.cliente_id) throw new Error('Entrada avulsa sem cliente não tem recibo: informe o cliente na entrada.');
-  const [cliente, parcela, contrato, daParcela] = await Promise.all([
+  const [cliente, parcela, contrato, daParcela, filhos] = await Promise.all([
     db.um('clientes', { select: 'id,nome,documento', filtros: [['id', 'eq', r.cliente_id]] }),
     r.parcela_id ? db.um('v_parcelas', { select: '*', filtros: [['id', 'eq', r.parcela_id]] }) : null,
     r.contrato_id ? db.um('v_contratos', { select: 'id,codigo,descricao', filtros: [['id', 'eq', r.contrato_id]] }) : null,
     r.parcela_id ? db.todos('v_recebimentos', { select: 'id,data,criado_em,valor_principal,estornado_em', filtros: [['parcela_id', 'eq', r.parcela_id]] }) : [],
+    r.parcela_id ? db.todos('v_recebimentos', {
+      select: 'id,parcela_id,parcela_numero,valor,criado_em,estornado_em',
+      filtros: [['antecipacao_de', 'eq', r.id], ['estornado_em', 'is', null]],
+    }) : [],
   ]);
   const ajustes = parcela ? await db.todos('ajustes_financeiros', { select: 'tipo,valor,criado_em,estornado_em', filtros: [['parcela_id', 'eq', r.parcela_id]] }) : [];
   const saldoDepois = parcela ? saldoDepoisDe(r, daParcela, centavos(parcela.valor), ajustes) : null;
-  const conteudo = String(montarRecibo({ recebimento: r, parcela, contrato, cliente, saldoDepois, emitente: estado.membro.nome, dia: hoje() }));
+  const antecipacoes = filhos.length ? await partesAntecipadas(filhos) : [];
+  const antecipado = antecipacoes.reduce((soma, a) => soma + a.valor, 0);
+  const conteudo = String(montarRecibo({ recebimento: r, parcela, contrato, cliente, saldoDepois, emitente: estado.membro.nome, dia: hoje(), antecipacoes }));
   const doc = await salvarDocumento({
     modelo: 'recibo',
     titulo: `Recibo — ${cliente.nome}`,
     cliente_id: r.cliente_id,
     contrato_id: r.contrato_id ?? null,
     recebimento_id: r.id,
-    dados: { valor: r.valor, saldo_depois: saldoDepois == null ? null : paraReais(saldoDepois) },
+    dados: {
+      valor: paraReais(centavos(r.valor) + antecipado),
+      saldo_depois: saldoDepois == null ? null : paraReais(saldoDepois),
+      ...(antecipado ? { antecipado: paraReais(antecipado) } : {}),
+    },
     conteudo,
   });
   avisar('Recibo emitido e guardado em Documentos.');
   navegar(`/documentos/${doc.id}`);
   return doc;
+}
+
+/** As partes antecipadas de um pagamento, para o recibo: parcela, vencimento,
+ *  valor e o que ficou em aberto nela logo depois (centavos). */
+async function partesAntecipadas(filhos) {
+  const ids = [...new Set(filhos.map((f) => f.parcela_id))];
+  const [parcelas, recebimentos, ajustes] = await Promise.all([
+    db.todos('v_parcelas', { select: 'id,numero,vencimento,valor', filtros: [['id', 'in', ids]] }),
+    db.todos('v_recebimentos', { select: 'id,parcela_id,criado_em,valor_principal,estornado_em', filtros: [['parcela_id', 'in', ids]] }),
+    db.todos('ajustes_financeiros', { select: 'parcela_id,tipo,valor,criado_em,estornado_em', filtros: [['parcela_id', 'in', ids]] }),
+  ]);
+  return filhos.map((f) => {
+    const pa = parcelas.find((x) => x.id === f.parcela_id);
+    const daMesma = (x) => x.parcela_id === f.parcela_id;
+    return {
+      numero: f.parcela_numero,
+      vencimento: pa?.vencimento,
+      valor: centavos(f.valor),
+      saldoDepois: pa ? saldoDepoisDe(f, recebimentos.filter(daMesma), centavos(pa.valor), ajustes.filter(daMesma)) : null,
+    };
+  }).sort((a, b) => (b.vencimento ?? '').localeCompare(a.vencimento ?? '') || b.numero - a.numero);
 }
 
 // ---------------------------------------------------------------------------

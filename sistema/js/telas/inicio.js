@@ -21,6 +21,8 @@ import { aniversariantes } from '../dominio/aniversarios.js';
 import { tarefasParaHoje } from '../dominio/avisos-do-dia.js';
 import { diaDaTarefa, prazoRestante, PRIORIDADES, urgenciaTarefa } from '../dominio/tarefas.js';
 import { mensagemAniversario, mensagemLembrete } from '../dominio/mensagens.js';
+import { MOVIMENTOS, situacaoDocumento } from '../dominio/documentos-processo.js';
+import { seloDocumento } from './documentos-processo.js';
 import { prepararMensagem } from './preparar-mensagem.js';
 
 export default async function telaInicio(ctx) {
@@ -120,6 +122,12 @@ async function carregar(dia) {
       const porCliente = new Map(detalhes.map((d) => [d.cliente_id, d]));
       return aniversariantes(clientes.map((c) => ({ ...porCliente.get(c.id), ...c })), dia);
     });
+    // Documentos de processos com o retorno atrasado ou nos próximos 7 dias.
+    tarefas.documentos = db.todos('v_processos_documentos', {
+      select: 'id,processo_id,cliente_id,cliente_nome,processo_titulo,documento,movimento,data,retorno_previsto,retornou_em,cancelado_em',
+      filtros: [['retornou_em', 'is', null], ['cancelado_em', 'is', null], ['retorno_previsto', 'lte', somarDias(dia, 7)]],
+      ordem: 'retorno_previsto.asc,id.asc',
+    });
   }
 
   if (pode.agenda()) {
@@ -211,7 +219,8 @@ function saudacao() {
 
 
 // A ordem da tela é a ordem de importância para quem abre o sistema de manhã:
-// o dia (compromissos e tarefas juntos, com o amanhã ao lado), o dinheiro,
+// o dia (compromissos e tarefas juntos, com o amanhã ao lado) e, logo abaixo,
+// os documentos com retorno atrasado ou perto (só quando há), o dinheiro,
 // o que chegou de fora (intimações e contatos) e, por último, os lembretes
 // de relacionamento (site e aniversários).
 function tela(dados, dia, filtro) {
@@ -227,6 +236,7 @@ function tela(dados, dia, filtro) {
     ${cabecalho(`${saudacao()}, ${estado.membro.nome_curto}`, capitalizar(dataExtensa(dia)))}
     <div class="hoje">
       ${painelDia(dados, dia, filtro)}
+      ${pode.clientes() ? painelDocumentos(dados.documentos, dia) : ''}
       ${financeiro}
       ${entrada.length ? html`<div class="grade grade--2">${entrada}</div>` : ''}
       ${site}
@@ -537,6 +547,23 @@ function painelIntimacoes(dados) {
               <span class="sub">${dataCurta(i.publicada_em || i.disponibilizada_em)}</span>
             </a></li>`)}</ul>`
         : vazio('Nenhuma intimação aguardando conferência.')}
+    </section>`;
+}
+
+// Só aparece quando há documento com o retorno atrasado ou nos próximos 7
+// dias (pedido do Vinícius, 22/10/2026). O item abre os documentos do processo.
+function painelDocumentos(lista, dia) {
+  if (!lista) return indisponivel('Documentos aguardando retorno');
+  if (!lista.length) return '';
+  const todos = '#/processos?documentos=aguardando&situacao=todos';
+  return html`
+    <section class="painel" data-painel="documentos">
+      ${topoPainel('Documentos aguardando retorno', todos, 'Ver todos')}
+      <ul class="lista">${limitar(lista.map((d) => html`
+        <li><a class="lista__item" href="#/clientes/${d.cliente_id}?documentos=${d.processo_id}">
+          <span>${d.documento}<span class="sub">${d.cliente_nome ?? 'Cliente'} · ${d.processo_titulo} · ${MOVIMENTOS[d.movimento].toLowerCase()} em ${dataCurta(d.data)}</span></span>
+          ${seloDocumento(situacaoDocumento(d, dia))}
+        </a></li>`), 6, todos, 'ver processos')}</ul>
     </section>`;
 }
 

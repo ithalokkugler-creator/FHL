@@ -13,6 +13,7 @@ import { ErroCampo } from '../../nucleo/formularios.js';
 import { nomeDe, pode } from '../../nucleo/estado.js';
 import { centavos, data, dataHora, documento, duracao, hoje, linkWhatsApp, moeda, noFuso, soDigitos, telefone } from '../../nucleo/formato.js';
 import { aoClicar, desenhar, html } from '../../nucleo/html.js';
+import { guardarConsulta } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
 import { COLUNAS_CLIENTE, COLUNAS_DETALHES, COLUNAS_PROCESSO, diasParaAniversario, ESTADOS_CIVIS, TIPOS_PESSOA } from '../../dominio/clientes.js';
 import { origemContato } from '../../dominio/contatos.js';
@@ -23,6 +24,7 @@ import { abrirAnexos } from '../anexos.js';
 import { cabecalho, opcoes, seloCompromisso, seloContrato, vazio } from '../comum.js';
 import { abrirHistorico } from '../historico.js';
 import { formularioProcesso, tabelaProcessos } from '../processos.js';
+import { abrirDocumentosProcesso, COLUNAS_RESUMO_DOCUMENTOS, documentosPorProcesso } from '../documentos-processo.js';
 import { iniciarCronometro } from '../atualizacoes/cronometro.js';
 import { formularioAtualizacao } from '../atualizacoes/formulario.js';
 import { ligarAcoesAtualizacoes, linhaDoTempo, notaRodando } from '../atualizacoes/lista.js';
@@ -219,7 +221,7 @@ async function carregarFicha(id) {
     ? db.listar('compromissos', { select: 'id,titulo,inicio,fim,membro_id,situacao', filtros: [...doCliente, ['cancelado_em', 'is', null], ...filtros], ordem, limite: 5 })
     : []);
 
-  const [cliente, detalhes, processos, contatos, futuros, anteriores, contratos, atualizacoes, documentos, tarefas, pessoas] = await Promise.all([
+  const [cliente, detalhes, processos, contatos, futuros, anteriores, contratos, atualizacoes, documentos, tarefas, pessoas, docsProcessos] = await Promise.all([
     db.um('clientes', { select: COLUNAS_CLIENTE, filtros: [['id', 'eq', id]] }),
     db.um('clientes_detalhes', { select: COLUNAS_DETALHES, filtros: doCliente }),
     db.todos('processos', { select: COLUNAS_PROCESSO, filtros: doCliente, ordem: 'criado_em.desc,id.desc' }),
@@ -237,8 +239,12 @@ async function carregarFicha(id) {
       ordem: 'fatal_em.asc,id.asc',
     }),
     db.todos('clientes_contatos', { select: '*', filtros: doCliente, ordem: 'principal.desc,nome.asc,id.asc' }).catch(() => []),
+    db.todos('processos_documentos', { select: COLUNAS_RESUMO_DOCUMENTOS, filtros: [...doCliente, ['cancelado_em', 'is', null]] }).catch(() => []),
   ]);
-  return { cliente, detalhes, processos, contatos, futuros, anteriores, contratos, atualizacoes, documentos, tarefas, pessoas };
+  return {
+    cliente, detalhes, processos, contatos, futuros, anteriores, contratos, atualizacoes, documentos, tarefas, pessoas,
+    docsProcessos: documentosPorProcesso(docsProcessos),
+  };
 }
 
 function tela(id, f) {
@@ -268,7 +274,7 @@ function tela(id, f) {
     </div>
 
     ${painel('Processos e casos', html`<button type="button" class="botao botao--pequeno" data-acao="novo-processo">Novo processo</button>`,
-      tabelaProcessos(f.processos, [], { mostrarCliente: false }))}
+      tabelaProcessos(f.processos, [], { mostrarCliente: false, documentos: f.docsProcessos }))}
     ${painelTempo(id, cliente, f.atualizacoes, f.processos)}
     ${painel('Tarefas e prazos abertos', html`<a href="#/tarefas?visao=todas&cliente=${id}">Abrir Tarefas</a>`,
       tabelaTarefas(f.tarefas, { vazio: 'Nenhuma tarefa ou prazo em aberto para este cliente.' }))}
@@ -377,7 +383,16 @@ export default async function telaCliente(ctx) {
     'novo-processo': () => depois(formularioProcesso({ cliente_id: id })),
     'editar-processo': (el) => depois(formularioProcesso({ processo: processo(el) })),
     'historico-processo': (el) => abrirHistorico({ titulo: processo(el).titulo, registros: [el.dataset.id] }),
+    'documentos-processo': (el) => depois(abrirDocumentosProcesso({ processo: processo(el), clienteNome: f.cliente.nome })),
   });
+
+  // Vindo do aviso de Hoje (?documentos=<processo>): abre os documentos dele.
+  // O endereço volta a ser o da ficha: recarregar não reabre o diálogo.
+  const doAviso = f.processos.find((p) => p.id === ctx.consulta?.documentos);
+  if (doAviso) {
+    guardarConsulta({});
+    depois(abrirDocumentosProcesso({ processo: doAviso, clienteNome: f.cliente.nome }));
+  }
 
   return () => {
     removeEventListener('fhl:atualizacoes', sincronizar);

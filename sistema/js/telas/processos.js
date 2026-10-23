@@ -1,13 +1,14 @@
 // Processos e casos (F2). Número CNJ com dígito verificador conferido aqui e
 // no banco; caso consultivo ou extrajudicial pode ficar sem número, com uma
 // referência. O mesmo número pode servir a clientes diferentes, nunca duas
-// vezes ao mesmo cliente.
+// vezes ao mesmo cliente. Cada processo tem os documentos solicitados e
+// entregues (22/10), com o retorno previsto — telas/documentos-processo.js.
 
 import { avisar, avisarErro } from '../nucleo/avisos.js';
 import { abrirDialogo } from '../nucleo/dialogo.js';
 import { ErroCampo } from '../nucleo/formularios.js';
 import { nomeDe } from '../nucleo/estado.js';
-import { dataHora, numeroCnj, numeroCnjValido, tribunalDoNumero } from '../nucleo/formato.js';
+import { dataHora, hoje, numeroCnj, numeroCnjValido, tribunalDoNumero } from '../nucleo/formato.js';
 import { $, aoClicar, desenhar, html } from '../nucleo/html.js';
 import { guardarConsulta } from '../nucleo/rotas.js';
 import { db } from '../nucleo/supabase.js';
@@ -18,6 +19,10 @@ import { AREAS_JURIDICAS, cabecalho, opcoes, vazio } from './comum.js';
 import { campoCliente, ligarCampoCliente } from './clientes.js';
 import { opcoesResponsaveis } from './clientes/formulario.js';
 import { abrirHistorico } from './historico.js';
+import {
+  abrirDocumentosProcesso, COLUNAS_RESUMO_DOCUMENTOS, documentosPorProcesso, resumoNaTabela,
+} from './documentos-processo.js';
+import { resumoDocumentos } from '../dominio/documentos-processo.js';
 
 const TONS = { encerrado: 'escuro', em_andamento: 'ok' };
 
@@ -38,10 +43,12 @@ function campoPosicao(atual) {
 }
 export const seloProcesso = (situacao) => html`<span class="selo selo--${TONS[situacao] ?? 'alerta'}">${SITUACOES_PROCESSO[situacao] ?? situacao}</span>`;
 
-/** Também usada na ficha do cliente, sem a coluna Cliente. */
-export function tabelaProcessos(processos, clientes = [], { mostrarCliente = true } = {}) {
-  if (!processos.length) return vazio('Nenhum processo ou caso cadastrado.');
+/** Também usada na ficha do cliente, sem a coluna Cliente. `documentos`:
+ *  os documentos de cada processo (documentosPorProcesso), para o resumo. */
+export function tabelaProcessos(processos, clientes = [], { mostrarCliente = true, documentos = new Map(), semResultado = 'Nenhum processo ou caso cadastrado.' } = {}) {
+  if (!processos.length) return vazio(semResultado);
   const nomes = new Map(clientes.map((c) => [c.id, c.nome]));
+  const dia = hoje();
   return html`
     <div class="tabela-rolagem"><table class="tabela tabela--processos">
       <thead><tr>
@@ -51,7 +58,8 @@ export function tabelaProcessos(processos, clientes = [], { mostrarCliente = tru
       <tbody>${processos.map((p) => html`
         <tr>
           <td><strong>${p.titulo}</strong><span class="sub num">${p.numero ? numeroCnj(p.numero) : p.referencia || 'Sem número judicial'}</span>
-            ${p.posicao_cliente ? html`<span class="sub">Nosso cliente: <strong>${p.posicao_cliente}</strong></span>` : ''}</td>
+            ${p.posicao_cliente ? html`<span class="sub">Nosso cliente: <strong>${p.posicao_cliente}</strong></span>` : ''}
+            ${resumoNaTabela(documentos.get(p.id), dia, p.id)}</td>
           ${mostrarCliente ? html`<td><a href="#/clientes/${p.cliente_id}">${nomes.get(p.cliente_id) ?? 'Cliente'}</a></td>` : ''}
           <td>${AREAS_JURIDICAS[p.area]}</td>
           <td>${p.tribunal ?? '—'}<span class="sub">${p.orgao ?? ''}</span></td>
@@ -60,6 +68,7 @@ export function tabelaProcessos(processos, clientes = [], { mostrarCliente = tru
           <td>${p.alterado_em || p.criado_em ? dataHora(p.alterado_em || p.criado_em) : '—'}</td>
           <td><div class="registro-acoes">
             <button type="button" class="botao botao--pequeno" data-acao="editar-processo" data-id="${p.id}">Editar</button>
+            <button type="button" class="botao botao--pequeno" data-acao="documentos-processo" data-id="${p.id}" aria-label="Documentos — ${p.titulo}">Documentos</button>
             <button type="button" class="botao botao--pequeno botao--discreto" data-acao="historico-processo" data-id="${p.id}">Histórico</button>
           </div></td>
         </tr>`)}
@@ -162,18 +171,36 @@ export default async function telaProcessos(ctx) {
     responsavel: c.responsavel ?? '',
     tribunal: c.tribunal ?? '',
     posicao: c.posicao ?? '',
+    documentos: ['aguardando', 'atrasado'].includes(c.documentos) ? c.documentos : '',
     busca: c.busca ?? '',
   };
   let processos = [];
   let clientes = [];
+  let documentos = new Map();
 
-  const mostrar = () => desenhar($('[data-lista]', ctx.raiz), tabelaProcessos(filtrarProcessos(processos, clientes, f), clientes));
+  // "Aguardando retorno" inclui os atrasados; "Com retorno atrasado", só eles.
+  const peloRetorno = (p) => {
+    if (!f.documentos) return true;
+    const r = resumoDocumentos(documentos.get(p.id), hoje());
+    return f.documentos === 'atrasado' ? r.atrasados > 0 : r.aguardando > 0;
+  };
+  // Lista vazia por causa dos filtros não é "nenhum processo cadastrado".
+  const semResultado = () => (!processos.length ? 'Nenhum processo ou caso cadastrado.'
+    : f.documentos === 'atrasado' ? 'Nenhum processo com retorno de documento atrasado, com esses filtros.'
+      : f.documentos === 'aguardando' ? 'Nenhum processo aguardando retorno de documento, com esses filtros.'
+        : 'Nenhum processo encontrado com esses filtros.');
+  const mostrar = () => desenhar($('[data-lista]', ctx.raiz),
+    tabelaProcessos(filtrarProcessos(processos, clientes, f).filter(peloRetorno), clientes, { documentos, semResultado: semResultado() }));
 
   const carregar = async () => {
-    [processos, clientes] = await Promise.all([
+    let lista;
+    [processos, clientes, lista] = await Promise.all([
       db.todos('processos', { select: COLUNAS_PROCESSO, ordem: 'criado_em.desc,id.desc' }),
       db.todos('clientes', { select: COLUNAS_CLIENTE }),
+      // O resumo dos documentos é a mais: se não vier, a lista abre sem ele.
+      db.todos('processos_documentos', { select: COLUNAS_RESUMO_DOCUMENTOS, filtros: [['cancelado_em', 'is', null]] }).catch(() => []),
     ]);
+    documentos = documentosPorProcesso(lista);
     if (!ctx.ativa()) return;
     const tribunais = [...new Set(processos.map((p) => p.tribunal).filter(Boolean))].sort();
     const posicoes = [...new Set(processos.map((p) => p.posicao_cliente).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
@@ -187,6 +214,7 @@ export default async function telaProcessos(ctx) {
         <label class="campo"><span>Responsável</span><select name="responsavel">${opcoesResponsaveis(f.responsavel, { vazio: 'Todos' })}</select></label>
         <label class="campo"><span>Tribunal</span><select name="tribunal">${opcoes(tribunais.map((t) => [t, t]), f.tribunal, { vazio: 'Todos' })}</select></label>
         <label class="campo"><span>Nosso cliente é</span><select name="posicao">${opcoes([...posicoes.map((p) => [p, p]), ['sem', 'Não informado']], f.posicao, { vazio: 'Todas as posições' })}</select></label>
+        <label class="campo"><span>Retorno de documentos</span><select name="documentos">${opcoes([['aguardando', 'Aguardando retorno'], ['atrasado', 'Com retorno atrasado']], f.documentos, { vazio: 'Todos' })}</select></label>
         <label class="campo campo--busca"><span>Buscar</span><input type="search" name="busca" value="${f.busca}" placeholder="Cliente, número, título ou referência"></label>
       </form>
       <section class="painel" data-lista></section>`);
@@ -216,5 +244,9 @@ export default async function telaProcessos(ctx) {
     'novo-processo': () => depois(formularioProcesso()),
     'editar-processo': (el) => depois(formularioProcesso({ processo: processoDe(el) })),
     'historico-processo': (el) => abrirHistorico({ titulo: processoDe(el).titulo, registros: [el.dataset.id] }),
+    'documentos-processo': (el) => {
+      const p = processoDe(el);
+      return depois(abrirDocumentosProcesso({ processo: p, clienteNome: clientes.find((x) => x.id === p.cliente_id)?.nome }));
+    },
   });
 }

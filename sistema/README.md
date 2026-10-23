@@ -10,10 +10,10 @@ permissão por módulo e registro de tudo. É o piloto da fase 2 descrita em
 (as referências "preparação 5.2", "6.5" etc. abaixo são a esse arquivo),
 rodando nos planos gratuitos do Supabase e da Vercel.
 
-**Estado (21/10/2026):** tudo o que este arquivo descreve está **em
-produção** em <https://advocaciafl.com.br/sistema> — as 41 migrações
+**Estado (22/10/2026):** tudo o que este arquivo descreve está **em
+produção** em <https://advocaciafl.com.br/sistema> — as 42 migrações
 aplicadas e as 5 funções de borda publicadas — e os advogados usam desde
-15/10. **193/193 testes JS e 640/640 verificações SQL.** Contas, como
+15/10. **205/205 testes JS e 707/707 verificações SQL.** Contas, como
 publicar, armadilhas e pendências: [`HANDOFF.md`](../HANDOFF.md). As
 especificações originais (E0/F1–F9, DOCX T01–T17, pedidos de 19/10, red
 team de 11/10) estão em [`docs/historico/`](../docs/historico/).
@@ -49,6 +49,10 @@ site" na lateral e "Voltar ao site" na tela de entrada.
 - **21/10:** [pedidos dos advogados](#pedidos-dos-advogados-2110): campo
   Cliente que acha por parte do nome e pelo CPF, processos que o escritório
   não acompanha (as intimações do Marlon) e filiação em mãe e pai.
+- **22/10:** [pedidos do Vinícius](#pedidos-do-vinícius-2210): antecipação de
+  parcelas (o que passa do total abate as últimas do contrato, de trás para
+  frente) e documentos solicitados/entregues no processo, com o retorno
+  previsto e o aviso em Hoje.
 
 ---
 
@@ -497,6 +501,87 @@ Migração `20261021200000_pedidos_guilherme_2110`, testes
   histórico por tecla. Só grava na atividade ainda aberta: parada em outra
   aba, avisa e não reescreve. O "Parar" já abre com o texto.
 
+## Pedidos do Vinícius (22/10)
+
+Migração `20261022120000_antecipacao_documentos_processo`, testes
+`supabase/testes/antecipacao-documentos.sql` e
+`sistema/testes/antecipacao-documentos.test.mjs`.
+
+- **Antecipação de parcelas** ("se o cliente paga R$ 500,00 por mês, mas
+  realiza um pagamento de R$ 750,00, o sistema quita a parcela do mês e abate
+  os R$ 250,00 restantes da última parcela do contrato… de trás para frente").
+  No "Receber", o que passa do total atualizado deixou de ser recusado quando
+  cabe nas parcelas seguintes: a opção "Abater os R$ X que passam nas últimas
+  parcelas do contrato (antecipação)" vem marcada, com o valor no rótulo, e a
+  nota — logo abaixo dos campos, em âmbar — mostra antes de salvar quanto vai
+  para cada parcela e como ela fica (as quitadas numa frase só: "quitam as
+  parcelas 6 e 5…"). `receber_com_antecipacao()`
+  — security **invoker**: cada lançamento passa pelas mesmas travas de sempre
+  (RLS, saldo da parcela, mês fechado, conta) — grava numa transação o
+  recebimento que quita a parcela (com os encargos do dia) e um recebimento
+  por parcela antecipada, com `recebimentos.antecipacao_de` apontando o
+  pagamento. Entram só parcelas do **mesmo contrato e grupo** (fixo ou êxito),
+  em aberto, que **vencem depois da data do pagamento**, da última para a
+  primeira, inteiras ou em parte (`planoAntecipacao` em `dominio/parcelas.js`
+  faz a mesma conta para a prévia; o banco refaz). Parcela vencida antes da
+  data (ou vencendo nela) não entra: um aviso à parte diz qual é e quanto
+  registrar se o dinheiro era para ela. **Acordo não tem antecipação** (quem
+  paga é a parte contrária e o repasse é por parcela). O que passa de tudo é
+  recusado ("registre até…"); desmarcar a opção volta à regra antiga. O texto
+  que o sistema escreve vai em `recebimentos.descricao` ("Pagamento de
+  R$ 1.800,00 com R$ 1.300,00 antecipados (parcelas 6, 5, 4 e 3)"; na parte:
+  "Antecipação: parte do pagamento de … da parcela 2 em …"), que aparece no
+  relatório de Recebimentos e no histórico; a observação fica com o que a
+  pessoa digitou. O extrato das contas marca a parte com "· antecipação".
+- **Recibo e estorno.** O recibo é um só, do pagamento: o total, a parcela
+  quitada, cada parte antecipada e como cada parcela ficou ("referente à
+  parcela…, e à antecipação de parcelas vincendas"). Na tabela do contrato,
+  cada pagamento vem com o total ("+ R$ X antecipados · pagamento de R$ Y") e,
+  logo abaixo, as partes em linhas compactas marcadas "Antecipação", sem
+  "Estornar" nem recibo próprios: `b_estorno_antecipacao` recusa estorná-la
+  sozinha e `x_estornar_antecipacoes` a estorna junto com o pagamento; o
+  diálogo de estorno diz o total e as partes, e o alerta de estorno é um só,
+  com o total (`evento_estorno`). Estornar um pagamento cuja parcela foi
+  **renegociada** depois não volta a cobrar o que ele abateu nela — isso já
+  era assim antes da antecipação; agora o diálogo avisa e sugere lançar um
+  acréscimo.
+  `validar_antecipacao` confere a ligação (mesmo contrato e grupo, mesma data,
+  parcela que ainda vai vencer, sem encargos, origem que quitou a parcela)
+  também para quem grava direto na tabela.
+- **Nada muda no que já existia.** A coluna nova nasce vazia e os gatilhos
+  novos só agem em recebimento com antecipação. `v_recebimentos` ganhou
+  `antecipacao_de` no fim (a definição em produção era idêntica à do
+  repositório — hash conferido antes de publicar). Ensaio: banco até a 39 +
+  semente da prévia → "fotografia" das finanças (totais e hash de cada
+  recebimento, parcela, `v_parcelas`, `v_contratos`, `v_recebimentos`,
+  movimentações, repasses, ajustes e despesas) → migração 40 → fotografia
+  idêntica. A mesma fotografia foi tirada em produção antes e depois de
+  publicar. Também substituídas com hash conferido: `v_movimentacoes_financeiras`
+  (só a descrição da parte antecipada) e `privado.evento_estorno`.
+- **Testadores (22/10):** três subagentes (contas da antecipação, documentos,
+  design) não acharam conta errada; os ajustes de leitura, ordem das linhas,
+  textos, celular e edição simultânea que apontaram entraram antes de
+  publicar.
+- **Documentos do processo** ("registrar o documento solicitado ou entregue,
+  quem recebeu, a data e o prazo previsto para retorno"). Tabela
+  `processos_documentos` (o cliente vem do processo; quem vê e grava é quem
+  edita Clientes, como nas atualizações; nada se apaga — cancelar pede motivo)
+  e `v_processos_documentos`. Na lista de Processos e na ficha do cliente,
+  cada processo tem "Documentos" e o resumo clicável ("3 documentos · 2
+  aguardando retorno (1 atrasado)"); Processos tem o filtro "Retorno de
+  documentos". O diálogo "Documentos solicitados e entregues" lista primeiro
+  o que aguarda retorno (atrasado em vermelho, até 3 dias em amarelo) e tem
+  Registrar documento, Registrar retorno, Editar, Cancelar registro (fica
+  riscado, com quem cancelou) e Histórico (`telas/documentos-processo.js`;
+  regras em `dominio/documentos-processo.js`). Editar grava só o que mudou e
+  só se ninguém mudou o registro depois que a tela o leu (filtro por
+  `alterado_em`); ano mal digitado (0202, 20261) é recusado na tela e no
+  banco. Em Hoje, o painel "Documentos aguardando retorno" vem logo depois de
+  "Seu dia", só com retorno atrasado ou nos próximos 7 dias, e abre a ficha
+  do cliente já com os documentos do processo (`?documentos=<processo>`; o
+  endereço volta ao da ficha). Sem prazo de retorno não há aviso — a ajuda do
+  campo diz isso.
+
 ## Operação, segurança e LGPD (08/10)
 
 - **Saída por inatividade**: minutos em Operação e LGPD (padrão 30), com
@@ -733,6 +818,7 @@ quem não é sócio.
 | 20261020210000 | `agenda_google_destravar` | `where unica` em destravar e desligar (o `safeupdate` do Supabase recusava) |
 | 20261020220000 | `agenda_remarcar` | Remarcar com a nova data (`remarcar_compromisso`, `compromissos.remarcado_para`) e voltar para agendado |
 | 20261020230000 | `agenda_revisao` | Caça a bugs 2: histórico de particular só do dono (nem quem audita), `remarcado_para` só do mesmo responsável e "remarcado" só com o novo horário, situação no Google sem particular alheio |
+| 20261022120000 | `antecipacao_documentos_processo` | Antecipação de parcelas (`receber_com_antecipacao`, `recebimentos.antecipacao_de`, estorno junto com o pagamento, um alerta só; extrato marca a parte) e `processos_documentos` (documentos solicitados/entregues, retorno previsto) |
 | 20261021200000 | `pedidos_guilherme_2110` | Tarefa a partir da intimação (`criar_prazo_intimacao` aceita `tarefa`), `processos.posicao_cliente` e `iniciar_cronometro` que liga o cliente ao atendimento sem cliente |
 | 20261021120000 | `pedidos_advogados_2110` | Filiação em mãe e pai (`clientes_detalhes.filiacao_mae/_pai`, `salvar_cliente`) e processos que o escritório não acompanha (`processos_nao_acompanhados`, `nao_acompanhar_processo()`, `importar_intimacoes` arquiva na chegada) |
 

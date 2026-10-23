@@ -7,7 +7,7 @@
 //
 // Arquivo puro, sem navegador: é testado em sistema/testes/.
 
-import { somarDias, somarMeses } from '../nucleo/formato.js';
+import { centavos, data, moeda, somarDias, somarMeses } from '../nucleo/formato.js';
 
 /** O vencimento da parcela `i` (0, 1, 2…) a partir da primeira. Mensal
  *  mantém o dia (31/01, 28/02, 31/03); quinzenal soma 15 dias corridos. */
@@ -177,4 +177,86 @@ export function divisaoDoRecebimento({ principal, encargos = 0 }, { cota, cotaEn
   const acumulado = parte(principalAntes + principal, cota) + parte(encargosAntes + encargos, cotaEncargos);
   const escritorio = Math.min(valor, Math.max(0, acumulado - (anterior.escritorio ?? 0)));
   return { escritorio, cliente: valor - escritorio };
+}
+
+/**
+ * Antecipação (pedido do Vinícius, 22/10/2026): o que passa do total de uma
+ * parcela abate as ÚLTIMAS do contrato, de trás para frente — a última, a
+ * penúltima… —, inteiras ou em parte. A mesma regra do banco
+ * (receber_com_antecipacao): só as que vencem depois da data do pagamento,
+ * em aberto, do mesmo grupo (fixo ou êxito) e sem parte de cliente — acordo
+ * não tem antecipação.
+ *
+ * @param {object[]} parcelas  linhas de v_parcelas do contrato
+ * @param {object} atual       a parcela que o pagamento quita
+ * @param {string} dataPagamento  'AAAA-MM-DD'
+ * @param {number} excedente   centavos
+ * @returns {{ itens: { id: string, numero: number, vencimento: string, valor: number, saldoDepois: number }[],
+ *   sobra: number, disponivel: number, foraDaData: { numero: number, vencimento: string }[] }}  centavos;
+ *   `foraDaData` são as parcelas em aberto do grupo que vencem até a data do pagamento — vencidas ou
+ *   vencendo nela — e por isso não entram na antecipação (a tela avisa)
+ */
+export function planoAntecipacao(parcelas, atual, dataPagamento, excedente) {
+  const semCliente = (p) => Number(p.cota_escritorio_pct ?? 100) >= 100;
+  const doGrupo = (p) => p.id !== atual.id && (p.parte ?? 'fixo') === (atual.parte ?? 'fixo') && semCliente(p)
+    && ['a_vencer', 'vencida'].includes(p.situacao) && centavos(p.saldo) > 0;
+  if (!semCliente(atual)) return { itens: [], sobra: Math.max(0, excedente), disponivel: 0, foraDaData: [] };
+  const alvos = parcelas
+    .filter((p) => doGrupo(p) && p.vencimento > dataPagamento)
+    .sort((a, b) => (a.vencimento === b.vencimento ? b.numero - a.numero : a.vencimento < b.vencimento ? 1 : -1));
+  let resto = Math.max(0, excedente);
+  const itens = [];
+  for (const p of alvos) {
+    if (resto <= 0) break;
+    const valor = Math.min(resto, centavos(p.saldo));
+    itens.push({ id: p.id, numero: p.numero, vencimento: p.vencimento, valor, saldoDepois: centavos(p.saldo) - valor });
+    resto -= valor;
+  }
+  return {
+    itens,
+    sobra: resto,
+    disponivel: alvos.reduce((soma, p) => soma + centavos(p.saldo), 0),
+    foraDaData: parcelas.filter((p) => doGrupo(p) && p.vencimento <= dataPagamento)
+      .sort((a, b) => a.numero - b.numero)
+      .map((p) => ({ numero: p.numero, vencimento: p.vencimento })),
+  };
+}
+
+/** "a, b e c". */
+export const emLista = (itens) => (itens.length > 1 ? `${itens.slice(0, -1).join(', ')} e ${itens.at(-1)}` : itens[0] ?? '');
+
+/** "parcela 6", "parcelas 6, 5 e 4" (a entrada pelo nome). */
+export function nomesDasParcelas(numeros) {
+  const nomes = numeros.map((n) => (n === 0 ? 'entrada' : String(n)));
+  if (numeros.length === 1) return numeros[0] === 0 ? 'entrada' : `parcela ${numeros[0]}`;
+  return `parcelas ${emLista(nomes)}`;
+}
+
+/**
+ * O que acontece com o excedente, para a nota do "Receber" — continua "Os
+ * R$ X que passam …": as parcelas quitadas juntas e, à parte, a que fica paga
+ * em parte (só a última do plano pode ficar assim). Ex.: "vão para as últimas
+ * parcelas, de trás para frente: quitam as parcelas 6 e 5 (R$ 1.000,00) e
+ * abatem R$ 200,00 da parcela 4 (vence 19/01/2027), que fica com R$ 300,00 em
+ * aberto".
+ */
+export function descreverAntecipacao(itens) {
+  const nome = (a) => nomeDaParcela(a.numero).toLowerCase();
+  const quitadas = itens.filter((a) => a.saldoDepois <= 0);
+  const parcial = itens.find((a) => a.saldoDepois > 0);
+  const vence = (a) => `(vence ${data(a.vencimento)})`;
+  if (itens.length === 1) {
+    return parcial
+      ? `abatem a ${nome(parcial)} ${vence(parcial)}, que fica com ${moeda(parcial.saldoDepois)} em aberto`
+      : `quitam a ${nome(quitadas[0])} ${vence(quitadas[0])}`;
+  }
+  const partes = [];
+  if (quitadas.length === 1) partes.push(`quitam a ${nome(quitadas[0])} ${vence(quitadas[0])}`);
+  if (quitadas.length > 1) {
+    partes.push(`quitam as ${nomesDasParcelas(quitadas.map((a) => a.numero))} (${moeda(quitadas.reduce((soma, a) => soma + a.valor, 0))})`);
+  }
+  if (parcial) {
+    partes.push(`abatem ${moeda(parcial.valor)} da ${nome(parcial)} ${vence(parcial)}, que fica com ${moeda(parcial.saldoDepois)} em aberto`);
+  }
+  return `vão para as últimas parcelas, de trás para frente: ${partes.join(' e ')}`;
 }

@@ -53,6 +53,7 @@ const TABELAS = {
   clientes_detalhes: 'Dados completos do cliente',
   clientes_contatos: 'Contato do cliente',
   processos: 'Processo / caso',
+  processos_documentos: 'Documento do processo',
   contatos: 'Contato',
   documentos: 'Documento',
   atualizacoes: 'Atualização',
@@ -97,6 +98,8 @@ const CAMPOS = {
   tipo_pessoa: 'tipo de pessoa', flexao: 'concordância nos documentos', rg: 'RG / inscrição estadual',
   filiacao: 'filiação (texto antigo)', filiacao_mae: 'filiação materna (mãe)', filiacao_pai: 'filiação paterna (pai)',
   posicao_cliente: 'posição do cliente no processo',
+  movimento: 'solicitado / entregue', quem_recebeu: 'quem recebeu', retorno_previsto: 'retorno previsto',
+  retornou_em: 'retornou em', antecipacao_de: 'antecipação do pagamento',
   nascimento: 'nascimento / constituição', recado_nome: 'nome para recados', recado_relacao: 'relação / parentesco',
   recado_telefone: 'telefone para recados', recado_observacao: 'observação para recados',
   representante_nome: 'nome do representante', representante_documento: 'CPF / CNPJ do representante',
@@ -252,7 +255,9 @@ const ehDinheiro = (campo) => campo === 'valor' || (/^valor_/.test(campo) && !/_
 // própria linha (quanto saiu, quando e de onde, no repasse ao cliente).
 const RESUMO_CRIACAO = {
   repasses_cliente: ['valor', 'data', 'observacao'],
-  recebimentos: ['valor', 'data', 'valor_repasse', 'valor_direto_cliente'],
+  // A descrição diz, na antecipação, o total do pagamento e para onde foi cada parte.
+  recebimentos: ['valor', 'data', 'descricao', 'valor_repasse', 'valor_direto_cliente'],
+  processos_documentos: ['documento', 'movimento', 'data', 'quem_recebeu', 'retorno_previsto'],
   contratos: ['tipo_honorario', 'valor_total', 'exito_pct'],
   ajustes_financeiros: ['valor', 'motivo'],
 };

@@ -15,11 +15,14 @@
 // da parte do cliente — repassada ou a repassar, na data da emissão. Quando a
 // parte do cliente foi paga direto a ele (20/10/2026), o recibo é só dos
 // honorários que entraram, e diz que o resto não passou pelo escritório.
+//
+// Antecipação (22/10/2026): o pagamento que quitou a parcela e abateu as
+// últimas do contrato sai num recibo só, com o total e cada parte.
 
 import { centavos, data, documento, moeda, percentual } from '../nucleo/formato.js';
 import { html } from '../nucleo/html.js';
 import { valorPorExtenso } from '../dominio/extenso.js';
-import { nomeDaParcela } from '../dominio/parcelas.js';
+import { emLista, nomeDaParcela, nomesDasParcelas } from '../dominio/parcelas.js';
 import { dado, folha } from './partes.js';
 
 const AVULSAS = {
@@ -36,31 +39,37 @@ const AVULSAS = {
  * @param {number|null} p.saldoDepois  centavos que restaram na parcela depois desta baixa
  * @param {string} p.emitente      nome de quem emite
  * @param {string} p.dia           'AAAA-MM-DD' da emissão
+ * @param {{ numero: number, vencimento?: string, valor: number, saldoDepois?: number|null }[]} [p.antecipacoes]
+ *   as partes antecipadas deste pagamento (centavos), da última parcela para a primeira
  */
-export function montarRecibo({ recebimento: r, parcela, contrato, cliente, saldoDepois, emitente, dia }) {
-  const valor = centavos(r.valor);
+export function montarRecibo({ recebimento: r, parcela, contrato, cliente, saldoDepois, emitente, dia, antecipacoes = [] }) {
+  const antecipado = antecipacoes.reduce((soma, a) => soma + a.valor, 0);
+  const valor = centavos(r.valor) + antecipado;
   const referente = r.parcela_id
     ? html`${nomeDaParcela(r.parcela_numero).toLowerCase()} do contrato ${contrato?.codigo ? html`<strong>${contrato.codigo}</strong> — ` : ''}${r.contrato_descricao}${parcela ? html`, com vencimento em ${data(parcela.vencimento)}` : ''}`
     : html`${AVULSAS[r.tipo_avulsa] ?? 'serviços advocatícios'}${r.descricao ? html` (${r.descricao})` : ''}`;
   const comDoc = cliente.documento ? html`, inscrito(a) no ${cliente.documento.length === 14 ? 'CNPJ' : 'CPF'} sob o nº ${documento(cliente.documento)}` : '';
+  // "referente à parcela", "à entrada", "à consulta"; "a honorários", "a reembolso".
+  const a = r.parcela_id || r.tipo_avulsa === 'consulta' ? 'à' : 'a';
 
   const composicao = [
-    ['Abatido do valor devido', centavos(r.valor_principal)],
+    [antecipado ? `${nomeDaParcela(r.parcela_numero)} — abatido do valor devido` : 'Abatido do valor devido', centavos(r.valor_principal)],
     ...(r.encargos_discriminados
       ? [['Correção monetária', centavos(r.valor_correcao)], ['Multa', centavos(r.valor_multa)],
         ['Juros', centavos(r.valor_juros)], ['Acréscimo', centavos(r.valor_acrescimo)]]
       : [['Multa, juros e correção', centavos(r.valor_encargos)]]),
+    ...antecipacoes.map((x) => [`Antecipação — ${nomeDaParcela(x.numero)}${x.vencimento ? ` (vence ${data(x.vencimento)})` : ''}`, x.valor]),
   ].filter(([, v]) => v > 0);
 
   const repasse = centavos(r.valor_repasse);
   const direto = centavos(r.valor_direto_cliente ?? 0);
   const cotas = r.cota_encargos_pct != null && Number(r.cota_encargos_pct) !== Number(r.cota_escritorio_pct)
     ? `${percentual(r.cota_escritorio_pct)}; multa e juros, ${percentual(r.cota_encargos_pct)}` : percentual(r.cota_escritorio_pct);
-  if (direto > 0) return folha('Recibo', reciboDireto({ r, valor, direto, cotas, referente, comDoc, cliente, saldoDepois }), dia,
+  if (direto > 0) return folha('Recibo', reciboDireto({ r, valor, direto, cotas, a, referente, comDoc, cliente, saldoDepois }), dia,
     [['Fonseca Lisboa Advocacia', emitente]]);
   const corpo = html`
     <p>Recebemos${repasse > 0 ? ', na qualidade de procuradores de' : ' de'} <strong>${dado(cliente.nome?.toUpperCase(), 'CLIENTE')}</strong>${comDoc}, a importância de
-      <strong>${moeda(valor)}</strong> (${valorPorExtenso(valor)}), referente a ${referente}, paga em ${data(r.data)}${r.forma_nome ? `, por ${r.forma_nome}` : ''}.</p>
+      <strong>${moeda(valor)}</strong> (${valorPorExtenso(valor)}), referente ${a} ${referente}${antecipado ? ', e à antecipação de parcelas vincendas do mesmo contrato' : ''}, paga em ${data(r.data)}${r.forma_nome ? `, por ${r.forma_nome}` : ''}.</p>
     ${repasse > 0 ? html`
       <p>Deste valor, <strong>${moeda(valor - repasse)}</strong> correspondem aos honorários advocatícios
         (${cotas}) e <strong>${moeda(repasse)}</strong> (${valorPorExtenso(repasse)}) pertencem
@@ -72,24 +81,39 @@ export function montarRecibo({ recebimento: r, parcela, contrato, cliente, saldo
           <tr><td><strong>Total recebido</strong></td><td class="num"><strong>${moeda(valor)}</strong></td></tr>
         </tbody>
       </table>` : ''}
-    ${r.parcela_id && saldoDepois != null ? html`
+    ${r.parcela_id && saldoDepois != null && antecipado ? html`
+      <p>Com este pagamento, a ${nomeDaParcela(r.parcela_numero).toLowerCase()} fica quitada e, com a antecipação, ${situacaoDasAntecipadas(antecipacoes)}.</p>`
+      : r.parcela_id && saldoDepois != null ? html`
       <p>${saldoDepois > 0
         ? html`Depois deste pagamento, permanece em aberto nesta parcela o valor de <strong>${moeda(saldoDepois)}</strong> (${valorPorExtenso(saldoDepois)}).`
         : 'Com este pagamento, esta parcela fica quitada.'}</p>` : ''}
-    <p>Este recibo se refere exclusivamente ao valor acima e não dá quitação de outras parcelas ou obrigações.</p>
+    <p>Este recibo se refere exclusivamente ao valor acima e não dá quitação de outras parcelas ou obrigações${antecipado ? ', além das indicadas neste recibo' : ''}.</p>
     <p class="doc-nota">Recibo nº ${r.id.slice(0, 8).toUpperCase()} · lançamento de ${data(String(r.criado_em).slice(0, 10))}</p>`;
 
   return folha('Recibo', corpo, dia, [['Fonseca Lisboa Advocacia', emitente]]);
 }
 
+/** "as parcelas 6 e 5 ficam quitadas e a parcela 4 fica com R$ 300,00 em aberto". */
+function situacaoDasAntecipadas(antecipacoes) {
+  const quitadas = antecipacoes.filter((x) => !(x.saldoDepois > 0)).map((x) => x.numero);
+  const partes = [];
+  if (quitadas.length) {
+    partes.push(quitadas.length === 1 ? `a ${nomesDasParcelas(quitadas)} fica quitada` : `as ${nomesDasParcelas(quitadas)} ficam quitadas`);
+  }
+  for (const x of antecipacoes.filter((y) => y.saldoDepois > 0)) {
+    partes.push(`a ${nomeDaParcela(x.numero).toLowerCase()} fica com ${moeda(x.saldoDepois)} em aberto`);
+  }
+  return emLista(partes);
+}
+
 /** Acordo em que a parte contrária pagou a parte do cliente direto a ele: o
  *  escritório recebeu só os honorários. */
-function reciboDireto({ r, valor, direto, cotas, referente, comDoc, cliente, saldoDepois }) {
+function reciboDireto({ r, valor, direto, cotas, a, referente, comDoc, cliente, saldoDepois }) {
   const pago = valor + direto;
   return html`
     <p>Recebemos, na qualidade de procuradores de <strong>${dado(cliente.nome?.toUpperCase(), 'CLIENTE')}</strong>${comDoc}, a importância de
       <strong>${moeda(valor)}</strong> (${valorPorExtenso(valor)}), correspondente aos honorários advocatícios (${cotas}) sobre o
-      pagamento de ${moeda(pago)} feito pela parte contrária em ${data(r.data)}${r.forma_nome ? `, por ${r.forma_nome}` : ''}, referente a ${referente}.</p>
+      pagamento de ${moeda(pago)} feito pela parte contrária em ${data(r.data)}${r.forma_nome ? `, por ${r.forma_nome}` : ''}, referente ${a} ${referente}.</p>
     <p>A parte do(a) cliente, <strong>${moeda(direto)}</strong> (${valorPorExtenso(direto)}), foi paga diretamente a ele(a) pela
       parte contrária e não passou pelo escritório.</p>
     <table class="doc-tabela">

@@ -286,6 +286,27 @@ begin
     (m_admin, 'atendimento', 'presencial', 'Atendimento — rapaz sem cadastro (fictício)', ((hoje)::text || ' 17:00:00-03')::timestamptz,
      ((hoje)::text || ' 18:00:00-03')::timestamptz);
 
+  -- Pedidos do Vinícius (22/10): um contrato mensal de 6 × 500 para antecipar
+  -- (750 na parcela de agora quita o mês e abate 250 da última) e um
+  -- processo com documentos solicitados e entregues, um com o retorno atrasado.
+  perform public.criar_contrato(jsonb_build_object(
+    'cliente_id', '00000000-0000-4000-8000-000000000206', 'descricao', 'Honorários mensais — usucapião fictícia',
+    'valor_total', 3000, 'responsavel_id', m_admin, 'forma_prevista_id', v_pix, 'data_contrato', hoje - 20,
+    'parcelas', (select jsonb_agg(jsonb_build_object('numero', n, 'valor', 500,
+                                                     'vencimento', ((hoje - 3) + make_interval(months => n - 1))::date)
+                                  order by n)
+                   from generate_series(1, 6) as n)));
+  insert into public.processos (id, cliente_id, titulo, area, orgao, responsavel_id, situacao, posicao_cliente) values
+    ('00000000-0000-4000-8000-000000000502', '00000000-0000-4000-8000-000000000206', 'Usucapião fictícia', 'imobiliario',
+     'Cartório de Registro de Imóveis (fictício)', m_admin, 'aguardando_documentos', 'Requerente');
+  insert into public.processos_documentos (processo_id, documento, movimento, data, quem_recebeu, retorno_previsto, retornou_em) values
+    ('00000000-0000-4000-8000-000000000502', 'Certidão de matrícula do imóvel', 'solicitado', hoje - 12,
+     'Atendente fictícia do cartório', hoje - 2, null),
+    ('00000000-0000-4000-8000-000000000502', 'Planta e memorial descritivo', 'entregue', hoje - 4,
+     'Balcão do cartório (fictício)', hoje + 2, null),
+    ('00000000-0000-4000-8000-000000000502', 'Comprovantes de posse (contas de luz)', 'solicitado', hoje - 20,
+     'Rosana (a cliente)', hoje - 10, hoje - 9);
+
   perform set_config('request.jwt.claims', '', false);
 end
 $$;
