@@ -592,16 +592,14 @@ html:not(.js) .term__new { position: static; opacity: 1; transform: none; }
 }
 /* Mantém o rosto visível também nos recortes quadrados de celular e assinatura. */
 .retrato__foto { display: block; object-position: 50% 20%; }
-/* Foto do ensaio: dessaturada em repouso, cor no hover. */
+/* Preserva as cores originais do ensaio em todos os estados. */
 .equipe__media .retrato__foto {
   width: 100%; height: 100%;
   object-fit: cover;
-  filter: saturate(0.35);
   transform: scale(1);
-  transition: filter 0.5s var(--e-suave), transform 0.6s var(--e-suave);
+  transition: transform 0.6s var(--e-suave);
 }
 .equipe__card:hover .retrato__foto {
-  filter: saturate(0.8);
   transform: scale(1.03);
 }
 
@@ -698,8 +696,6 @@ html:not(.js) .term__new { position: static; opacity: 1; transform: none; }
   .equipe__block,
   .equipe__card > .equipe__block-text { grid-column: 1 / -1; }
   .equipe__rule { margin-block: var(--s-3); }
-  /* Sem hover em toque: o estado tratado vira o padrão (13) */
-  .equipe__media .retrato__foto { filter: saturate(0.7); }
 }
 
 /* --------------------------------------------------------------------------
