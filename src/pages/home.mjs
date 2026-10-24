@@ -177,7 +177,7 @@ ${numeros()}
         </p>
       </div>
 
-      <!-- Retrato tipográfico até o ensaio fotográfico existir (src/partials/equipe.mjs).
+      <!-- Retratos e dados da equipe (src/partials/equipe.mjs).
            O Art. 5 do Provimento 205/2021 autoriza expressamente fotos dos advogados. -->
       <div class="equipe__grid" data-reveal="wipe-group">
 ${equipe}

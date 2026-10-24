@@ -590,7 +590,9 @@ html:not(.js) .term__new { position: static; opacity: 1; transform: none; }
   aspect-ratio: 4 / 5;
   background: var(--c-petrol-up);
 }
-/* Foto do ensaio, quando existir: dessaturada em repouso, cor no hover. */
+/* Mantém o rosto visível também nos recortes quadrados de celular e assinatura. */
+.retrato__foto { display: block; object-position: 50% 20%; }
+/* Foto do ensaio: dessaturada em repouso, cor no hover. */
 .equipe__media .retrato__foto {
   width: 100%; height: 100%;
   object-fit: cover;

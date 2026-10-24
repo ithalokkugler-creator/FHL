@@ -2,11 +2,8 @@
 //
 // slug   âncora do perfil em equipe.html (equipe.html#<slug>): os cartões da
 //        home, as páginas de área e o fim de cada artigo apontam para ela
-// ini    iniciais do retrato tipográfico, usado até o ensaio fotográfico
-//        existir (pendência 5 da preparação)
-// foto   caminho em assets/img/ quando o ensaio existir — preenchida, entra no
-//        lugar do retrato. O Art. 5 do Provimento 205/2021 autoriza
-//        expressamente fotos dos advogados.
+// ini    iniciais usadas como alternativa quando não há foto
+// foto   caminho do retrato em assets/img/
 // tom    cor do filete do retrato: teal, vinho ou menta, os três acentos do site
 // areas  slugs de src/data/areas.mjs em que o advogado atende — alimenta o
 //        "Quem atende nesta área" de cada página de atuação
@@ -17,7 +14,7 @@ export const EQUIPE = [
     nome: 'Guilherme O. Fonseca',
     completo: 'Guilherme de Oliveira da Fonseca',
     ini: 'GF',
-    foto: '',
+    foto: 'assets/img/equipe/guilherme-fonseca.jpg',
     tom: 'teal',
     oab: 'OAB/PR 116.072',
     areas: ['civel', 'consumidor', 'imobiliario'],
@@ -34,7 +31,7 @@ export const EQUIPE = [
     nome: 'Juliana S. Lisboa',
     completo: 'Juliana Cristina da Silva Lisboa',
     ini: 'JL',
-    foto: '',
+    foto: 'assets/img/equipe/juliana-lisboa.jpg',
     tom: 'menta',
     oab: 'OAB/PR 117.141',
     areas: ['previdenciario', 'consumidor'],
@@ -49,7 +46,7 @@ export const EQUIPE = [
     nome: 'Vinicius L. Lisboa',
     completo: 'Vinicius Rangel de Lima de Paula Lisboa',
     ini: 'VL',
-    foto: '',
+    foto: 'assets/img/equipe/vinicius-lisboa.jpg',
     tom: 'vinho',
     oab: 'OAB/PR 105.790',
     areas: ['trabalhista', 'previdenciario', 'criminal'],
