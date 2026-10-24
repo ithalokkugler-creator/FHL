@@ -5,13 +5,14 @@ Substitui todos os handoffs, roteiros e relatórios antigos da raiz (o
 histórico deles está no git e, para as especificações, em
 [`docs/historico/`](docs/historico/)).
 
-**23/10/2026 — trabalho local:** correções da auditoria na branch
-`AjusteFinanceiro`, ainda sem commit, push, migração remota ou publicação.
-São 223 testes JS e 756 verificações SQL aprovados, além dos ensaios no
-navegador e de preservação de dados. Ver o
+**23/10/2026 — em produção:** correções da auditoria (branch
+`AjusteFinanceiro`, commit `a9979a0`) publicadas às 22h01 de Brasília, com
+o escritório parado: as duas migrações de 23/10 no banco, as funções
+`google-agenda` e `finalizar-anexo`, e as telas pela Vercel. A fotografia das
+finanças antes e depois da migração deu idêntica. A sincronização com o
+Google rodou em seguida sem erro. São 223 testes JS e 756 verificações SQL
+aprovados. Ver o
 [relatório desta entrega](docs/relatorios/ajustes-financeiro-2026-10-23.md).
-As referências a produção abaixo descrevem a versão anterior a essas
-correções. As duas novas migrações são apenas locais.
 
 **Ordem de leitura**
 
