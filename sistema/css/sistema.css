@@ -434,8 +434,11 @@ img { max-width: 100%; display: block; }
 }
 .botao--perigo:hover { border-color: #7A2C22; background: #7A2C22; }
 
-.botao--discreto { border-color: transparent; background: transparent; color: var(--c-acao); }
-.botao--discreto:hover { border-color: transparent; background: var(--c-realce); }
+/* Ação secundária (Histórico, Anexos, Cancelar…). Tinha só o texto verde, sem
+   caixa, e não parecia botão (09/11/2026): agora tem a mesma caixa dos outros,
+   com a linha um pouco mais leve para não disputar com a ação principal. */
+.botao--discreto { border-color: var(--c-linha-forte); background: transparent; color: var(--c-texto); font-weight: 500; }
+.botao--discreto:hover { border-color: var(--c-texto); background: var(--c-realce); }
 
 .botao--pequeno { min-height: 28px; padding: 0 10px; font-size: 12px; }
 .botao--largo { width: 100%; }
@@ -1504,8 +1507,48 @@ a.dia-item__corpo:hover { background: var(--c-realce); }
 /* Editar, Documentos e Histórico um embaixo do outro: em 1366 px os três lado
    a lado empurravam a tabela para fora da tela (22/10). */
 .tabela--processos td:last-child { min-width: 104px; }
-.tabela--processos td:last-child .registro-acoes { flex-direction: column; align-items: flex-start; gap: var(--s-1); }
+/* Os três com a mesma largura: um embaixo do outro, cada um com um tamanho,
+   parecia desalinhado (09/11/2026). */
+.tabela--processos td:last-child .registro-acoes { flex-direction: column; align-items: stretch; gap: var(--s-1); }
 .tabela--processos th, .tabela--processos .selo { white-space: normal; }
+
+/* Contas do escritório: os cinco botões lado a lado deixavam a descrição com
+   quatro ou cinco linhas; agora quebram em duas fileiras (09/11/2026). */
+.tabela--contas td:nth-child(2) { min-width: 200px; }
+.tabela--contas td.acoes { width: 1%; min-width: 215px; white-space: normal; }
+.tabela--contas td.acoes .botao { margin: 2px 0 2px 2px; }
+
+/* Conteúdo de uma célula com rótulo no celular (ver .tabela--cartoes). */
+.celula { display: block; min-width: 0; }
+
+/* Celular: a tabela vira uma pilha de cartões — o título em cima, cada dado
+   com o seu rótulo ao lado (data-rotulo) e os botões no fim. Sem isto era
+   preciso rolar a tabela para o lado até achar "Editar" (09/11/2026). */
+@media screen and (max-width: 760px) {
+  .tabela--cartoes thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .tabela--cartoes, .tabela--cartoes tbody, .tabela--cartoes tr, .tabela--cartoes td { display: block; width: auto; }
+  .tabela--cartoes tr { padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--c-linha); }
+  .tabela--cartoes tbody tr:last-child { border-bottom: 0; }
+  .tabela.tabela--cartoes td,
+  .tabela.tabela--cartoes td:first-child,
+  .tabela.tabela--cartoes td:last-child { min-width: 0; padding: 3px 0; border: 0; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+  .tabela.tabela--cartoes td:first-child:not([data-rotulo]) { padding-bottom: var(--s-2); font-size: var(--t-corpo); }
+  .tabela--cartoes td[data-rotulo] { display: flex; align-items: baseline; gap: var(--s-3); }
+  .tabela--cartoes td[data-rotulo]::before {
+    content: attr(data-rotulo);
+    flex: 0 0 7.2rem;
+    font-size: 12px;
+    color: var(--c-texto-m);
+  }
+  .tabela--cartoes td[data-vazio] { display: none; }
+  .tabela.tabela--cartoes td.cartao-acoes { padding-top: var(--s-2); }
+  /* Botões soltos na célula (Contas) ou dentro de .registro-acoes (Processos). */
+  .tabela.tabela--cartoes td.cartao-acoes:not(:has(.registro-acoes)) { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tabela--cartoes td.cartao-acoes .registro-acoes,
+  .tabela--processos td:last-child .registro-acoes { flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  .tabela--cartoes td.cartao-acoes .botao { flex: 1 1 auto; margin: 0; }
+  .tabela--cartoes tr.apagada { opacity: 0.75; }
+}
 /* O resumo dos documentos na linha do processo também abre os documentos. */
 .processo-documentos {
   display: block;
@@ -1521,6 +1564,57 @@ a.dia-item__corpo:hover { background: var(--c-realce); }
   text-underline-offset: 2px;
   cursor: pointer;
 }
+
+/* Ficha do cliente: atalhos para as partes da ficha, presos no alto enquanto
+   se rola (09/11/2026 — a ficha tem mais de dez painéis). No celular a
+   fileira rola de lado. */
+.ficha-indice {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin-top: var(--s-4);
+  padding: var(--s-2) 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  border-bottom: 1px solid var(--c-linha-forte);
+  background: var(--c-fundo);
+}
+.ficha-indice__rotulo { flex: none; margin-right: var(--s-1); font-size: 12px; color: var(--c-texto-m); }
+.ficha-indice__item {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--c-linha-forte);
+  background: var(--c-superficie);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ficha-indice__item:hover { border-color: var(--c-texto); }
+.ficha-indice__n {
+  min-width: 18px;
+  padding: 0 5px;
+  background: var(--c-neutro-fundo);
+  color: var(--c-neutro);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.ficha-indice + .secao { margin-top: var(--s-4); }
+[data-secao] { scroll-margin-top: 60px; }
+[data-secao]:focus { outline: none; }
+[data-secao]:focus-visible { outline: 2px solid var(--c-foco); outline-offset: 2px; }
+@media (max-width: 900px) {
+  .ficha-indice { top: var(--topo-movel-a); }
+  [data-secao] { scroll-margin-top: calc(var(--topo-movel-a) + 64px); }
+}
+@media (pointer: coarse) { .ficha-indice__item { min-height: 40px; } }
 
 .cliente-dados { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4); }
 .cliente-dados dt { font-size: var(--t-pequeno); color: var(--c-texto-m); }
@@ -1926,20 +2020,20 @@ a.dia-item__corpo:hover { background: var(--c-realce); }
 .tarefa-quando--amarelo { background: var(--c-urg-amarelo-fundo); color: var(--c-urg-amarelo-texto); }
 .tarefa-quando--vermelho { background: var(--c-urg-vermelho); color: #FFF; }
 
-.tarefa-acoes { display: grid; gap: 4px; width: 11rem; margin-left: auto; }
-.tarefa-acoes__botoes { display: flex; gap: 6px; }
-.tarefa-acoes__botoes > .botao { flex: 1; }
-.tarefa-acoes__textos { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px 14px; }
-.acao-texto {
-  padding: 2px 0;
-  border: 0;
-  background: none;
-  color: var(--c-acao);
-  font-size: 12px;
-  font-weight: 600;
+/* Duas fileiras de botões com caixa: concluir e editar em cima; iniciar,
+   cancelar e histórico embaixo (eram textos verdes soltos até 09/11/2026). */
+.tarefa-acoes { display: grid; gap: 4px; width: 13.5rem; margin-left: auto; }
+.tarefa-acoes__botoes, .tarefa-acoes__textos { display: flex; gap: 4px; }
+.tarefa-acoes__botoes > .botao, .tarefa-acoes__textos > .botao { flex: 1 1 0; padding: 0 6px; }
+.tarefa-acoes__textos:only-child { justify-content: flex-end; }
+.tarefa-acoes__textos:only-child > .botao { flex: 0 0 auto; padding: 0 10px; }
+/* Notebook pequeno e tablet deitado: a coluna volta à largura de antes (a
+   tabela não alarga) e o Histórico desce para uma terceira fileira. */
+@media screen and (min-width: 761px) and (max-width: 1260px) {
+  .tarefa-acoes { width: 11rem; }
+  .tarefa-acoes__textos { flex-wrap: wrap; }
+  .tarefa-acoes__textos > .botao { flex: 1 1 40%; }
 }
-.acao-texto:hover { text-decoration: underline; text-underline-offset: 2px; }
-.acao-texto[disabled] { opacity: 0.55; cursor: not-allowed; }
 
 /* A cor da linha acompanha a data (urgenciaTarefa): faixa à esquerda e um
    fundo leve, além da etiqueta de quanto falta. */
@@ -1973,7 +2067,8 @@ a.dia-item__corpo:hover { background: var(--c-realce); }
   .tarefa-celula-responsavel { order: 3; justify-self: end; text-align: right; }
   .tarefa-celula-cliente { order: 4; grid-column: 1 / -1; }
   .tarefa-celula-acoes { order: 5; grid-column: 1 / -1; }
-  .tarefa-acoes { width: auto; grid-template-columns: auto 1fr; align-items: center; gap: var(--s-3); margin: 2px 0 0; }
+  .tarefa-acoes { width: auto; gap: 6px; margin: 2px 0 0; }
+  .tarefa-acoes__botoes, .tarefa-acoes__textos { gap: 6px; }
   .tarefa-linha--amarelo { background: var(--c-urg-amarelo-linha); box-shadow: inset 4px 0 0 var(--c-urg-amarelo); }
   .tarefa-linha--vermelho { background: var(--c-urg-vermelho-linha); box-shadow: inset 4px 0 0 var(--c-urg-vermelho); }
   .tarefa-linha > td:first-child { box-shadow: none; }
@@ -2110,6 +2205,95 @@ rect.grafico__barra { fill: var(--cor, var(--c-teal)); }
   .chip { min-height: 40px; }
   .segmentos__botao { min-height: 40px; }
 }
+
+/* --------------------------------------------------------------------------
+   BUSCA RÁPIDA (09/11/2026) — o botão no menu e a janela (telas/busca-rapida.js)
+   -------------------------------------------------------------------------- */
+.icone-lupa { flex: none; display: block; }
+.busca-atalho {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  margin: var(--s-1) var(--s-3) 0;
+  padding: 0 10px;
+  border: 1px solid var(--c-petrol-ln);
+  background: var(--c-petrol-up);
+  color: var(--c-ink-claro-m);
+  font-size: 12.5px;
+  text-align: left;
+}
+.busca-atalho:hover, .busca-atalho:focus-visible { border-color: var(--c-mint); color: var(--c-ink-claro); }
+.busca-atalho__texto { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topo-movel__buscar { display: none; }
+@media (max-width: 900px) {
+  /* No celular a lupa fica também no topo, sem precisar abrir o menu. */
+  .busca-atalho { min-height: 44px; margin-top: var(--s-3); font-size: var(--t-corpo); }
+  .topo-movel__buscar {
+    order: 4;
+    display: inline-grid;
+    place-items: center;
+    width: 40px;
+    height: 36px;
+    margin-left: auto;
+    border: 1px solid var(--c-petrol-ln);
+    background: transparent;
+    color: var(--c-ink-claro);
+  }
+  .topo-movel__buscar .icone-lupa { width: 16px; height: 16px; }
+  .topo-movel:has(.cronometro-global:not([hidden])) .topo-movel__buscar { margin-left: 0; }
+}
+/* Com o cronômetro no topo de um celular estreito não sobra lugar para a
+   lupa: a busca continua no alto do menu. */
+@media (max-width: 480px) {
+  .topo-movel:has(.cronometro-global:not([hidden])) .topo-movel__buscar { display: none; }
+}
+
+.busca-rapida {
+  width: min(640px, calc(100vw - 24px));
+  margin-top: min(12vh, 96px);
+  overflow: hidden;
+}
+.busca-rapida[open] { display: flex; flex-direction: column; max-height: min(560px, calc(100vh - 24px - min(12vh, 96px))); }
+.busca-rapida__topo { flex: none; display: flex; align-items: center; gap: var(--s-2); padding: var(--s-3) var(--s-3) var(--s-3) var(--s-4); border-bottom: 1px solid var(--c-linha); }
+.busca-rapida__campo {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--c-linha-forte);
+  border-radius: var(--r-none);
+  background: #fff;
+  font-size: 16px;
+}
+.busca-rapida__campo:focus { outline: 2px solid var(--c-foco); outline-offset: -1px; border-color: var(--c-foco); }
+.busca-rapida__lista { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--s-1) 0; }
+.busca-rapida__grupo { padding: var(--s-3) var(--s-4) var(--s-1); }
+.busca-rapida__opcao {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 9px var(--s-4);
+  cursor: pointer;
+  line-height: 1.3;
+}
+.busca-rapida__texto { display: grid; gap: 1px; min-width: 0; overflow-wrap: anywhere; }
+.busca-rapida__opcao[aria-selected='true'] { background: var(--c-ok-fundo); box-shadow: inset 3px 0 0 var(--c-teal); }
+@media (hover: hover) {
+  .busca-rapida__opcao:hover { background: var(--c-realce); }
+  .busca-rapida__opcao[aria-selected='true']:hover { background: var(--c-ok-fundo); }
+}
+@media (pointer: coarse) { .busca-rapida__opcao { min-height: 48px; } }
+.busca-rapida__nota { padding: var(--s-4); color: var(--c-texto-m); }
+.busca-rapida__rodape { flex: none; display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--s-2); padding: var(--s-2) var(--s-4); border-top: 1px solid var(--c-linha); background: var(--c-realce); }
+.busca-rapida__rodape:not(:has(> span:not(:empty):not(.so-computador))) { justify-content: flex-end; }
+@media (max-width: 760px) {
+  .busca-rapida { margin-top: 12px; }
+  .busca-rapida[open] { max-height: calc(100dvh - 24px); }
+  .busca-rapida__rodape:has(> [data-estado]:empty) { display: none; }
+}
+@media print { .busca-rapida { display: none !important; } }
 
 /* Nome que abre a edição (Membros): no celular, o "Editar" fica no fim da
    tabela, fora da tela. */

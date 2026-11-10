@@ -6,7 +6,7 @@
 // sistema, com o menu que as permissões do membro permitem.
 
 import { carregarMembros, estado, iniciais, PAPEIS, pode } from './nucleo/estado.js';
-import { $, $$, aoClicar, desenhar, html } from './nucleo/html.js';
+import { $, $$, aoClicar, cru, desenhar, html } from './nucleo/html.js';
 import { resolver, rota } from './nucleo/rotas.js';
 import { ESPERA, esqueleto } from './nucleo/esqueleto.js';
 import { aoMudarSessao, db, emailDaSessao, sair, sessaoAtual, sessaoDoLink } from './nucleo/supabase.js';
@@ -138,6 +138,33 @@ const MENU = [
 
 const liberado = (item) => !item.permitido || item.permitido();
 
+// ---------------------------------------------------------------------------
+// Busca rápida (09/11/2026) — telas/busca-rapida.js
+// ---------------------------------------------------------------------------
+// De qualquer tela: o botão "Buscar" do menu, Ctrl+K ou a barra "/" abrem a
+// janela que acha cliente, processo ou tela. Só para quem tem o módulo
+// Clientes (é a ficha do cliente que ela abre).
+
+const LUPA = cru('<svg class="icone-lupa" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" focusable="false"><circle cx="7" cy="7" r="4.6"/><path d="M10.6 10.6 14 14" stroke-linecap="square"/></svg>');
+const NO_MAC = /Mac|iPhone|iPad/.test(navigator.platform ?? '');
+
+const paginasDoMenu = () => MENU.filter(liberado).flatMap((grupo) => grupo.itens.filter(liberado)
+  .map((item) => ({ caminho: item.caminho, rotulo: item.rotulo, grupo: grupo.titulo ?? '' })));
+
+let moduloBusca = null;
+
+async function abrirBusca() {
+  if (app.dataset.tela !== 'sistema' || !pode.clientes()) return;
+  try {
+    moduloBusca ??= await import('./telas/busca-rapida.js');
+    if (app.dataset.tela !== 'sistema') return;
+    fecharMenu();
+    moduloBusca.abrirBuscaRapida({ paginas: paginasDoMenu() });
+  } catch (erro) {
+    console.error(erro);
+  }
+}
+
 const marca = () => html`
   <a class="marca" href="#/inicio">
     <img class="marca__monograma" src="/sistema/img/monograma.svg" alt="FL — Fonseca Lisboa Advocacia" width="31" height="26">
@@ -158,6 +185,7 @@ async function mostrarEntrada(opcoes) {
   limparTela = null;
   desligarCronometro();
   desligarInatividade();
+  moduloBusca?.esquecerBuscaRapida();
   estado.membro = null;
   const { default: telaEntrada } = await import('./telas/entrar.js');
   telaEntrada(app, opcoes);
@@ -197,9 +225,14 @@ function desenharCasca() {
       <header class="topo-movel">
         <button type="button" class="topo-movel__menu" data-acao="menu" aria-expanded="false" aria-controls="lateral">Menu</button>
         ${marca()}
+        ${pode.clientes() ? html`<button type="button" class="topo-movel__buscar" data-acao="buscar" aria-label="Buscar cliente ou processo">${LUPA}</button>` : ''}
       </header>
       <aside class="lateral" id="lateral">
         ${marca()}
+        ${pode.clientes() ? html`
+          <button type="button" class="busca-atalho" data-acao="buscar" aria-keyshortcuts="Control+K" title="Buscar cliente, processo ou tela — atalho: ${NO_MAC ? '⌘K' : 'Ctrl+K'} ou a barra /">
+            ${LUPA}<span class="busca-atalho__texto">Buscar cliente ou processo</span>
+          </button>` : ''}
         <nav class="menu" aria-label="Seções">
           ${MENU.filter(liberado).map((grupo) => html`
             <div class="menu__grupo">
@@ -358,11 +391,27 @@ aoClicar(app, {
     const aberto = $('.casca', app).classList.toggle('menu-aberto');
     botao.setAttribute('aria-expanded', String(aberto));
   },
+  buscar: () => {
+    fecharMenu();
+    abrirBusca();
+  },
   sair: async () => {
     saindo = true;
     await sair();
   },
   tentar: () => location.reload(),
+});
+
+// Ctrl+K (⌘K no Mac) em qualquer lugar; a barra "/" só fora de campo de texto.
+addEventListener('keydown', (e) => {
+  if (e.defaultPrevented || e.altKey || e.repeat) return;
+  const comando = (e.ctrlKey || e.metaKey) && !e.shiftKey && e.key?.toLowerCase() === 'k';
+  const barra = e.key === '/' && !e.ctrlKey && !e.metaKey
+    && !e.target.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"])');
+  if (!comando && !barra) return;
+  if (app.dataset.tela !== 'sistema' || !pode.clientes()) return;
+  e.preventDefault();
+  abrirBusca();
 });
 
 addEventListener('hashchange', () => {

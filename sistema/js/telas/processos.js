@@ -50,7 +50,7 @@ export function tabelaProcessos(processos, clientes = [], { mostrarCliente = tru
   const nomes = new Map(clientes.map((c) => [c.id, c.nome]));
   const dia = hoje();
   return html`
-    <div class="tabela-rolagem"><table class="tabela tabela--processos">
+    <div class="tabela-rolagem"><table class="tabela tabela--processos tabela--cartoes">
       <thead><tr>
         <th>Processo / caso</th>${mostrarCliente ? html`<th>Cliente</th>` : ''}<th>Área</th><th>Tribunal / órgão</th>
         <th>Responsável</th><th>Situação</th><th>Última atualização</th><th>Ações</th>
@@ -60,16 +60,16 @@ export function tabelaProcessos(processos, clientes = [], { mostrarCliente = tru
           <td><strong>${p.titulo}</strong><span class="sub num">${p.numero ? numeroCnj(p.numero) : p.referencia || 'Sem número judicial'}</span>
             ${p.posicao_cliente ? html`<span class="sub">Nosso cliente: <strong>${p.posicao_cliente}</strong></span>` : ''}
             ${resumoNaTabela(documentos.get(p.id), dia, p.id)}</td>
-          ${mostrarCliente ? html`<td><a href="#/clientes/${p.cliente_id}">${nomes.get(p.cliente_id) ?? 'Cliente'}</a></td>` : ''}
-          <td>${AREAS_JURIDICAS[p.area]}</td>
-          <td>${p.tribunal ?? '—'}<span class="sub">${p.orgao ?? ''}</span></td>
-          <td>${nomeDe(p.responsavel_id)}</td>
-          <td>${seloProcesso(p.situacao)}</td>
-          <td>${p.alterado_em || p.criado_em ? dataHora(p.alterado_em || p.criado_em) : '—'}</td>
-          <td><div class="registro-acoes">
-            <button type="button" class="botao botao--pequeno" data-acao="editar-processo" data-id="${p.id}">Editar</button>
+          ${mostrarCliente ? html`<td data-rotulo="Cliente"><span class="celula"><a href="#/clientes/${p.cliente_id}">${nomes.get(p.cliente_id) ?? 'Cliente'}</a></span></td>` : ''}
+          <td data-rotulo="Área">${AREAS_JURIDICAS[p.area]}</td>
+          <td data-rotulo="Tribunal / órgão" ${p.tribunal || p.orgao ? '' : 'data-vazio'}><span class="celula">${p.tribunal ?? '—'}<span class="sub">${p.orgao ?? ''}</span></span></td>
+          <td data-rotulo="Responsável" ${p.responsavel_id ? '' : 'data-vazio'}>${nomeDe(p.responsavel_id)}</td>
+          <td data-rotulo="Situação"><span class="celula">${seloProcesso(p.situacao)}</span></td>
+          <td data-rotulo="Atualizado em">${p.alterado_em || p.criado_em ? dataHora(p.alterado_em || p.criado_em) : '—'}</td>
+          <td class="cartao-acoes"><div class="registro-acoes">
+            <button type="button" class="botao botao--pequeno" data-acao="editar-processo" data-id="${p.id}" aria-label="Editar — ${p.titulo}">Editar</button>
             <button type="button" class="botao botao--pequeno" data-acao="documentos-processo" data-id="${p.id}" aria-label="Documentos — ${p.titulo}">Documentos</button>
-            <button type="button" class="botao botao--pequeno botao--discreto" data-acao="historico-processo" data-id="${p.id}">Histórico</button>
+            <button type="button" class="botao botao--pequeno botao--discreto" data-acao="historico-processo" data-id="${p.id}" aria-label="Histórico — ${p.titulo}">Histórico</button>
           </div></td>
         </tr>`)}
       </tbody>

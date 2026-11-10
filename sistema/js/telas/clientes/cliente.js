@@ -37,8 +37,8 @@ import { formularioCompleto } from './formulario.js';
 // Peças da ficha
 // ---------------------------------------------------------------------------
 
-const painel = (titulo, acao, conteudo) => html`
-  <section class="painel secao">
+const painel = (titulo, acao, conteudo, secao = '') => html`
+  <section class="painel secao" ${secao ? html`data-secao="${secao}" tabindex="-1"` : ''}>
     <header class="painel__topo"><h2 class="painel__titulo">${titulo}</h2>${acao}</header>
     ${conteudo}
   </section>`;
@@ -46,7 +46,18 @@ const painel = (titulo, acao, conteudo) => html`
 const dados = (pares) => html`
   <dl class="cliente-dados">${pares.map(([nome, valor]) => html`<div><dt>${nome}</dt><dd>${valor || '—'}</dd></div>`)}</dl>`;
 
-const grupo = (titulo, pares) => painel(titulo, '', html`<div class="painel__corpo">${dados(pares)}</div>`);
+const grupo = (titulo, pares, secao = '') => painel(titulo, '', html`<div class="painel__corpo">${dados(pares)}</div>`, secao);
+
+/** Atalhos para as partes da ficha, que é comprida: ficam presos no alto da
+ *  tela enquanto se rola. O número é quantos registros há em cada parte. */
+function indice(itens) {
+  return html`
+    <nav class="ficha-indice nao-imprimir" aria-label="Partes da ficha">
+      <span class="ficha-indice__rotulo">Ir para</span>
+      ${itens.map(([secao, rotulo, n]) => html`
+        <button type="button" class="ficha-indice__item" data-acao="ir-para" data-alvo="${secao}">${rotulo}${n ? html`<span class="ficha-indice__n">${n}</span>` : ''}</button>`)}
+    </nav>`;
+}
 
 const compromissos = (lista) => (lista.length
   ? html`<ul class="cliente-registros">${lista.map((c) => html`
@@ -57,32 +68,32 @@ function painelTempo(id, cliente, atualizacoes, processos) {
   const t = totais(atualizacoes);
   const desde = atualizacoes.filter((a) => !a.cancelado_em).map((a) => noFuso(a.inicio).dia).sort()[0];
   const porMembro = Object.entries(t.porMembro).map(([m, n]) => `${nomeDe(m)}: ${duracao(n)}`).join(' · ');
-  return painel('Atualizações e tempo', html`<a href="#/atualizacoes/relatorio?cliente=${id}">Relatório para o cliente</a>`, html`
+  return painel('Atualizações e tempo', html`<a class="botao botao--pequeno" href="#/atualizacoes/relatorio?cliente=${id}">Relatório para o cliente</a>`, html`
     <div class="painel__corpo">
       <div class="cliente-totais">
         <p><strong>Tempo total: ${duracao(t.total)}${desde ? ` desde ${data(desde)}` : ''}</strong> · ${duracao(t.cronometrado)} cronometrado · ${duracao(t.manual)} à mão${notaRodando(t.rodando)}</p>
         ${porMembro ? html`<p class="sub">${porMembro} · Cada participante recebe o tempo integral da atividade.</p>` : ''}
       </div>
       ${linhaDoTempo(atualizacoes, [cliente], processos, { mostrarCliente: false })}
-    </div>`);
+    </div>`, 'atualizacoes');
 }
 
 function painelFinanceiro(contratos) {
   return painel('Financeiro', '', contratos.length
     ? html`
-      <div class="tabela-rolagem"><table class="tabela">
+      <div class="tabela-rolagem"><table class="tabela tabela--cartoes">
         <thead><tr><th>Contrato</th><th>Situação</th><th class="num">Saldo</th><th class="num">Parcelas vencidas</th><th class="num">Saldo vencido</th></tr></thead>
         <tbody>${contratos.map((c) => html`
           <tr>
             <td><a href="#/financeiro/contratos/${c.id}">${c.descricao}</a></td>
-            <td>${seloContrato(c.situacao)}</td>
-            <td class="num">${moeda(centavos(c.saldo))}</td>
-            <td class="num">${c.vencidas ?? 0}</td>
-            <td class="num">${moeda(centavos(c.saldo_vencido))}</td>
+            <td data-rotulo="Situação"><span class="celula">${seloContrato(c.situacao)}</span></td>
+            <td class="num" data-rotulo="Saldo">${moeda(centavos(c.saldo))}</td>
+            <td class="num" data-rotulo="Parcelas vencidas">${c.vencidas ?? 0}</td>
+            <td class="num" data-rotulo="Saldo vencido">${moeda(centavos(c.saldo_vencido))}</td>
           </tr>`)}
         </tbody>
       </table></div>`
-    : vazio('Nenhum contrato vinculado.'));
+    : vazio('Nenhum contrato vinculado.'), 'financeiro');
 }
 
 const TIPOS_CONTATO = {
@@ -123,7 +134,7 @@ function painelContatos(lista) {
   return painel('Contatos', pode.clientes() ? html`<button type="button" class="botao botao--pequeno" data-acao="novo-contato">Novo contato</button>` : '', html`
     ${ativos.length ? html`<ul class="lista">${ativos.map(item)}</ul>` : vazio('Nenhum contato ativo. Cadastre um contato e marque se ele recebe cobranças.')}
     ${inativos.length ? html`<details class="painel__corpo"><summary>${inativos.length} inativo(s)</summary><ul class="lista">${inativos.map(item)}</ul></details>` : ''}
-    <p class="painel__rodape sub">A cobrança do Financeiro vai para quem está marcado como "Recebe cobrança". Registre como a pessoa autorizou o canal, quando for o caso (LGPD).</p>`);
+    <p class="painel__rodape sub">A cobrança do Financeiro vai para quem está marcado como "Recebe cobrança". Registre como a pessoa autorizou o canal, quando for o caso (LGPD).</p>`, 'contatos');
 }
 
 function editarContato(clienteId, c = null) {
@@ -174,7 +185,7 @@ function dadosCompletos(cliente, d, pj) {
       ['Filiação paterna (pai)', d.filiacao_pai],
       ...(d.filiacao ? [['Filiação (como estava antes — separe em mãe e pai em "Editar dados")', d.filiacao]] : []),
       ['Concordância nos documentos', d.flexao === 'm' ? 'O cliente' : d.flexao === 'f' ? 'A cliente' : 'Neutra (a)'],
-    ])}
+    ], 'cadastro')}
     ${grupo('Endereço', [
       ['CEP', d.cep?.replace(/^(\d{5})(\d{3})$/, '$1-$2')],
       ['Logradouro', d.logradouro],
@@ -273,20 +284,32 @@ function tela(id, f) {
       ${cliente.email ? html`<a class="botao" href="mailto:${cliente.email}">${cliente.email}</a>` : ''}
     </div>
 
+    ${indice([
+      ['processos', 'Processos', f.processos.length],
+      ['atualizacoes', 'Atualizações', f.atualizacoes.filter((a) => !a.cancelado_em).length],
+      ['tarefas', 'Tarefas e prazos', f.tarefas.length],
+      ['documentos', 'Documentos', f.documentos.length],
+      // A ficha lê no máximo 5 compromissos futuros: com 5, pode haver mais.
+      ...(pode.agenda() ? [['agenda', 'Agenda', f.futuros.length >= 5 ? '5+' : f.futuros.length]] : []),
+      ...(pode.financeiro() ? [['financeiro', 'Financeiro', f.contratos.length]] : []),
+      ['contatos', 'Contatos', f.pessoas.filter((p) => p.ativo).length],
+      ['cadastro', 'Dados do cadastro', 0],
+    ])}
+
     ${painel('Processos e casos', html`<button type="button" class="botao botao--pequeno" data-acao="novo-processo">Novo processo</button>`,
-      tabelaProcessos(f.processos, [], { mostrarCliente: false, documentos: f.docsProcessos }))}
+      tabelaProcessos(f.processos, [], { mostrarCliente: false, documentos: f.docsProcessos }), 'processos')}
     ${painelTempo(id, cliente, f.atualizacoes, f.processos)}
-    ${painel('Tarefas e prazos abertos', html`<a href="#/tarefas?visao=todas&cliente=${id}">Abrir Tarefas</a>`,
-      tabelaTarefas(f.tarefas, { vazio: 'Nenhuma tarefa ou prazo em aberto para este cliente.' }))}
-    ${painel('Documentos gerados', html`<a href="#/documentos?cliente=${id}">Abrir Documentos</a>`,
-      tabelaDocumentos(f.documentos, [cliente], f.processos, { vazio: 'Nenhum documento gerado para este cliente.' }))}
-    ${pode.agenda() ? painel('Agenda', html`<a href="#/agenda">Abrir Agenda</a>`, html`
+    ${painel('Tarefas e prazos abertos', html`<a class="botao botao--pequeno" href="#/tarefas?visao=todas&cliente=${id}">Abrir Tarefas</a>`,
+      tabelaTarefas(f.tarefas, { vazio: 'Nenhuma tarefa ou prazo em aberto para este cliente.' }), 'tarefas')}
+    ${painel('Documentos gerados', html`<a class="botao botao--pequeno" href="#/documentos?cliente=${id}">Abrir Documentos</a>`,
+      tabelaDocumentos(f.documentos, [cliente], f.processos, { vazio: 'Nenhum documento gerado para este cliente.' }), 'documentos')}
+    ${pode.agenda() ? painel('Agenda', html`<a class="botao botao--pequeno" href="#/agenda">Abrir Agenda</a>`, html`
       <div class="painel__corpo">
         <h3 class="cliente-subtitulo">Próximos compromissos (até 5)</h3>
         ${compromissos(f.futuros)}
         <h3 class="cliente-subtitulo secao">Últimos compromissos (até 5)</h3>
         ${compromissos(f.anteriores)}
-      </div>`) : ''}
+      </div>`, 'agenda') : ''}
     ${pode.financeiro() ? painelFinanceiro(f.contratos) : ''}
     ${painelContatos(f.pessoas)}
     ${dadosCompletos(cliente, d, pj)}
@@ -358,6 +381,13 @@ export default async function telaCliente(ctx) {
   const pessoa = (el) => f.pessoas.find((p) => p.id === el.dataset.id);
   const limpar = aoClicar(ctx.raiz, {
     anexos: () => abrirAnexos({ titulo: `Anexos — ${f.cliente.nome}`, destino: { cliente_id: id }, podeGravar: pode.clientes(), categoria: 'documento_pessoal' }),
+    // Atalho do índice: rola até a parte pedida e leva o foco para ela.
+    'ir-para': (el) => {
+      const alvo = ctx.raiz.querySelector(`[data-secao="${el.dataset.alvo}"]`);
+      if (!alvo) return;
+      alvo.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      alvo.focus({ preventScroll: true });
+    },
     'novo-contato': () => depois(editarContato(id)),
     'editar-contato': (el) => depois(editarContato(id, pessoa(el))),
     'principal-contato': (el) => depois(db.rpc('definir_contato_principal', { p_id: el.dataset.id }).then(() => {

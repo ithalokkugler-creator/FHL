@@ -5,6 +5,12 @@ Substitui todos os handoffs, roteiros e relatórios antigos da raiz (o
 histórico deles está no git e, para as especificações, em
 [`docs/historico/`](docs/historico/)).
 
+**09/11/2026 — design e busca rápida:** todo botão com caixa (o
+"Histórico" verde e solto deixou de existir), Processos/Clientes/Contas em
+cartões no celular, barra "Ir para" na ficha do cliente e a **busca rápida**
+(botão no menu, Ctrl+K ou "/"). Só CSS e JS, nenhuma migração. Detalhes em
+`sistema/README.md` → Ajustes de design e busca rápida (09/11).
+
 **23/10/2026 — em produção:** correções da auditoria (branch
 `AjusteFinanceiro`, commit `a9979a0`) publicadas às 22h01 de Brasília, com
 o escritório parado: as duas migrações de 23/10 no banco, as funções
@@ -387,6 +393,8 @@ orquestração, `eventos.js` = tradução pura), migrações `2026102018…` a
 | 20/10 | Respostas dos advogados (direto ao cliente, cota de encargos); limpeza dos dados de teste; convites; DNS de e-mail; Search Console; **Google Agenda nos dois sentidos**; Remarcar; caça a bugs 2 + revisão de design |
 | 21/10 | Pedidos do grupo: campo Cliente com busca por nome/CPF, processos que o escritório não acompanha (intimações do Marlon), filiação em mãe e pai (migração 38; `sistema/README.md` → Pedidos dos advogados); esqueleto de carregamento nas telas principais; validade do link de e-mail de volta a 1 h; pedidos do Guilherme: tarefa da intimação, posição do cliente no processo, atendimento sem cliente e "Anotar" (migração 39) |
 | 22/10 | Pedidos do Vinícius: antecipação de parcelas (o excedente abate as últimas, de trás para frente; recibo único; estorno junto) e documentos solicitados/entregues no processo, com retorno previsto e aviso em Hoje (migração 40; três testadores; finanças conferidas por "fotografia" antes e depois) |
+| 23/10 | Correções da auditoria do Financeiro e do sistema (integridade, sessão, anotações, Google e site) |
+| 09/11 | Revisão de design pedida pelo Ithalo: botões com caixa, tabelas em cartões no celular, índice na ficha do cliente e busca rápida (Ctrl+K); três revisores Haiku |
 
 ---
 
@@ -447,7 +455,8 @@ orquestração, `eventos.js` = tradução pura), migrações `2026102018…` a
 - Hoje: cartão "Próximo compromisso" com Ligar / WhatsApp / Iniciar.
 - Novo compromisso: campos raros em "Mais opções"; sugerir próximo horário livre.
 - Financeiro no celular: contratos e parcelas em cartões (hoje tabela com
-  rolagem lateral); no "Receber", a escolha "Como a parte contrária pagou"
+  rolagem lateral — Contas do escritório já virou cartão em 09/11, com
+  `.tabela--cartoes`; é só repetir a receita); no "Receber", a escolha "Como a parte contrária pagou"
   logo depois do valor.
 - Histórico: mostrar "Google Agenda" em vez de "Sistema" nas mudanças da
   sincronização.

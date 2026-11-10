@@ -103,7 +103,7 @@ function celulaResponsavel(t) {
 
 /** Duas fileiras: concluir/reabrir e editar; abaixo, as ações de texto. */
 function celulaAcoes(t) {
-  const historico = html`<button class="acao-texto" type="button" data-acao="tarefa-historico" data-id="${t.id}">Histórico</button>`;
+  const historico = html`<button class="botao botao--pequeno botao--discreto" type="button" data-acao="tarefa-historico" data-id="${t.id}">Histórico</button>`;
   if (!podeAlterarTarefa(t, estado.membro)) {
     return html`<div class="tarefa-acoes"><div class="tarefa-acoes__textos">${historico}</div></div>`;
   }
@@ -116,8 +116,8 @@ function celulaAcoes(t) {
         <button class="botao botao--pequeno" type="button" data-acao="tarefa-editar" data-id="${t.id}">Editar</button>
       </div>
       <div class="tarefa-acoes__textos">
-        ${t.situacao === 'pendente' ? html`<button class="acao-texto" type="button" data-acao="tarefa-andamento" data-id="${t.id}" title="Marcar como em andamento (volta a pendente em Editar)">Iniciar</button>` : ''}
-        <button class="acao-texto" type="button" data-acao="tarefa-cancelar" data-id="${t.id}">Cancelar</button>
+        ${t.situacao === 'pendente' ? html`<button class="botao botao--pequeno botao--discreto" type="button" data-acao="tarefa-andamento" data-id="${t.id}" title="Marcar como em andamento (volta a pendente em Editar)">Iniciar</button>` : ''}
+        <button class="botao botao--pequeno botao--discreto" type="button" data-acao="tarefa-cancelar" data-id="${t.id}">Cancelar</button>
         ${historico}
       </div>
     </div>`;

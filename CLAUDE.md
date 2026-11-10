@@ -71,6 +71,14 @@ casos, **registrar documento solicitado ou entregue**, quem recebeu, a data e
 o prazo previsto para retorno. Detalhes: `sistema/README.md` (Pedidos do
 Vinícius).
 
+**Design — 09/11/2026 (pedido do Ithalo):** os advogados estranhavam os
+botões "soltos" (texto verde sem caixa, como o Histórico dos processos). Agora
+todo botão tem caixa; Processos, Clientes e Contas viram cartões no celular; a
+ficha do cliente ganhou a barra "Ir para"; e existe a **busca rápida** de
+cliente/processo/tela (botão no menu, Ctrl+K ou "/"). Regra para o que vier:
+ação nunca é texto solto. Detalhes: `sistema/README.md` (Ajustes de design e
+busca rápida).
+
 ---
 
 ## 1. Quem é quem

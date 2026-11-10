@@ -59,11 +59,11 @@ export default async function telaClientes(ctx) {
         <td><a href="#/clientes/${cliente.id}"><strong>${cliente.nome}</strong></a>
           <span class="sub">${[d?.nome_fantasia, cliente.email].filter(Boolean).join(' · ')}${cliente.ativo ? '' : ' · Inativo'}</span>
           ${d?.etiquetas?.length ? html`<span class="etiquetas">${d.etiquetas.map((e) => html`<span class="etiqueta">${e}</span>`)}</span>` : ''}</td>
-        <td><span class="num">${documento(cliente.documento) || '—'}</span></td>
-        <td>${cliente.telefone ? html`<a class="num" href="${linkWhatsApp(cliente.telefone)}" target="_blank" rel="noopener">${telefone(cliente.telefone)}</a>` : '—'}</td>
-        <td>${casos.filter((p) => p.situacao !== 'encerrado').length}</td>
-        <td>${nomeDe(d?.responsavel_id)}</td>
-        <td>${ultima ? dataHora(ultima) : '—'}</td>
+        <td data-rotulo="CPF / CNPJ" ${cliente.documento ? '' : 'data-vazio'}><span class="num">${documento(cliente.documento) || '—'}</span></td>
+        <td data-rotulo="Telefone" ${cliente.telefone ? '' : 'data-vazio'}>${cliente.telefone ? html`<a class="num" href="${linkWhatsApp(cliente.telefone)}" target="_blank" rel="noopener" title="Abrir conversa no WhatsApp">${telefone(cliente.telefone)}</a>` : '—'}</td>
+        <td data-rotulo="Processos abertos">${casos.filter((p) => p.situacao !== 'encerrado').length}</td>
+        <td data-rotulo="Responsável" ${d?.responsavel_id ? '' : 'data-vazio'}>${nomeDe(d?.responsavel_id)}</td>
+        <td data-rotulo="Atualizado em" ${ultima ? '' : 'data-vazio'}>${ultima ? dataHora(ultima) : '—'}</td>
       </tr>`;
   };
 
@@ -71,7 +71,7 @@ export default async function telaClientes(ctx) {
     const lista = filtrarClientes(clientes, detalhes, processos, f);
     desenhar($('[data-lista]', ctx.raiz), lista.length
       ? html`
-        <div class="tabela-rolagem"><table class="tabela">
+        <div class="tabela-rolagem"><table class="tabela tabela--cartoes">
           <thead><tr><th>Cliente</th><th>CPF / CNPJ</th><th>Telefone</th><th>Processos abertos</th><th>Responsável</th><th>Última atualização</th></tr></thead>
           <tbody>${lista.map(linha)}</tbody>
         </table></div>`

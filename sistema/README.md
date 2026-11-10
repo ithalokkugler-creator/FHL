@@ -589,6 +589,57 @@ Migração `20261022120000_antecipacao_documentos_processo`, testes
   endereço volta ao da ficha). Sem prazo de retorno não há aviso — a ajuda do
   campo diz isso.
 
+## Ajustes de design e busca rápida (09/11)
+
+Pedido do Ithalo: deixar as telas que os advogados mais usam mais fáceis de
+entender, sem mexer em regra nenhuma. Nada de banco: só `sistema/css` e
+`sistema/js`.
+
+- **Todo botão tem caixa.** `.botao--discreto` (Histórico, Anexos, Cancelar,
+  Arquivar, Desativar… ~70 lugares) era só um texto verde e não parecia botão;
+  agora tem a mesma caixa dos outros, com peso de letra menor. Em Tarefas e
+  Prazos, "Iniciar", "Cancelar" e "Histórico" eram textos (`.acao-texto`, que
+  deixou de existir) e viraram botões: Concluir/Editar em cima, os três
+  embaixo. Para ação secundária nova, usar `botao botao--pequeno
+  botao--discreto` — nunca texto solto.
+- **Processos:** Editar, Documentos e Histórico com a mesma largura.
+- **Tabela que vira cartão no celular** (`.tabela--cartoes`, até 760 px): o
+  título em cima, cada dado com o rótulo ao lado (`data-rotulo` no `<td>`;
+  célula com mais de um elemento embrulha o conteúdo em `<span
+  class="celula">`), `data-vazio` esconde o dado que não existe, e os botões
+  vão no fim (`td.cartao-acoes`). Usada em Processos, Clientes, Contas do
+  escritório e no Financeiro da ficha do cliente — antes era preciso rolar a
+  tabela de lado para achar "Editar".
+  Para levar a outra tabela: a classe na `<table>` e os atributos nas células.
+- **Contas do escritório:** os botões da linha quebram em duas fileiras
+  (`.tabela--contas`); a descrição, que ficava com quatro ou cinco linhas,
+  voltou a caber em uma ou duas.
+- **Ficha do cliente:** barra "Ir para" (`.ficha-indice`) com um atalho por
+  parte da ficha e a contagem de cada uma; fica presa no alto enquanto se
+  rola. Cada painel tem `data-secao`. Os links do topo dos painéis ("Abrir
+  Tarefas", "Relatório para o cliente"…) viraram botões.
+- **Busca rápida (função nova):** botão "Buscar cliente ou processo" no alto
+  do menu (no celular, também uma lupa no topo), **Ctrl+K** ou a barra **/**
+  fora de campo de texto. Acha cliente por parte do nome (sem acento, em
+  qualquer ordem), CPF/CNPJ, telefone ou e-mail; processo pelo número ou pelo
+  título; e as telas do menu de quem está usando. Enter ou clique abre a ficha
+  do cliente (do processo, a do cliente dele) ou a tela. Só para quem tem o
+  módulo Clientes; com um formulário aberto o atalho não faz nada (a busca
+  trocaria de tela). Só lê, pelas mesmas tabelas e políticas de Clientes; a
+  lista fica em memória por um minuto e some ao sair — nada no
+  `localStorage`. Regra em `dominio/busca.js` (testada em
+  `testes/busca-rapida.test.mjs`), janela em `telas/busca-rapida.js`, botão e
+  atalhos em `app.js`. Se a leitura falha (sem internet), a janela avisa,
+  continua achando as telas e tenta de novo na próxima tecla, com 3 segundos
+  de intervalo.
+- **Conferência:** três revisores Haiku (código, computador, celular), cada
+  um com a própria prévia. Os dois de navegador não acharam bug; o de código
+  achou quatro na busca (carga que falhava e ficava em "Carregando…", palavra
+  de ligação que escondia processo, "d." listando todo mundo, lista que
+  sobrevivia à saída durante a carga) — corrigidos e cobertos por teste.
+  Ficou como estava: em telas entre 761 e 1260 px a tabela de Tarefas rola de
+  lado dentro do painel (já rolava; a coluna de ações manteve a largura).
+
 ## Operação, segurança e LGPD (08/10)
 
 - **Saída por inatividade**: minutos em Operação e LGPD (padrão 30), com

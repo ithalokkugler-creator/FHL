@@ -321,24 +321,24 @@ function tabelaContas(contas) {
   const lanca = pode.lancar();
   return html`
     <div class="tabela-rolagem">
-      <table class="tabela">
+      <table class="tabela tabela--contas tabela--cartoes">
         <thead>
           <tr><th>Vencimento</th><th>Descrição</th><th>Categoria</th><th class="num">Valor</th><th class="num">Pago</th><th class="num">Saldo</th><th>Situação</th><th class="acoes"><span class="sr-only">Ações</span></th></tr>
         </thead>
         <tbody>
           ${contas.map((c) => html`
             <tr class="${c.situacao === 'cancelada' ? 'apagada' : ''}">
-              <td class="num">${data(c.vencimento)}${c.competencia_manual ? html`<span class="sub">comp. ${c.competencia.slice(5, 7)}/${c.competencia.slice(0, 4)}</span>` : ''}</td>
-              <td>${c.descricao}<span class="sub">${[
+              <td class="num" data-rotulo="Vencimento"><span class="celula">${data(c.vencimento)}${c.competencia_manual ? html`<span class="sub">comp. ${c.competencia.slice(5, 7)}/${c.competencia.slice(0, 4)}</span>` : ''}</span></td>
+              <td data-rotulo="Descrição"><span class="celula">${c.descricao}<span class="sub">${[
                 c.parcela_total ? `parcela ${c.parcela_numero} de ${c.parcela_total}` : c.recorrente_id ? 'recorrente' : null,
                 TIPOS_DESPESA[c.tipo], c.fornecedor_nome, c.centro_custo_nome, c.observacao, c.motivo_cancelamento,
-              ].filter(Boolean).join(' · ')}</span></td>
-              <td>${c.categoria_nome}</td>
-              <td class="num">${c.valor != null ? moeda(centavos(c.valor)) : '—'}</td>
-              <td class="num">${Number(c.pago_total) ? moeda(centavos(c.pago_total)) : '—'}${c.ultimo_pagamento ? html`<span class="sub">${data(c.ultimo_pagamento)}</span>` : ''}</td>
-              <td class="num">${c.saldo != null && c.situacao !== 'paga' ? moeda(centavos(c.saldo)) : '—'}</td>
-              <td>${seloConta(c.situacao)}${c.parcial ? html` <span class="selo selo--alerta">Paga em parte</span>` : ''}${c.vence_hoje && c.situacao === 'a_pagar' ? html` <span class="selo selo--alerta">Vence hoje</span>` : ''}</td>
-              <td class="acoes">
+              ].filter(Boolean).join(' · ')}</span></span></td>
+              <td data-rotulo="Categoria" ${c.categoria_nome ? '' : 'data-vazio'}>${c.categoria_nome}</td>
+              <td class="num" data-rotulo="Valor">${c.valor != null ? moeda(centavos(c.valor)) : '—'}</td>
+              <td class="num" data-rotulo="Pago" ${Number(c.pago_total) ? '' : 'data-vazio'}><span class="celula">${Number(c.pago_total) ? moeda(centavos(c.pago_total)) : '—'}${c.ultimo_pagamento ? html`<span class="sub">${data(c.ultimo_pagamento)}</span>` : ''}</span></td>
+              <td class="num" data-rotulo="Saldo" ${c.saldo != null && c.situacao !== 'paga' ? '' : 'data-vazio'}>${c.saldo != null && c.situacao !== 'paga' ? moeda(centavos(c.saldo)) : '—'}</td>
+              <td data-rotulo="Situação"><span class="celula">${seloConta(c.situacao)}${c.parcial ? html` <span class="selo selo--alerta">Paga em parte</span>` : ''}${c.vence_hoje && c.situacao === 'a_pagar' ? html` <span class="selo selo--alerta">Vence hoje</span>` : ''}</span></td>
+              <td class="acoes cartao-acoes">
                 ${c.situacao !== 'cancelada' && lanca ? html`
                   ${!['paga', 'sem_valor'].includes(c.situacao) ? html`<button type="button" class="botao botao--pequeno" data-acao="pagar" data-id="${c.id}">Pagar</button>` : ''}
                   <button type="button" class="botao botao--pequeno botao--discreto" data-acao="editar" data-id="${c.id}">Editar</button>` : ''}
