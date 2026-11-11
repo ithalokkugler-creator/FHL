@@ -1016,6 +1016,15 @@ a.assinatura:focus-visible .assinatura__nome { color: var(--c-action); }
 .area__h2 { margin-top: var(--s-3); max-width: 16ch; }
 .area__quando { max-width: 54ch; }
 
+.area-equipe .assinaturas {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+}
+.area-equipe .assinatura__media {
+  width: clamp(112px, 12vw, 152px);
+  height: auto;
+  aspect-ratio: 1;
+}
+
 @media (max-width: 900px) {
   .area__side, .area__main { grid-column: 1 / -1; }
   .area__main { margin-top: var(--s-4); }
