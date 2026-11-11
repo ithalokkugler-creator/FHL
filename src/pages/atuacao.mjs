@@ -1,6 +1,6 @@
-import { AREAS } from '../data/areas.mjs';
+import { AREAS, areasComNomesOriginais } from '../data/areas.mjs';
 import { EQUIPE } from '../data/equipe.mjs';
-import { ARROW, nextBlock, page, pageHead } from '../lib/html.mjs';
+import { ARROW, nextBlock, page, pageHead, textoHtml } from '../lib/html.mjs';
 import { assinatura } from '../partials/equipe.mjs';
 import { campanhasAtivas, campanhasCallout } from './campanhas.mjs';
 
@@ -8,21 +8,24 @@ import { campanhasAtivas, campanhasCallout } from './campanhas.mjs';
 function indexItem(a, href) {
   return `      <a class="index-item" href="${href}">
         <span class="index-item__num numeral">${a.num}</span>
-        <span class="index-item__title">${a.nome}</span>
-        <span class="index-item__text">${a.resumo}</span>
+        <span class="index-item__title">${textoHtml(a.nome)}</span>
+        <span class="index-item__text">${textoHtml(a.resumo)}</span>
         <span class="link-arrow">Ver ${ARROW}</span>
       </a>`;
 }
 
 export function buildAtuacaoIndex() {
   const items = AREAS.map((a) => indexItem(a, `atuacao/${a.slug}.html`)).join('\n');
+  const originais = areasComNomesOriginais();
 
   const body = pageHead(
     'Atuação',
-    'Seis frentes de atuação',
-    'Trabalhista, previdenciário, consumidor, cível, criminal e imobiliário: as questões ' +
-    'que mais chegam ao escritório, do fim de um contrato de trabalho à compra de um imóvel.'
-  ) + `
+    originais ? 'Seis frentes de atuação' : 'Áreas de atuação',
+    originais
+      ? 'Trabalhista, previdenciário, consumidor, cível, criminal e imobiliário: as questões ' +
+        'que mais chegam ao escritório, do fim de um contrato de trabalho à compra de um imóvel.'
+      : 'Conheça as áreas em que o escritório atua em Paranaguá e região.'
+  ) + (items ? `
 
   <section class="section">
     <div class="wrap">
@@ -32,23 +35,22 @@ ${items}
     </div>
   </section>
 
-` + nextBlock('Não sabe por onde começar?', 'contato.html', 'Descreva sua situação');
+` : '') + nextBlock('Não sabe por onde começar?', 'contato.html', 'Descreva sua situação');
 
   return page({
     path: 'atuacao.html',
     title: 'Atuação — Fonseca Lisboa Advocacia',
-    desc: 'Direito Trabalhista, Previdenciário, do Consumidor, Cível, Criminal e Imobiliário em Paranaguá — PR.',
+    desc: originais
+      ? 'Direito Trabalhista, Previdenciário, do Consumidor, Cível, Criminal e Imobiliário em Paranaguá — PR.'
+      : 'Áreas de atuação da Fonseca Lisboa Advocacia em Paranaguá — PR.',
     body,
   });
 }
 
 export function buildArea(area) {
-  const itens = area.itens.map((i) => `          <li class="r-rise">${i}</li>`).join('\n');
+  const itens = area.itens.map((i) => `          <li class="r-rise">${textoHtml(i)}</li>`).join('\n');
 
-  // Quem atende: os advogados que declaram a área no perfil. Quem chega pela
-  // busca vê logo com quem vai falar — nome e inscrição, que é o que o
-  // Provimento 205/2021 pede e o que dá confiança a quem nunca veio aqui.
-  const advogados = EQUIPE.filter((m) => m.areas?.includes(area.slug));
+  const advogados = EQUIPE.filter((m) => area.advogados.includes(m.slug));
   const quemAtende = advogados.length ? `
 
   <section class="section section--fn area-equipe">
@@ -73,7 +75,7 @@ ${advogados.map((m) => `          <div class="r-rise">${assinatura(m, 1)}</div>`
     campanhasAtivas().filter((c) => c.area === area.slug), { depth: 1 }
   );
 
-  const body = pageHead('Atuação · ' + area.num, area.nome, area.intro, 1) + `
+  const body = pageHead('Atuação · ' + area.num, textoHtml(area.nome), textoHtml(area.intro), 1) + `
 
   <section class="section section--fn">
     <div class="wrap grid">
@@ -94,11 +96,11 @@ ${itens}
         <h2 class="h2 area__h2" data-reveal="rise">O momento certo</h2>
       </div>
       <div class="area__main" data-reveal="rise-group">
-        <p class="lead area__quando r-rise">${area.quando}</p>
+        <p class="lead area__quando r-rise">${textoHtml(area.quando)}</p>
       </div>
     </div>
   </section>${quemAtende}
-${campanhaHtml}
+${campanhaHtml}${outrasHtml ? `
   <section class="section">
     <div class="wrap">
       <p class="label" data-reveal="rise" style="margin-bottom:var(--s-4)">Outras áreas</p>
@@ -108,7 +110,7 @@ ${outrasHtml}
     </div>
   </section>
 
-` + nextBlock('Vamos conversar', 'contato.html', 'Entrar em contato', 1);
+` : ''}` + nextBlock('Vamos conversar', 'contato.html', 'Entrar em contato', 1);
 
   return page({
     path: `atuacao/${area.slug}.html`,

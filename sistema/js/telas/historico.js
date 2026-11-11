@@ -76,6 +76,7 @@ const TABELAS = {
   publicacoes: 'Publicação do site',
   campanhas: 'Campanha do site',
   site_deploys: 'Publicação do site no ar',
+  areas_atuacao: 'Área de atuação do site',
 };
 
 const ACOES = {

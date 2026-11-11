@@ -29,6 +29,7 @@
 
 import { SUPABASE_CHAVE, SUPABASE_URL } from '../../sistema/js/config.js';
 import { imageSizeFrom } from '../lib/assets.mjs';
+import { AREAS, AREAS_ORIGINAIS } from './areas.mjs';
 import { CAMPANHAS } from './campanhas.mjs';
 import { POSTS } from './posts.mjs';
 
@@ -143,6 +144,16 @@ const paraCampanha = (linha) => semNulos({
 function substituir(alvo, novos) {
   alvo.length = 0;
   alvo.push(...novos);
+}
+
+export async function carregarAreas({ local = false, areas } = {}) {
+  const linhas = areas ?? (local
+    ? AREAS_ORIGINAIS
+    : await buscar('areas_atuacao', 'slug,nome,resumo,intro,itens,quando,advogados', 'posicao.asc,slug.asc'));
+
+  // Uma lista vazia é válida. Em caso de falha no banco, o build falha para
+  // preservar o site no ar e evitar que áreas retiradas reapareçam.
+  substituir(AREAS, linhas.map((area, i) => ({ ...area, num: String(i + 1).padStart(2, '0') })));
 }
 
 /**

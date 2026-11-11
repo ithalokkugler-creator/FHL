@@ -8,10 +8,8 @@
 //
 //   npm run build
 //
-// O conteúdo das publicações e das campanhas vem do Supabase, escrito pelo
-// próprio escritório na área dos advogados (ver src/data/conteudo.mjs). Por
-// isso o build é assíncrono e precisa de rede: sem ela, cai na cópia de
-// src/data/ e avisa.
+// Áreas de atuação, publicações e campanhas são lidas do Supabase (ver
+// src/data/conteudo.mjs). Para gerar com os dados originais, use --local.
 //
 // dist/ é descartável: é apagado e regerado a cada build. Isso resolve de
 // graça o problema das páginas órfãs — quando um slug muda, o arquivo antigo
@@ -27,7 +25,7 @@ import { fileURLToPath } from 'node:url';
 
 import { AREAS } from '../src/data/areas.mjs';
 import { CAMPANHAS } from '../src/data/campanhas.mjs';
-import { carregarConteudo } from '../src/data/conteudo.mjs';
+import { carregarAreas, carregarConteudo } from '../src/data/conteudo.mjs';
 import { POSTS } from '../src/data/posts.mjs';
 import { DOMINIO } from '../src/data/site.mjs';
 import { shell } from '../src/layouts/shell.mjs';
@@ -97,7 +95,7 @@ Disallow: /${SISTEMA}/
 Sitemap: ${DOMINIO}/sitemap.xml
 `;
 
-export async function build({ quiet = false, local = false, destino = DIST } = {}) {
+export async function build({ quiet = false, local = false, areas, destino = DIST } = {}) {
   const saida = resolve(destino);
   // As duas saídas são descartáveis. Nunca apaga outro caminho recebido.
   if (![DIST, join(ROOT, '.local', 'previa')].includes(saida)) {
@@ -105,7 +103,8 @@ export async function build({ quiet = false, local = false, destino = DIST } = {
   }
   const log = quiet ? () => {} : (...a) => console.log(...a);
 
-  // Antes de montar qualquer página: é isto que enche POSTS e CAMPANHAS.
+  // Antes de montar qualquer página, atualiza o conteúdo usado nos templates.
+  await carregarAreas({ local, areas });
   const { imagens } = await carregarConteudo({ quiet, local });
   const pages = allPages();
 
@@ -155,7 +154,7 @@ export async function build({ quiet = false, local = false, destino = DIST } = {
 // Só roda o build quando este arquivo é o ponto de entrada; check.mjs e og.mjs
 // importam `build` e `allPages` como funções. O dev server passa `--quiet`.
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
-  build({ quiet: process.argv.includes('--quiet') }).catch((err) => {
+  build({ quiet: process.argv.includes('--quiet'), local: process.argv.includes('--local') }).catch((err) => {
     console.error(err);
     process.exit(1);
   });

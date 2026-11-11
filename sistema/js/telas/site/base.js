@@ -11,14 +11,7 @@ import { db } from '../../nucleo/supabase.js';
 /** Balde do Storage com as imagens das publicações. */
 const BALDE = 'site';
 
-/**
- * Áreas de atuação do site, na ordem em que aparecem lá.
- *
- * Cópia de src/data/areas.mjs: as áreas moldam a navegação, o rodapé e o
- * menu do site inteiro, não só o conteúdo — mudá-las é mexer no site, não
- * publicar nele, e por isso continuam no código. Se uma área for criada lá,
- * acrescente aqui.
- */
+/** Categorias históricas das publicações e campanhas. */
 export const AREAS = [
   { slug: 'trabalhista', nome: 'Direito Trabalhista', curto: 'Trabalhista' },
   { slug: 'previdenciario', nome: 'Direito Previdenciário', curto: 'Previdenciário' },

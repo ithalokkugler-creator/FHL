@@ -1,14 +1,18 @@
+import { AREAS, areasComNomesOriginais } from '../data/areas.mjs';
 import { EQUIPE } from '../data/equipe.mjs';
-import { nextBlock, page, pageHead } from '../lib/html.mjs';
+import { nextBlock, page, pageHead, textoHtml } from '../lib/html.mjs';
 import { assinatura } from '../partials/equipe.mjs';
 import { metodo, numeros } from '../partials/institucional.mjs';
 
 export function buildEscritorio() {
+  const originais = areasComNomesOriginais();
+  const areas = new Intl.ListFormat('pt-BR').format(AREAS.map((a) => a.nome));
   const body = pageHead(
     'O Escritório',
     'Entender o caso primeiro, agir depois',
-    'A Fonseca Lisboa Advocacia atende pessoas e empresas em Paranaguá e região, nas áreas ' +
-    'trabalhista, previdenciária, do consumidor, cível, criminal e imobiliária.'
+    'A Fonseca Lisboa Advocacia atende pessoas e empresas em Paranaguá e região' + (originais
+      ? ', nas áreas trabalhista, previdenciária, do consumidor, cível, criminal e imobiliária.'
+      : areas ? `. Conheça as áreas de atuação: ${textoHtml(areas)}.` : '.')
   ) + `
 
   <section class="section">
@@ -29,7 +33,7 @@ export function buildEscritorio() {
             parte dos casos se decide, antes de qualquer peça ser escrita.
           </p>
           <p class="r-rise">
-            Além das seis áreas principais, a equipe atua em família e sucessões,
+            ${originais ? 'Além das seis áreas principais, a equipe atua' : 'A equipe também atua'} em família e sucessões,
             direito ambiental, regularização fundiária e direito portuário —
             este último, natural para um escritório em Paranaguá.
           </p>
@@ -51,8 +55,8 @@ ${numeros()}
   return page({
     path: 'escritorio.html',
     title: 'O Escritório — Fonseca Lisboa Advocacia',
-    desc: 'Quem é a Fonseca Lisboa Advocacia: três advogados em Paranaguá, com atuação ' +
-      'trabalhista, previdenciária, do consumidor, cível, criminal e imobiliária.',
+    desc: 'Quem é a Fonseca Lisboa Advocacia: três advogados em Paranaguá' + (originais
+      ? ', com atuação trabalhista, previdenciária, do consumidor, cível, criminal e imobiliária.' : '.'),
     body,
   });
 }

@@ -57,14 +57,15 @@ rota('/financeiro/importacao', () => import('./telas/financeiro/importacao.js'),
 rota('/financeiro/fechamento', () => import('./telas/financeiro/fechamento.js'), { titulo: 'Fechamento', permitido: pode.fechamento });
 rota('/financeiro/relatorios', () => import('./telas/financeiro/relatorios.js'), { titulo: 'Relatórios', ...doFinanceiro });
 rota('/financeiro/configuracoes', () => import('./telas/financeiro/configuracoes.js'), { titulo: 'Configurações do Financeiro', ...doFinanceiro });
-// O site institucional é editado daqui: publicações e campanhas ficam no
-// Supabase, e o build do site as lê (src/data/conteudo.mjs).
+// O conteúdo do site é editado daqui e lido do Supabase durante o build.
 const doSite = { permitido: pode.site };
 
 rota('/site/publicacoes', () => import('./telas/site/publicacoes.js'), { titulo: 'Publicações do site', ...doSite });
 rota('/site/publicacoes/:id', () => import('./telas/site/publicacao.js'), { titulo: 'Publicação', ...doSite });
 rota('/site/campanhas', () => import('./telas/site/campanhas.js'), { titulo: 'Campanhas do site', ...doSite });
 rota('/site/campanhas/:id', () => import('./telas/site/campanha.js'), { titulo: 'Campanha', ...doSite });
+rota('/site/areas', () => import('./telas/site/areas.js').then((m) => ({ default: m.telaAreas })), { titulo: 'Áreas de atuação', ...doSite });
+rota('/site/areas/:id', () => import('./telas/site/areas.js').then((m) => ({ default: m.telaArea })), { titulo: 'Área de atuação', ...doSite });
 rota('/site/publicar', () => import('./telas/site/publicar.js'), { titulo: 'Publicar o site', ...doSite });
 rota('/membros', () => import('./telas/membros.js'), { titulo: 'Membros', permitido: pode.administrar });
 rota('/historico', () => import('./telas/historico.js'), { titulo: 'Histórico', permitido: pode.auditoria });
@@ -122,6 +123,7 @@ const MENU = [
     itens: [
       { caminho: '/site/publicacoes', rotulo: 'Publicações' },
       { caminho: '/site/campanhas', rotulo: 'Campanhas' },
+      { caminho: '/site/areas', rotulo: 'Áreas de atuação' },
       { caminho: '/site/publicar', rotulo: 'Publicar' },
     ],
   },

@@ -5,13 +5,13 @@
 // ini    iniciais usadas como alternativa quando não há foto
 // foto   caminho do retrato em assets/img/
 // tom    cor do filete do retrato: teal, vinho ou menta, os três acentos do site
-// areas  slugs de src/data/areas.mjs em que o advogado atende — alimenta o
-//        "Quem atende nesta área" de cada página de atuação
+// areas  vínculos originais, usados pelo build sem banco
+
+import { EQUIPE_SITE } from '../../sistema/js/dominio/equipe-site.js';
 
 export const EQUIPE = [
   {
-    slug: 'guilherme-fonseca',
-    nome: 'Guilherme O. Fonseca',
+    ...EQUIPE_SITE.guilherme,
     completo: 'Guilherme de Oliveira da Fonseca',
     ini: 'GF',
     foto: 'assets/img/equipe/guilherme-fonseca.jpg',
@@ -27,8 +27,7 @@ export const EQUIPE = [
       'técnica de conflitos patrimoniais e contratuais.',
   },
   {
-    slug: 'juliana-lisboa',
-    nome: 'Juliana S. Lisboa',
+    ...EQUIPE_SITE.juliana,
     completo: 'Juliana Cristina da Silva Lisboa',
     ini: 'JL',
     foto: 'assets/img/equipe/juliana-lisboa-20261024.jpg',
@@ -42,8 +41,7 @@ export const EQUIPE = [
       'criteriosa e estratégia processual individualizada.',
   },
   {
-    slug: 'vinicius-lisboa',
-    nome: 'Vinicius L. Lisboa',
+    ...EQUIPE_SITE.vinicius,
     completo: 'Vinicius Rangel de Lima de Paula Lisboa',
     ini: 'VL',
     foto: 'assets/img/equipe/vinicius-lisboa-20261024.jpg',

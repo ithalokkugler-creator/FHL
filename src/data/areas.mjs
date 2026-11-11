@@ -5,10 +5,11 @@
 // Imobiliário entraram em out/2026, a pedido do Vinícius — textos a revisar
 // pelos advogados (Vinícius no criminal, Guilherme no imobiliário).
 //
-// Área nova também vai para AREAS em sistema/js/telas/site/base.js, a lista
-// que publicações e campanhas usam na área dos advogados.
+// Cópia local do conteúdo original. O build usa as áreas publicadas no banco.
 
-export const AREAS = [
+import { EQUIPE } from './equipe.mjs';
+
+const originais = [
   {
     slug: 'trabalhista',
     num: '01',
@@ -160,3 +161,14 @@ export const AREAS = [
       'inadimplência ou a disputa sobre a posse — documento reunido cedo vale mais.',
   },
 ];
+
+export const AREAS_ORIGINAIS = originais.map((area) => ({
+  ...area,
+  advogados: EQUIPE.filter((m) => m.areas.includes(area.slug)).map((m) => m.slug),
+}));
+export const AREAS = [...AREAS_ORIGINAIS];
+
+export function areasComNomesOriginais() {
+  return AREAS.length === AREAS_ORIGINAIS.length &&
+    AREAS.every((a, i) => a.slug === AREAS_ORIGINAIS[i].slug && a.nome === AREAS_ORIGINAIS[i].nome);
+}

@@ -40,7 +40,7 @@ export default async function telaPublicar(ctx) {
         corpo: html`
           <p class="dialogo__texto">
             O site vai ser gerado de novo com tudo o que está marcado como “no site”, em
-            Publicações e em Campanhas. Leva dois ou três minutos até aparecer no endereço
+            Publicações, Campanhas e Áreas de atuação. Leva dois ou três minutos até aparecer no endereço
             público.
           </p>
           <p class="dialogo__texto">
@@ -57,7 +57,8 @@ export default async function telaPublicar(ctx) {
 }
 
 function tela(situacao, deploys) {
-  const pendentes = situacao.publicacoes + situacao.campanhas;
+  const areas = situacao.areas ?? 0;
+  const pendentes = situacao.publicacoes + situacao.campanhas + areas;
 
   return html`
     ${cabecalho('Publicar', 'Mandar para o ar o que foi escrito', html`
@@ -71,6 +72,7 @@ function tela(situacao, deploys) {
       )}
       ${indicador('Publicações alteradas', String(situacao.publicacoes), 'desde então', { tom: situacao.publicacoes ? 'alerta' : '' })}
       ${indicador('Campanhas alteradas', String(situacao.campanhas), 'desde então', { tom: situacao.campanhas ? 'alerta' : '' })}
+      ${indicador('Áreas de atuação alteradas', String(areas), 'desde então', { tom: areas ? 'alerta' : '' })}
     </div>
 
     <p class="pagina__nota">${pendentes
@@ -102,7 +104,7 @@ function tela(situacao, deploys) {
     <section class="painel secao">
       <header class="painel__topo"><h2 class="painel__titulo">Como funciona</h2></header>
       <ol class="painel__corpo lista-numerada">
-        <li><strong>Escrever e salvar</strong> em Publicações ou Campanhas. Fica guardado aqui; o site no ar não muda.</li>
+        <li><strong>Escrever e salvar</strong> em Publicações, Campanhas ou Áreas de atuação. O conteúdo fica guardado aqui até a publicação.</li>
         <li><strong>Marcar “mostrar no site”</strong> no que já pode ser visto por qualquer pessoa.</li>
         <li><strong>Publicar</strong>, nesta tela. A Vercel gera o site de novo lendo o que está guardado.</li>
         <li><strong>Conferir</strong>, dois ou três minutos depois, pelo link “Ver no site” de cada página.</li>

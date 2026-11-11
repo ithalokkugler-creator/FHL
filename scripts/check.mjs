@@ -37,7 +37,7 @@ const EXTERNO = /^(https?:|mailto:|tel:|data:|javascript:|\/\/)/i;
 
 const problemas = [];
 
-const pages = await build({ quiet: true });
+const pages = await build({ quiet: true, local: process.argv.includes('--local') });
 
 // ids de cada página gerada, para conferir âncoras entre páginas
 // (equipe.html#vinicius-lisboa) além das da própria página.

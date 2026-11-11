@@ -277,6 +277,23 @@
 }
 .atuacao__panel-title { color: var(--c-text); }
 .atuacao__panel-text { color: var(--c-text-muted); max-width: 44ch; }
+.atuacao__name, .atuacao__panel { overflow-wrap: anywhere; }
+
+/* A lista maior que o índice original usa o espaço da página, sem pin. */
+.atuacao--lista .atuacao__sticky { min-height: 0; }
+.atuacao--lista .atuacao__index { display: none; }
+.atuacao--lista .atuacao__panels {
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: var(--s-5);
+  min-height: 0;
+}
+.atuacao--lista .atuacao__panel {
+  grid-area: auto;
+  clip-path: none;
+  pointer-events: auto;
+}
+.atuacao--lista .atuacao__panel > * { transform: none; }
 
 /* Os quatro primeiros itens de "O que fazemos", em duas colunas. */
 .atuacao__panel-list {

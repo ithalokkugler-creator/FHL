@@ -70,9 +70,6 @@ const lista = (itens, indent) => itens.map((i) => `${indent}<li class="r-rise">$
 export function buildCampanha(c) {
   const status = campanhaStatus(c);
   const area = c.area ? AREAS.find((a) => a.slug === c.area) : null;
-  if (c.area && !area) {
-    throw new Error(`Campanha "${c.slug}": a área "${c.area}" não existe em src/data/areas.mjs`);
-  }
   const P = prefix(1);
 
   // Aviso de encerrada: sai pronto no HTML se a campanha já tinha acabado no
@@ -202,7 +199,7 @@ ${contatoForm({ depth: 1, campanha: c.slug })}
 ${contatoAside({ extra: area ? `
           <div class="contato__info r-rise">
             <p class="label label--mute">Área</p>
-            <p><a class="link" href="${P}atuacao/${area.slug}.html">${area.nome}</a></p>
+            <p><a class="link" href="${P}atuacao/${area.slug}.html">${textoHtml(area.nome)}</a></p>
           </div>` : '' })}
       </div>
     </div>

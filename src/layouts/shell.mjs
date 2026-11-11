@@ -11,7 +11,7 @@ import {
   CIDADE, EMAIL, ENDERECO, HORARIO_CURTO, MAPS, MARCA_LONGA, NAV, OAB, RAZAO, SLOGAN, TEL, TEL_HREF,
   whatsappUrl,
 } from '../data/site.mjs';
-import { attr, prefix } from '../lib/html.mjs';
+import { attr, prefix, textoHtml } from '../lib/html.mjs';
 import { ICONE } from '../lib/icones.mjs';
 import { aberturaLoader, monogramaSvg, nomeSvg } from '../lib/marca.mjs';
 import { jsonLd, seoHead } from '../lib/seo.mjs';
@@ -33,7 +33,7 @@ export function shell(page) {
   ).join('\n');
 
   const areasFooter = AREAS.map((a) =>
-    `          <li><a class="link" href="${p}atuacao/${a.slug}.html">${a.nome}</a></li>`
+    `          <li><a class="link" href="${p}atuacao/${a.slug}.html">${textoHtml(a.nome)}</a></li>`
   ).join('\n');
 
   const navFooter = NAV.slice(1).map(([href, label]) =>

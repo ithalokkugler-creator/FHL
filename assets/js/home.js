@@ -110,7 +110,7 @@ window.IED = window.IED || {};
      ===================================================================== */
   function atuacao() {
     var sec = document.querySelector('.atuacao');
-    if (!sec) return;
+    if (!sec || sec.classList.contains('atuacao--lista')) return;
 
     var items = sec.querySelectorAll('.atuacao__item');
     var panels = sec.querySelectorAll('.atuacao__panel');

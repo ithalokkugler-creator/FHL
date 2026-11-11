@@ -78,6 +78,36 @@ const MIME = {
 };
 const texto = (corpo, tipo = MIME['.html'], status = 200) => new Response(corpo, { status, headers: { 'Content-Type': tipo } });
 
+let reconstruindo = false;
+async function reconstruir(acao) {
+  if (reconstruindo) return Response.json({ erro: 'A prévia já está sendo gerada.' }, { status: 409 });
+  reconstruindo = true;
+  try {
+    return await acao();
+  } finally {
+    reconstruindo = false;
+  }
+}
+
+// Exercita o mesmo botão e as políticas de leitura pública com o banco local.
+// A prévia simula a publicação das áreas e mantém o conteúdo inicial dos outros módulos.
+async function publicarAreas(req) {
+  const rpc = (nome, corpo) => previaBanco.tratar(new Request(`${origem}/__teste/rest/v1/rpc/${nome}`, {
+    method: 'POST', headers: req.headers, body: JSON.stringify(corpo),
+  }));
+  const permissao = await rpc('pode_publicar_site', {});
+  if (!permissao.ok || !(await permissao.json())) {
+    return Response.json({ erro: 'Seu acesso não permite publicar o site.' }, { status: 403 });
+  }
+  const consulta = 'select=slug,nome,resumo,intro,itens,quando,advogados&order=posicao.asc,slug.asc';
+  const resposta = await previaBanco.tratar(new Request(`${origem}/__teste/rest/v1/areas_atuacao?${consulta}`));
+  if (!resposta.ok) return Response.json({ erro: 'Não foi possível ler as áreas da prévia.' }, { status: 500 });
+  await build({ local: true, areas: await resposta.json(), quiet: true, destino: DIST });
+  const registro = await rpc('registrar_publicacao', { p_situacao: 'enviado', p_detalhe: 'Áreas de atuação publicadas na prévia local.' });
+  if (!registro.ok) return registro;
+  return Response.json({ mensagem: 'Áreas de atuação publicadas na prévia local.' });
+}
+
 // Mesmas restrições do sistema publicado (vercel.json), com conexões só para a prévia.
 const CSP = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; "
   + "connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'";
@@ -182,9 +212,15 @@ async function tratar(req) {
   if (caminho === '/__teste/controle.js') return texto(controleJs, MIME['.js']);
   if (caminho === '/__teste/entrada.js') return texto(bootstrap, MIME['.js']);
   if (caminho === '/__teste/restaurar' && req.method === 'POST') {
-    dados = criarDados();
-    await previaBanco?.restaurar();
-    return Response.json({ ok: true });
+    return reconstruir(async () => {
+      dados = criarDados();
+      await previaBanco?.restaurar();
+      await build({ local: true, quiet: true, destino: DIST });
+      return Response.json({ ok: true });
+    });
+  }
+  if (previaBanco && caminho === '/__teste/functions/v1/publicar-site' && req.method === 'POST') {
+    return reconstruir(() => publicarAreas(req));
   }
   if (previaBanco && /^\/__teste\/(rest|storage|auth|functions|djen|cep|google)\//.test(caminho)) {
     const resposta = await previaBanco.tratar(req);

@@ -8,7 +8,7 @@ import { POSTS } from '../data/posts.mjs';
 import {
   CIDADE, ENDERECO, HORARIO, MAPS, MAPS_EMBED, RAZAO, TEL, TEL_HREF, whatsappUrl,
 } from '../data/site.mjs';
-import { ARROW, arrowLink, page } from '../lib/html.mjs';
+import { ARROW, arrowLink, page, textoHtml } from '../lib/html.mjs';
 import { canaisDiretos, contatoAside, contatoForm } from '../partials/contato.mjs';
 import { cartaoResumo } from '../partials/equipe.mjs';
 import { metodo, numeros } from '../partials/institucional.mjs';
@@ -19,7 +19,7 @@ export function buildHome() {
   const itens = AREAS.map((a, i) =>
     `              <li><a class="atuacao__item${i === 0 ? ' is-active' : ''}" href="atuacao/${a.slug}.html">
                 <span class="atuacao__num">${a.num}</span>
-                <span class="atuacao__name">${a.nome}</span>
+                <span class="atuacao__name">${textoHtml(a.nome)}</span>
               </a></li>`).join('\n');
 
   // O painel mostrava só o resumo de uma linha e sobrava meia tela vazia ao
@@ -28,10 +28,10 @@ export function buildHome() {
   const paineis = AREAS.map((a, i) =>
     `            <article class="atuacao__panel${i === 0 ? ' is-active' : ''}">
               <p class="atuacao__panel-num numeral" aria-hidden="true">${a.num}</p>
-              <h3 class="h2 atuacao__panel-title">${a.nome}</h3>
-              <p class="lead atuacao__panel-text">${a.resumo}</p>
+              <h3 class="h2 atuacao__panel-title">${textoHtml(a.nome)}</h3>
+              <p class="lead atuacao__panel-text">${textoHtml(a.resumo)}</p>
               <ul class="atuacao__panel-list">
-${a.itens.slice(0, 4).map((it) => `                <li>${it}</li>`).join('\n')}
+${a.itens.slice(0, 4).map((it) => `                <li>${textoHtml(it)}</li>`).join('\n')}
               </ul>
               ${arrowLink('atuacao/' + a.slug + '.html', 'Ver a área')}
             </article>`).join('\n');
@@ -94,8 +94,8 @@ ${a.itens.slice(0, 4).map((it) => `                <li>${it}</li>`).join('\n')}
     </div>
   </section>
 
-  <!-- ATUAÇÃO — pin de 75vh por área (home.js) -->
-  <section class="atuacao">
+${AREAS.length ? `  <!-- ATUAÇÃO — pin de 75vh por área (home.js) -->
+  <section class="atuacao${AREAS.length > 6 ? ' atuacao--lista' : ''}">
     <div class="atuacao__sticky">
       <div class="wrap" style="width:100%">
         <div class="atuacao__head">
@@ -116,7 +116,7 @@ ${paineis}
         </div>
       </div>
     </div>
-  </section>
+  </section>` : ''}
 
 ${metodo()}
 
