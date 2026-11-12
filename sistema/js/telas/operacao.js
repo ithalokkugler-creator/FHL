@@ -151,8 +151,8 @@ function tela({ op, seguranca, solicitacoes, acessos, erros, backups, convites, 
         <header class="painel__topo"><h2 class="painel__titulo">Sessão</h2></header>
         <div class="painel__corpo campos">
           <label class="campo campo--6"><span>Sair sozinho depois de (minutos sem uso)</span>
-            <input type="number" name="inatividade_minutos" min="5" max="480" value="${seguranca?.inatividade_minutos ?? 30}" ${admin ? '' : 'disabled'}></label>
-          <p class="campo campo--6 sub">Um minuto antes, aparece um aviso para continuar. Vale para todos.</p>
+            <input type="number" name="inatividade_minutos" min="5" max="480" value="${seguranca?.inatividade_minutos ?? 60}" ${admin ? '' : 'disabled'}></label>
+          <p class="campo campo--6 sub">Cinco minutos antes aparece um aviso para continuar (com limite menor que 10 minutos, na metade dele) — também com a aba escondida, piscando no título e, para quem ligou em Minha conta, como notificação do computador. Com um cronômetro rodando (de atendimento ou de tarefa), a sessão fica aberta por até 3 horas sem uso. Vale para todos.</p>
         </div>
         ${admin ? html`<footer class="painel__rodape"><button type="submit" class="botao botao--primario">Salvar</button></footer>` : ''}
       </form>

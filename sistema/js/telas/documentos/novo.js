@@ -14,14 +14,14 @@ import { $, aoClicar, cru, desenhar, html, lerFormulario } from '../../nucleo/ht
 import { higienizar, ligarColagem } from '../../nucleo/higienizar.js';
 import { navegar } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
-import { COLUNAS_CLIENTE, COLUNAS_DETALHES, COLUNAS_PROCESSO } from '../../dominio/clientes.js';
+import { COLUNAS_CLIENTE, COLUNAS_DETALHES, processoDoCliente } from '../../dominio/clientes.js';
 import { COLUNAS_ATUALIZACAO } from '../../dominio/tempo.js';
 import { ajustarFolha, baixarWord, confirmarPendencias, imprimirDocumento, salvarDocumento } from '../../documentos/acoes.js';
 import { barraDeFormatacao, ligarEditor } from '../../documentos/editor.js';
 import { ErroCampo, mostrarErroFormulario, validarFormulario } from '../../nucleo/formularios.js';
 import { MODELOS, validarComplementos } from '../../documentos/modelos.js';
 import { AREAS_JURIDICAS, cabecalho, opcoes } from '../comum.js';
-import { campoCliente, ligarCampoCliente } from '../clientes.js';
+import { campoCliente, carregarProcessos, ligarCampoCliente } from '../clientes.js';
 import { formularioCompleto } from '../clientes/formulario.js';
 
 // Modelos que nomeiam os advogados — a tela deixa escolher quais.
@@ -78,7 +78,7 @@ async function dadosDoContrato(id) {
 export default async function telaNovoDocumento(ctx) {
   let [[clientes, detalhes], processos] = await Promise.all([
     carregarCadastro(),
-    db.todos('processos', { select: COLUNAS_PROCESSO }),
+    carregarProcessos(),
   ]);
   if (!ctx.ativa()) return;
 
@@ -124,12 +124,13 @@ export default async function telaNovoDocumento(ctx) {
   }
   // O número do contrato pode apontar para um processo cadastrado do cliente.
   if (!processoId && dados.processo) {
-    processoId = processos.find((p) => p.cliente_id === clienteId && numeroCnj(p.numero) === dados.processo)?.id ?? '';
+    processoId = processos.find((p) => processoDoCliente(p, clienteId) && numeroCnj(p.numero) === dados.processo)?.id ?? '';
   }
   if (processoId) {
     const processo = processos.find((p) => p.id === processoId);
-    if (clienteId && processo.cliente_id !== clienteId) throw new Error('O processo não pertence ao cliente escolhido.');
-    clienteId = processo.cliente_id;
+    // O cliente pode ser o principal ou uma das partes representadas (12/11/2026).
+    if (clienteId && !processoDoCliente(processo, clienteId)) throw new Error('O processo não pertence ao cliente escolhido.');
+    clienteId = clienteId || processo.cliente_id;
     dados.processo = dados.processo || numeroCnj(processo.numero) || processo.referencia || '';
     dados.area = processo.area;
   }
@@ -184,7 +185,7 @@ export default async function telaNovoDocumento(ctx) {
   };
 
   const desenharControles = () => {
-    const casos = processos.filter((p) => p.cliente_id === clienteId);
+    const casos = processos.filter((p) => processoDoCliente(p, clienteId));
     desenhar(form, html`
       <div class="campos">
         ${campoCliente(clientes, { atual: clienteId })}

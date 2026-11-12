@@ -32,6 +32,21 @@ const quando = (instante, diaInteiro) => (diaInteiro
   : { date: null, dateTime: new Date(instante).toISOString(), timeZone: FUSO });
 
 /**
+ * Lembretes do evento (12/11/2026): a lista nova (até 5, 0 a 40320 minutos)
+ * ou, de um compromisso antigo, o único. O Google aceita até 5 "popup".
+ */
+export function lembretesDoEvento(p) {
+  const lista = Array.isArray(p.lembretes) && p.lembretes.length
+    ? p.lembretes
+    : Number.isInteger(p.lembrete_minutos) && p.lembrete_minutos > 0 ? [p.lembrete_minutos] : [];
+  const validos = [...new Set(lista.map(Number).filter((m) => Number.isInteger(m) && m >= 0 && m <= 40320))]
+    .sort((a, b) => b - a).slice(0, 5);
+  return validos.length
+    ? { useDefault: false, overrides: validos.map((minutes) => ({ method: 'popup', minutes })) }
+    : { useDefault: true };
+}
+
+/**
  * Corpo do evento (insert ou patch) de um compromisso lançado aqui — o único
  * tipo de evento que o sistema escreve no Google. Particular vai como
  * "Ocupado", sem detalhes: a conta do Google é de todo o escritório.
@@ -52,9 +67,7 @@ export function corpoDoEvento(p) {
     ].filter(Boolean).join('\n')}\n\nLançado no sistema do escritório. Mudar horário ou excluir aqui também muda lá.`,
     location: p.particular ? '' : local,
     transparency: 'opaque',
-    reminders: Number.isInteger(p.lembrete_minutos) && p.lembrete_minutos > 0
-      ? { useDefault: false, overrides: [{ method: 'popup', minutes: p.lembrete_minutos }] }
-      : { useDefault: true },
+    reminders: lembretesDoEvento(p),
     extendedProperties: { private: { fl_compromisso: p.id } },
   };
 }

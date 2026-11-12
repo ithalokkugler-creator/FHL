@@ -15,7 +15,7 @@ const ROTULOS = {
 // Gravações que mudam algum contador (caminhos da Data API).
 const MUDAM_CONTADORES = new Set([
   'tarefas', 'contatos', 'intimacoes',
-  'rpc/criar_tarefa', 'rpc/reabrir_tarefa', 'rpc/criar_prazo_intimacao', 'rpc/lancar_audiencia_intimacao',
+  'rpc/criar_tarefa', 'rpc/reabrir_tarefa', 'rpc/finalizar_tarefa', 'rpc/criar_prazo_intimacao', 'rpc/lancar_audiencia_intimacao',
   'rpc/importar_intimacoes', 'rpc/marcar_alerta', 'rpc/fechar_mes', 'rpc/reabrir_mes', 'rpc/fechar_ano', 'rpc/reabrir_ano',
 ]);
 export const mudaContadores = (caminho) => MUDAM_CONTADORES.has(caminho);

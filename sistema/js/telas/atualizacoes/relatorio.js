@@ -9,7 +9,8 @@ import { hoje, instante, somarDias } from '../../nucleo/formato.js';
 import { $, aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { guardarConsulta, navegar } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
-import { COLUNAS_CLIENTE, COLUNAS_PROCESSO } from '../../dominio/clientes.js';
+import { COLUNAS_CLIENTE, processoDoCliente } from '../../dominio/clientes.js';
+import { carregarProcessos } from '../clientes.js';
 import { COLUNAS_ATUALIZACAO } from '../../dominio/tempo.js';
 import { ajustarFolha, baixarWord, imprimirDocumento, salvarDocumento } from '../../documentos/acoes.js';
 import { montarRelatorio } from '../../documentos/relatorio.js';
@@ -27,7 +28,7 @@ export default async function telaRelatorio(ctx) {
 
   const [clientes, processos] = await Promise.all([
     db.todos('clientes', { select: COLUNAS_CLIENTE, ordem: 'nome.asc,id.asc' }),
-    db.todos('processos', { select: COLUNAS_PROCESSO }),
+    carregarProcessos(),
   ]);
   if (!ctx.ativa()) return;
 
@@ -58,7 +59,7 @@ export default async function telaRelatorio(ctx) {
   let incluirRelato = false;
 
   const processosDoCliente = () => desenhar(form.elements.processo, opcoes(
-    processos.filter((p) => p.cliente_id === f.cliente).map((p) => [p.id, p.titulo]), f.processo, { vazio: 'Todos os processos' }));
+    processos.filter((p) => processoDoCliente(p, f.cliente)).map((p) => [p.id, p.titulo]), f.processo, { vazio: 'Todos os processos' }));
   const periodoValido = () => form.checkValidity() && f.ate >= f.de;
 
   const mostrar = () => desenhar(folha, montarRelatorio({

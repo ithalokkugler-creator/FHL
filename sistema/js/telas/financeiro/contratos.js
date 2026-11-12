@@ -10,15 +10,19 @@ import { avisar, avisarErro } from '../../nucleo/avisos.js';
 import { termoDeBusca } from '../../nucleo/consulta.js';
 import { abrirDialogo } from '../../nucleo/dialogo.js';
 import { estado, nomeDe, pode } from '../../nucleo/estado.js';
-import { centavos, data, hoje, lerMoeda, moeda, paraReais, percentual, somarDias } from '../../nucleo/formato.js';
+import { centavos, data, hoje, lerMoeda, moeda, nomeDoMes, paraReais, percentual, somarDias } from '../../nucleo/formato.js';
 import { linhasEsqueleto } from '../../nucleo/esqueleto.js';
 import { $, aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { guardarConsulta } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
 import { campoCliente, carregarClientes, ligarCampoCliente } from '../clientes.js';
-import { cabecalho, paginacao, seloContrato, TIPOS_AVULSA, TIPOS_HONORARIO, vazio } from '../comum.js';
+import {
+  cabecalho, capitalizar, indicador, paginacao, plural, seloContrato, TIPOS_AVULSA, TIPOS_HONORARIO, vazio,
+} from '../comum.js';
 import { apoio, opcoes, opcoesContasFinanceiras, somaCentavos } from './base.js';
 import { botoesExportar, exportar } from './exportar.js';
+import { contarPorMes, formatarMedia, lerPeriodo } from '../../dominio/indicadores.js';
+import { barrasPorMes, ligarNumeros, painelNumeros } from '../numeros.js';
 
 const SITUACOES = [
   ['abertos', 'Ativos e a apurar'],
@@ -42,6 +46,7 @@ export default async function telaContratos(ctx) {
     busca: ctx.consulta.busca ?? '',
     responsavel: ctx.consulta.responsavel ?? '',
     pagina: Math.max(1, Number(ctx.consulta.pagina) || 1),
+    periodo: lerPeriodo(ctx.consulta.periodo),
   };
 
   desenhar(ctx.raiz, html`
@@ -49,6 +54,7 @@ export default async function telaContratos(ctx) {
       ${pode.lancar() ? html`
         <button type="button" class="botao" data-acao="avulsa">Entrada avulsa</button>
         <a class="botao botao--primario" href="#/financeiro/contratos/novo">Novo contrato</a>` : ''}`)}
+    <div data-papel="numeros"></div>
     <form class="filtros" role="search">
       <label class="campo">
         <span>Situação</span>
@@ -101,9 +107,29 @@ export default async function telaContratos(ctx) {
   });
   form.addEventListener('submit', (e) => e.preventDefault());
 
+  // Contratos fechados por mês (pedido de 12/11/2026): pela data de
+  // formalização, do escritório inteiro — não pelo filtro da lista.
+  let formalizados = null;
+  const caixaNumeros = $('[data-papel="numeros"]', ctx.raiz);
+  const mostrarNumeros = () => {
+    if (!formalizados) return;
+    desenhar(caixaNumeros, numerosContratos(formalizados, filtro.periodo));
+  };
+  const desligarNumeros = ligarNumeros(caixaNumeros, (periodo) => {
+    filtro.periodo = periodo;
+    guardarConsulta(filtro);
+    mostrarNumeros();
+  });
+  db.todos('contratos', { select: 'id,data_contrato,data_contrato_origem', filtros: [['cancelado_em', 'is', null]] })
+    .then((lista) => {
+      formalizados = lista;
+      if (ctx.ativa()) mostrarNumeros();
+    })
+    .catch((erro) => console.error('Números dos contratos indisponíveis.', erro));
+
   await carregar();
 
-  return aoClicar(ctx.raiz, {
+  const desligarAcoes = aoClicar(ctx.raiz, {
     avulsa: async () => {
       if (await entradaAvulsa()) avisar('Entrada registrada.');
     },
@@ -131,9 +157,34 @@ export default async function telaContratos(ctx) {
       }
     },
   });
+  return () => {
+    desligarAcoes();
+    desligarNumeros();
+  };
 }
 
-const ROTULOS = { ...Object.fromEntries(SITUACOES), a_apurar: 'Êxito a apurar' };
+/** Os números do alto da tela: fechados no mês, no período e a média. */
+function numerosContratos(lista, periodo) {
+  const aConfirmar = lista.filter((c) => c.data_contrato_origem === 'a_confirmar' || !c.data_contrato).length;
+  const contagem = contarPorMes(lista.filter((c) => c.data_contrato_origem !== 'a_confirmar'), (c) => c.data_contrato, { meses: periodo });
+  const mes = capitalizar(nomeDoMes(`${contagem.porMes.at(-1).mes}-01`).replace(/ de \d{4}$/, ''));
+  const noPeriodo = `nos últimos ${periodo} meses`;
+  return painelNumeros({
+    id: 'contratos',
+    titulo: 'Contratos fechados',
+    chamada: `${mes}: ${contagem.esteMes}${periodo > 1 ? ` · média de ${formatarMedia(contagem.media)} por mês ${noPeriodo}` : ''}`,
+    periodo,
+    nota: 'Pela data de formalização, de todo o escritório (não muda com os filtros da lista). Cancelados ficam de fora.',
+    indicadores: html`
+      ${indicador(`Fechados em ${mes.toLowerCase()}`, contagem.esteMes, 'mês atual')}
+      ${periodo > 1 ? indicador(`Últimos ${periodo} meses`, contagem.total, plural(contagem.total, 'contrato fechado', 'contratos fechados')) : ''}
+      ${periodo > 1 ? indicador('Média por mês', formatarMedia(contagem.media), noPeriodo) : ''}
+      ${aConfirmar ? indicador('Data a confirmar', aConfirmar, 'fora da contagem', { tom: 'alerta', href: '#/financeiro/contratos?situacao=formalizacao' }) : ''}`,
+    barras: barrasPorMes(contagem, { rotulo: 'Contratos fechados mês a mês' }),
+  });
+}
+
+const ROTULOS ={ ...Object.fromEntries(SITUACOES), a_apurar: 'Êxito a apurar' };
 
 /** "Valor fixo", "Êxito 30%", "Fixo + êxito 30%" — e ", acordo" quando há repasse. */
 export const tipoDeHonorario = (c) => {

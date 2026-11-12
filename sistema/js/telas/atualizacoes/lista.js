@@ -10,7 +10,8 @@ import { data, duracao, hoje, hora, instante, noFuso, somarDias } from '../../nu
 import { $, aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { guardarConsulta } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
-import { COLUNAS_CLIENTE, COLUNAS_PROCESSO } from '../../dominio/clientes.js';
+import { COLUNAS_CLIENTE, processoDoCliente } from '../../dominio/clientes.js';
+import { carregarProcessos } from '../clientes.js';
 import { COLUNAS_ATUALIZACAO, filtrarAtualizacoes, minutosDe, TIPOS_ATUALIZACAO, totais } from '../../dominio/tempo.js';
 import { cabecalho, indicador, opcoes, plural, vazio } from '../comum.js';
 import { abrirHistorico } from '../historico.js';
@@ -150,7 +151,7 @@ export default async function telaAtualizacoes(ctx) {
         ordem: 'inicio.desc,id.desc',
       }),
       db.todos('clientes', { select: COLUNAS_CLIENTE, ordem: 'nome.asc,id.asc' }),
-      db.todos('processos', { select: COLUNAS_PROCESSO }),
+      carregarProcessos(),
     ]);
     if (!ctx.ativa()) return;
 
@@ -162,7 +163,7 @@ export default async function telaAtualizacoes(ctx) {
         <a class="botao" href="${relatorio}">Relatório de atividades</a>`)}
       <form class="filtros">
         <label class="campo"><span>Cliente</span><select name="cliente">${opcoes(clientes.map((c) => [c.id, c.nome]), f.cliente, { vazio: 'Todos' })}</select></label>
-        <label class="campo"><span>Processo</span><select name="processo">${opcoes(processos.filter((p) => !f.cliente || p.cliente_id === f.cliente).map((p) => [p.id, p.titulo]), f.processo, { vazio: 'Todos' })}</select></label>
+        <label class="campo"><span>Processo</span><select name="processo">${opcoes(processos.filter((p) => !f.cliente || processoDoCliente(p, f.cliente)).map((p) => [p.id, p.titulo]), f.processo, { vazio: 'Todos' })}</select></label>
         <label class="campo"><span>Quem / participante</span><select name="quem">${opcoes(estado.membros.map((m) => [m.id, m.nome_curto]), f.quem, { vazio: 'Todos' })}</select></label>
         <label class="campo"><span>Tipo</span><select name="tipo">${opcoes(Object.entries(TIPOS_ATUALIZACAO), f.tipo, { vazio: 'Todos' })}</select></label>
         <label class="campo"><span>De</span><input type="date" name="de" value="${f.de}" required></label>

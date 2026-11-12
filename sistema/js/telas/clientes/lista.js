@@ -3,15 +3,18 @@
 
 import { avisarErro } from '../../nucleo/avisos.js';
 import { nomeDe } from '../../nucleo/estado.js';
-import { dataHora, documento, linkWhatsApp, telefone } from '../../nucleo/formato.js';
+import { dataHora, documento, linkWhatsApp, nomeDoMes, telefone } from '../../nucleo/formato.js';
 import { $, aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { guardarConsulta, navegar } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
 import {
-  agruparProcessos, COLUNAS_CLIENTE, COLUNAS_DETALHES, COLUNAS_PROCESSO, filtrarClientes, SITUACOES_PROCESSO, ultimaAlteracao,
+  agruparProcessos, COLUNAS_CLIENTE, COLUNAS_DETALHES, filtrarClientes, SITUACOES_PROCESSO, ultimaAlteracao,
 } from '../../dominio/clientes.js';
-import { AREAS_JURIDICAS, cabecalho, opcoes, vazio } from '../comum.js';
+import { contarPorMes, formatarMedia, lerPeriodo } from '../../dominio/indicadores.js';
+import { AREAS_JURIDICAS, cabecalho, capitalizar, indicador, opcoes, plural, vazio } from '../comum.js';
+import { barrasPorMes, ligarNumeros, painelNumeros } from '../numeros.js';
 import { formularioCompleto, opcoesResponsaveis } from './formulario.js';
+import { carregarProcessos } from '../clientes.js';
 
 export default async function telaClientes(ctx) {
   const c = ctx.consulta;
@@ -23,12 +26,13 @@ export default async function telaClientes(ctx) {
     responsavel: c.responsavel ?? '',
     representante: ['sim', 'nao'].includes(c.representante) ? c.representante : '',
     etiqueta: c.etiqueta ?? '',
+    periodo: lerPeriodo(c.periodo),
   };
 
   const [clientes, detalhes, processos] = await Promise.all([
     db.todos('clientes', { select: COLUNAS_CLIENTE, ordem: 'nome.asc,id.asc' }),
     db.todos('clientes_detalhes', { select: COLUNAS_DETALHES }),
-    db.todos('processos', { select: COLUNAS_PROCESSO }),
+    carregarProcessos(),
   ]);
   if (!ctx.ativa()) return;
 
@@ -39,6 +43,7 @@ export default async function telaClientes(ctx) {
   desenhar(ctx.raiz, html`
     ${cabecalho('Clientes', 'Cadastro, processos e tudo o que pertence a cada cliente', html`
       <button type="button" class="botao botao--primario" data-acao="novo">Novo cliente</button>`)}
+    <div data-papel="numeros">${numerosClientes(clientes, f.periodo)}</div>
     <form class="filtros">
       <label class="campo campo--busca"><span>Buscar</span><input type="search" name="busca" value="${f.busca}" placeholder="Nome, nome fantasia, documento, telefone, etiqueta ou processo"></label>
       ${etiquetas.length ? html`<label class="campo"><span>Etiqueta</span><select name="etiqueta">${opcoes(etiquetas.map((e) => [e, e]), f.etiqueta, { vazio: 'Todas' })}</select></label>` : ''}
@@ -87,7 +92,14 @@ export default async function telaClientes(ctx) {
   });
   mostrar();
 
-  return aoClicar(ctx.raiz, {
+  const caixaNumeros = $('[data-papel="numeros"]', ctx.raiz);
+  const desligarNumeros = ligarNumeros(caixaNumeros, (periodo) => {
+    f.periodo = periodo;
+    guardarConsulta(f);
+    desenhar(caixaNumeros, numerosClientes(clientes, f.periodo));
+  });
+
+  const desligarAcoes = aoClicar(ctx.raiz, {
     novo: async () => {
       try {
         const salvo = await formularioCompleto();
@@ -96,5 +108,34 @@ export default async function telaClientes(ctx) {
         avisarErro(erro);
       }
     },
+  });
+  return () => {
+    desligarAcoes();
+    desligarNumeros();
+  };
+}
+
+/**
+ * Total da carteira e novos no período (pedido de 12/11/2026). "Novo" é pela
+ * data do cadastro no sistema — quem já era cliente antes de outubro de 2026
+ * aparece como novo no mês em que foi cadastrado aqui.
+ */
+function numerosClientes(clientes, periodo) {
+  const ativos = clientes.filter((c) => c.ativo).length;
+  const inativos = clientes.length - ativos;
+  const contagem = contarPorMes(clientes, (c) => c.criado_em, { meses: periodo });
+  const mes = capitalizar(nomeDoMes(`${contagem.porMes.at(-1).mes}-01`).replace(/ de \d{4}$/, ''));
+  const noPeriodo = `nos últimos ${periodo} meses`;
+  return painelNumeros({
+    id: 'clientes',
+    titulo: 'Carteira de clientes',
+    chamada: `${plural(ativos, 'cliente ativo', 'clientes ativos')} · ${mes}: ${plural(contagem.esteMes, 'novo', 'novos')}`,
+    periodo,
+    nota: 'Novos = cadastrados no sistema no período, de todo o escritório.',
+    indicadores: html`
+      ${indicador('Clientes ativos', ativos, inativos ? `${plural(inativos, 'inativo', 'inativos')} · ${clientes.length} no total` : `${clientes.length} no total`)}
+      ${indicador(`Novos em ${mes.toLowerCase()}`, contagem.esteMes, 'mês atual')}
+      ${periodo > 1 ? indicador(`Novos nos últimos ${periodo} meses`, contagem.total, `média de ${formatarMedia(contagem.media)} por mês`) : ''}`,
+    barras: barrasPorMes(contagem, { rotulo: 'Clientes novos mês a mês' }),
   });
 }

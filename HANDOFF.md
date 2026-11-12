@@ -5,6 +5,18 @@ Substitui todos os handoffs, roteiros e relatórios antigos da raiz (o
 histórico deles está no git e, para as especificações, em
 [`docs/historico/`](docs/historico/)).
 
+**12/11/2026 — pedidos dos advogados (migração 46, `20261112120000_pedidos_1211`):**
+números no alto de Contratos, Clientes e Processos; menu recolhível no
+computador; sessão de 60 min com aviso 5 min antes (também com a aba
+escondida) e cronômetro segurando a sessão; Tarefas em colunas (como o
+Projudi) com ordenação; cronômetro da tarefa (iniciar, pausar, retomar,
+finalizar); até 5 lembretes por compromisso; avisos no canto da tela e
+notificação do computador (ligada em Minha conta); vários clientes no mesmo
+processo (partes representadas). Detalhes em `sistema/README.md` → Pedidos dos
+advogados (12/11); preparação em `docs/historico/preparacao-pedidos-1211.md`.
+Verificado por três agentes (dados da migração, compatibilidade com aba
+antiga, bugs) e um de design; **818 verificações SQL e 252 testes JS**.
+
 **09/11/2026 — design e busca rápida:** todo botão com caixa (o
 "Histórico" verde e solto deixou de existir), Processos/Clientes/Contas em
 cartões no celular, barra "Ir para" na ficha do cliente e a **busca rápida**
@@ -299,12 +311,12 @@ Detalhes técnicos de cada um no `sistema/README.md`.
 | **Clientes / Processos** | Cadastro completo, vários contatos, etiquetas, CEP, filiação em mãe e pai; processos CNJ validados. O campo Cliente dos formulários acha por parte do nome, sem acento, e pelo CPF com ou sem pontos. **Documentos do processo**: solicitados/entregues, quem recebeu, data e retorno previsto (aviso em Hoje). |
 | **Documentos** | 8 modelos (procuração, contratos, declaração, ficha de atendimento…), editor estilo Word, imprimir. **Textos jurídicos ainda sem revisão do escritório.** |
 | **Atualizações** | Relato de atendimento com **cronômetro** (prova de tempo ao cliente); "Anotar" escreve o relato com o relógio correndo; não se apaga. |
-| **Tarefas e Prazos** | Delegação, cores por prazo, prazo em horas, contagem automática sugerida (CPC/CLT/CPP) — sempre com conferência humana. A intimação gera prazo **ou tarefa**. |
+| **Tarefas e Prazos** | Delegação, cores por prazo, prazo em horas, contagem automática sugerida (CPC/CLT/CPP) — sempre com conferência humana. A intimação gera prazo **ou tarefa**. Desde 12/11: tabela em colunas que ordena, cronômetro da tarefa (pausa e soma) e avisos no canto da tela. |
 | **Intimações / DJEN** | Busca no DJEN **pelo navegador** (a API recusa fora do Brasil), captura diária, conferência → prazo/audiência/tarefa. Feriados em "Feriados e prazos". **Processos que o escritório não acompanha** (os do Marlon): as intimações deles chegam já arquivadas. Filtro por advogado. |
 | **Financeiro** | Painel, alertas, recebíveis, em atraso, contratos (C001/AAAA, fixo, êxito, **fixo + êxito**, **encadeado**, **acordo com repasse**), **antecipação de parcelas** (o que passa do total abate as últimas), contas do escritório, contas financeiras, fechamento mensal/anual, 9 relatórios (XLSX/CSV), recibos, anexos, importação da planilha antiga. Sem integração bancária (decisão). |
 | **Site** | Publicações e campanhas no banco; "Publicar o site" chama o Deploy Hook (salvar ≠ publicar). Provimento 205/2021 lembrado no editor. |
 | **Membros** | Perfis e níveis por módulo, convite por e-mail, "Agenda no Google" de cada um (só admin). |
-| **Operação e LGPD** | Acessos, erros, cópia, retenção, inatividade (30 min). Sem 2FA (decisão). |
+| **Operação e LGPD** | Acessos, erros, cópia, retenção, inatividade (60 min desde 12/11; aviso 5 min antes). Sem 2FA (decisão). |
 | **Histórico** | Auditoria de tudo; cada módulo vê o próprio; **particular só o dono** (nem quem audita). |
 
 ### Regras de domínio que mais importam
@@ -395,6 +407,8 @@ orquestração, `eventos.js` = tradução pura), migrações `2026102018…` a
 | 22/10 | Pedidos do Vinícius: antecipação de parcelas (o excedente abate as últimas, de trás para frente; recibo único; estorno junto) e documentos solicitados/entregues no processo, com retorno previsto e aviso em Hoje (migração 40; três testadores; finanças conferidas por "fotografia" antes e depois) |
 | 23/10 | Correções da auditoria do Financeiro e do sistema (integridade, sessão, anotações, Google e site) |
 | 09/11 | Revisão de design pedida pelo Ithalo: botões com caixa, tabelas em cartões no celular, índice na ficha do cliente e busca rápida (Ctrl+K); três revisores Haiku |
+| 11/11 | Áreas de atuação do site editáveis no sistema (migração 45) e retratos ampliados |
+| 12/11 | Pedidos dos advogados (migração 46): números nas listas, menu recolhível, sessão de 60 min, tarefas em colunas com cronômetro, vários lembretes, avisos e notificações, vários clientes no processo; 2 Haiku (dados), 1 Sonnet (bugs) e 1 Haiku (design) |
 
 ---
 
@@ -450,6 +464,17 @@ orquestração, `eventos.js` = tradução pura), migrações `2026102018…` a
   arquivo vetorial original da logo, licença da fonte Galano Grotesque.
 - Antes de uso comercial pleno: **Vercel Pro** (Hobby é não comercial) e
   Supabase Pro (backup).
+
+- **Pedidos de 12/11 (recomendação seguida, confirmar):** "novo" nos números é
+  pela data do cadastro no sistema (out/2026 concentra o cadastro inicial);
+  "ativos" = tudo menos suspenso e encerrado; o tempo da tarefa **não** vira
+  Atualização do cliente; concluir a tarefa fecha o cronômetro de quem ainda
+  contava nela; os 3 números CNJ já duplicados em produção não foram juntados;
+  avisos só com o sistema aberto (sem servidor de notificação).
+- **Aba antiga aberta depois de publicar:** a tela antiga continua gravando
+  (o banco aceita os dois jeitos), mas só mostra um lembrete; o gatilho
+  `b_lembretes` troca só esse e mantém os outros. Pedir aos advogados que
+  recarreguem a página (F5) depois de cada publicação.
 
 ### Ideias boas que ficaram para depois (vieram dos testadores)
 - Hoje: cartão "Próximo compromisso" com Ligar / WhatsApp / Iniciar.

@@ -16,13 +16,16 @@ import { feriadosNacionaisFixos } from '../dominio/feriados.js';
 import { gerarIcs, linkGoogleAgenda } from '../dominio/ics.js';
 import { CONTA_GOOGLE } from '../escritorio.js';
 import { mensagemLembrete } from '../dominio/mensagens.js';
+import {
+  ATALHOS_LEMBRETE, descreverLembrete, descreverLembretes, emUnidade, lembretesDe, lerLembretes, MAXIMO_LEMBRETES, unidadesPara,
+} from '../dominio/lembretes.js';
 import { avisar, avisarErro } from '../nucleo/avisos.js';
 import { abrirDialogo, pedirMotivo } from '../nucleo/dialogo.js';
 import { ErroCampo } from '../nucleo/formularios.js';
 import { corDe, estado, membro, membrosAtivos, nomeDe, pode } from '../nucleo/estado.js';
 import {
   data, dataCurta, dataExtensa, diasEntre, hoje, hora, horaDoMinuto, inicioDaSemana, inicioDoMes, instante,
-  linkWhatsApp, nomeDoDia, noFuso, semAcento, somarDias, somarMeses, telefone,
+  linkWhatsApp, nomeDoDia, noFuso, numeroCnj, semAcento, somarDias, somarMeses, telefone,
 } from '../nucleo/formato.js';
 import { $, aoClicar, desenhar, html } from '../nucleo/html.js';
 import { guardarConsulta, navegar } from '../nucleo/rotas.js';
@@ -36,10 +39,89 @@ import { abrirHistorico } from './historico.js';
 import { iniciarCronometro } from './atualizacoes/cronometro.js';
 import { prepararMensagem } from './preparar-mensagem.js';
 
-const LEMBRETES = [
-  ['', 'Sem lembrete'], ['15', '15 minutos antes'], ['30', '30 minutos antes'],
-  ['60', '1 hora antes'], ['120', '2 horas antes'], ['1440', '1 dia antes'],
-];
+// Vários lembretes por compromisso (12/11/2026): uma linha por lembrete,
+// cada uma com o seu tempo, "Remover" e "Adicionar lembrete".
+function linhaLembrete(minutos = 30) {
+  const { quantidade, unidade } = emUnidade(minutos);
+  return html`
+    <li class="lembrete" data-lembrete>
+      <input type="number" class="lembrete__quantidade num" min="0" max="40320" step="1" inputmode="numeric" value="${quantidade}" aria-label="Quanto tempo antes" required>
+      <select class="lembrete__unidade" aria-label="Unidade">${opcoes(unidadesPara(quantidade), unidade)}</select>
+      <span class="lembrete__antes">antes</span>
+      <button type="button" class="botao botao--pequeno botao--discreto" data-remover-lembrete>Remover</button>
+    </li>`;
+}
+
+function campoLembretes(lista) {
+  return html`
+    <fieldset class="fieldset lembretes" data-papel="lembretes">
+      <legend>Lembretes</legend>
+      <ul class="lembretes__lista" data-lembretes>${lista.map((m) => linhaLembrete(m))}</ul>
+      <p class="lembretes__vazio sub" data-sem-lembrete ${lista.length ? 'hidden' : ''}>Sem lembrete.</p>
+      <div class="lembretes__acoes">
+        <button type="button" class="botao botao--pequeno" data-adicionar-lembrete>Adicionar lembrete</button>
+        <span class="lembretes__atalhos"><span class="sub">Rápido:</span>
+          ${ATALHOS_LEMBRETE.map(([m, rotulo]) => html`<button type="button" class="botao botao--pequeno botao--discreto" data-atalho-lembrete="${m}">+ ${rotulo}</button>`)}</span>
+      </div>
+      <p class="campo__ajuda">Até ${MAXIMO_LEMBRETES}, cada um independente. O sistema avisa no canto da tela (e no computador, se você ligar em
+        Minha conta); com o Google Agenda ligado, os lembretes vão juntos para o Google. Também saem no arquivo .ics.</p>
+    </fieldset>`;
+}
+
+/** Liga os botões do campo de lembretes. Devolve a leitura das linhas. */
+function ligarLembretes(dialogo) {
+  const caixa = $('[data-papel="lembretes"]', dialogo);
+  const lista = $('[data-lembretes]', caixa);
+  const linhas = () => [...lista.querySelectorAll('[data-lembrete]')].map((li) => ({
+    quantidade: li.querySelector('.lembrete__quantidade').value,
+    unidade: li.querySelector('.lembrete__unidade').value,
+  }));
+  const atualizar = () => {
+    const n = lista.children.length;
+    $('[data-sem-lembrete]', caixa).hidden = n > 0;
+    for (const b of caixa.querySelectorAll('[data-adicionar-lembrete], [data-atalho-lembrete]')) {
+      b.disabled = n >= MAXIMO_LEMBRETES;
+      b.title = n >= MAXIMO_LEMBRETES ? `No máximo ${MAXIMO_LEMBRETES} lembretes` : '';
+    }
+  };
+  // "1 semana", "2 semanas": a unidade acompanha o número.
+  caixa.addEventListener('input', (e) => {
+    if (!e.target.matches('.lembrete__quantidade')) return;
+    const select = e.target.closest('[data-lembrete]').querySelector('.lembrete__unidade');
+    unidadesPara(e.target.value).forEach(([, rotulo], i) => { select.options[i].textContent = rotulo; });
+  });
+  caixa.addEventListener('click', (e) => {
+    const remover = e.target.closest('[data-remover-lembrete]');
+    if (remover) {
+      remover.closest('[data-lembrete]').remove();
+      atualizar();
+      return;
+    }
+    const atalho = e.target.closest('[data-atalho-lembrete]');
+    const adicionar = e.target.closest('[data-adicionar-lembrete]');
+    if ((!atalho && !adicionar) || lista.children.length >= MAXIMO_LEMBRETES) return;
+    let minutos = atalho ? Number(atalho.dataset.atalhoLembrete) : null;
+    if (!atalho) {
+      let atuais = [];
+      try { atuais = lerLembretes(linhas()); } catch { /* linha incompleta */ }
+      minutos = [30, 60, 1440, 10080, 10, 120, 15, 0].find((m) => !atuais.includes(m)) ?? 30;
+    }
+    if (atalho) {
+      // Atalho que já está na lista não entra de novo.
+      let atuais = [];
+      try { atuais = lerLembretes(linhas()); } catch { /* linha incompleta: confere ao salvar */ }
+      if (atuais.includes(minutos)) {
+        avisar(`Já tem o lembrete de ${descreverLembrete(minutos)} antes.`);
+        return;
+      }
+    }
+    lista.insertAdjacentHTML('beforeend', String(linhaLembrete(minutos)));
+    atualizar();
+    if (adicionar) lista.lastElementChild.querySelector('input').select();
+  });
+  atualizar();
+  return linhas;
+}
 
 const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 const ms = (instanteIso) => Date.parse(instanteIso);
@@ -605,8 +687,9 @@ function detalhe(c, { google = null, estadoGoogle = null, remarcacao = null } = 
         <div><dt>Responsável</dt><dd>${nomeDe(c.membro_id)}</dd></div>
         <div><dt>Tipo</dt><dd>${rotuloTipo(c.tipo, c.modalidade)}${c.particular ? ' · particular' : ''}</dd></div>
         ${c.cliente_nome ? html`<div><dt>Cliente</dt><dd>${c.cliente_nome}${c.cliente_telefone ? html` · <a href="${linkWhatsApp(c.cliente_telefone)}" target="_blank" rel="noopener">${telefone(c.cliente_telefone)}</a>` : ''}</dd></div>` : ''}
-        ${c.processo ? html`<div><dt>Processo</dt><dd>${c.processo}</dd></div>` : ''}
+        ${c.processo ? html`<div><dt>Processo</dt><dd>${/^\d{20}$/.test(c.processo) ? numeroCnj(c.processo) : c.processo}</dd></div>` : ''}
         ${c.local_ou_link ? html`<div><dt>Local ou link</dt><dd>${linkOuTexto(c.local_ou_link)}</dd></div>` : ''}
+        ${!c.mascarado && lembretesDe(c).length ? html`<div><dt>Lembretes</dt><dd>${descreverLembretes(lembretesDe(c))}</dd></div>` : ''}
         ${c.observacoes ? html`<div><dt>Observações</dt><dd class="dados__texto">${c.observacoes}</dd></div>` : ''}
         <div><dt>Situação</dt><dd>${seloCompromisso(c.situacao)}${c.chegada_em ? ` · cliente chegou às ${hora(c.chegada_em)}` : ''}${
           remarcacao?.para ? ` · para ${quandoCurto(remarcacao.para)}${remarcacao.para.cancelado_em ? ' (o novo foi cancelado)' : ''}` : ''}${
@@ -740,6 +823,7 @@ export async function editarCompromisso(c = null, { config, dia = hoje(), minuto
   // Sobreposição com outro compromisso do mesmo responsável: pede
   // confirmação ao salvar (cliente esperando é o que o escritório quer evitar).
   let verificarConflitos = async () => 0;
+  let lerLinhasLembretes = () => [];
 
   return abrirDialogo({
     titulo: novo ? 'Novo compromisso' : 'Editar compromisso',
@@ -770,18 +854,15 @@ export async function editarCompromisso(c = null, { config, dia = hoje(), minuto
         <label class="campo campo--4" data-papel="processo"><span>Nº do processo</span><input name="processo" value="${inicial.processo ?? ''}" maxlength="40"></label>
         <label class="campo"><span>Local ou link</span><input name="local_ou_link" value="${c?.local_ou_link ?? ''}" maxlength="300" placeholder="Sala, fórum ou link da reunião"></label>
         <label class="campo"><span>Observações</span><textarea name="observacoes" rows="2">${c?.observacoes ?? ''}</textarea></label>
-        <label class="campo campo--6">
-          <span>Lembrete</span>
-          <select name="lembrete_minutos">${opcoes(LEMBRETES, c?.lembrete_minutos ?? '')}</select>
-          <span class="campo__ajuda">Com o Google Agenda ligado, o alerta vai junto para o Google. Também sai no arquivo .ics.</span>
-        </label>
-        <label class="opcao campo--6" data-papel="particular"><input type="checkbox" name="particular" ${c?.particular ? 'checked' : ''}> Particular — os outros veem só "Ocupado"</label>
+        ${campoLembretes(c ? lembretesDe(c) : (inicial.lembretes ?? []))}
+        <label class="opcao" data-papel="particular"><input type="checkbox" name="particular" ${c?.particular ? 'checked' : ''}> Particular — os outros veem só "Ocupado"</label>
       </div>
       <p class="nota secao" data-papel="conflito" role="status" hidden></p>
       <label class="opcao campo" data-papel="confirma-conflito" hidden><input type="checkbox" name="confirma_conflito"> Confirmo o horário mesmo com o conflito.</label>`,
 
     aoAbrir: (dialogo, form) => {
       ligarCampoCliente(form, clientes);
+      lerLinhasLembretes = ligarLembretes(dialogo);
       const bloco = (papel) => $(`[data-papel="${papel}"]`, dialogo);
       const campoDoCliente = form.cliente_texto.closest('.campo');
       let fimMexido = !novo;
@@ -895,7 +976,9 @@ export async function editarCompromisso(c = null, { config, dia = hoje(), minuto
         local_ou_link: d.local_ou_link || null,
         observacoes: d.observacoes || null,
         particular: Boolean(d.particular),
-        lembrete_minutos: d.lembrete_minutos ? Number(d.lembrete_minutos) : null,
+        // Vários lembretes (12/11/2026). O campo antigo (lembrete_minutos) o
+        // banco preenche sozinho a partir desta lista.
+        lembretes: lerLembretes(lerLinhasLembretes()),
       };
       if (registro.tipo !== 'bloqueio' && !registro.titulo && !registro.cliente_id) {
         throw new ErroCampo('titulo', 'Informe o assunto ou selecione um cliente.');

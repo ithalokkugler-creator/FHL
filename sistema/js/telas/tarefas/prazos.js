@@ -3,12 +3,14 @@
 // informadas e conferidas pelo advogado; a contagem automática dá uma sugestão.
 
 import { avisarErro } from '../../nucleo/avisos.js';
-import { estado, membrosAtivos } from '../../nucleo/estado.js';
+import { estado, membrosAtivos, nomeDe } from '../../nucleo/estado.js';
 import { data, hoje, inicioDaSemana, somarDias } from '../../nucleo/formato.js';
 import { $, aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { guardarConsulta } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
-import { alertaTarefa, COLUNAS_TAREFA, diaDaTarefa, filtrarTarefas, periodoPrazos } from '../../dominio/tarefas.js';
+import {
+  alertaTarefa, COLUNAS_TAREFA, diaDaTarefa, filtrarTarefas, lerOrdem, ORDENS_TAREFA, ordenarTarefas, periodoPrazos,
+} from '../../dominio/tarefas.js';
 import { cabecalho, cabecalhoImpressao, indicador, opcoes } from '../comum.js';
 import { formularioTarefa } from './formulario.js';
 import { ligarAcoesTarefas, SITUACOES_FILTRO, tabelaTarefas } from './lista.js';
@@ -41,7 +43,9 @@ export default async function telaPrazos(ctx) {
     responsavel: c.responsavel ?? '',
     situacao: SITUACOES_FILTRO.some(([v]) => v === c.situacao) ? c.situacao : 'abertas',
     soPrazos: c.soPrazos === 'true',
+    ordem: lerOrdem(c.ordem),
   };
+  let mostrar = () => {};
   let lista = [];
   let limparAcoes = () => {};
 
@@ -61,6 +65,7 @@ export default async function telaPrazos(ctx) {
         <label class="campo"><span>Até</span><input name="ate" type="date" value="${f.ate}"></label>
         <label class="campo"><span>Responsável</span><select name="responsavel">${opcoes(membrosAtivos().map((m) => [m.id, m.nome_curto]), f.responsavel, { vazio: 'Todos' })}</select></label>
         <label class="campo"><span>Situação</span><select name="situacao">${opcoes(SITUACOES_FILTRO, f.situacao)}</select></label>
+        <label class="campo"><span>Ordenar por</span><select name="ordem">${opcoes(ORDENS_TAREFA, f.ordem)}</select></label>
         <label class="opcao"><input type="checkbox" name="soPrazos" ${f.soPrazos ? 'checked' : ''}> Só prazos processuais</label>
       </form>
       <p class="so-impressao" data-filtros-impressao></p>
@@ -68,7 +73,7 @@ export default async function telaPrazos(ctx) {
       <section class="painel" data-lista></section>`);
 
     const form = $('form.filtros', ctx.raiz);
-    const mostrar = () => {
+    mostrar = () => {
       // No papel, o que foi filtrado — quem lê a folha impressa precisa saber.
       $('[data-filtros-impressao]', ctx.raiz).textContent = [
         `Período: ${data(f.de) || 'sem início'} a ${data(f.ate) || 'sem fim'}`,
@@ -78,7 +83,7 @@ export default async function telaPrazos(ctx) {
       ].join(' · ');
       desenhar($('[data-lista]', ctx.raiz), f.de && f.ate && f.ate < f.de
         ? html`<p class="nota">A data final precisa ser igual ou depois da inicial.</p>`
-        : tabelaTarefas(filtrarTarefas(lista, f, estado.membro.id), { resumo: true }));
+        : tabelaTarefas(ordenarTarefas(filtrarTarefas(lista, f, estado.membro.id), f.ordem, { nomeDe }), { resumo: true, ordem: f.ordem }));
     };
 
     form.addEventListener('submit', (e) => e.preventDefault());
@@ -101,9 +106,22 @@ export default async function telaPrazos(ctx) {
   await carregar();
   if (!ctx.ativa()) return;
 
+  // O cronômetro de uma tarefa mudou (no indicador da lateral ou em outra aba).
+  const aoMudarTempo = () => {
+    if (ctx.ativa() && !document.querySelector('dialog[open]')) carregar().catch(avisarErro);
+  };
+  addEventListener('fhl:tarefas', aoMudarTempo);
+
   // Imprimir abre as descrições recolhidas, e fecha de novo depois.
   let fecharDescricoes = () => {};
   const limpar = aoClicar(ctx.raiz, {
+    'tarefas-ordenar': (el) => {
+      f.ordem = lerOrdem(el.dataset.ordem);
+      const select = $('form.filtros [name="ordem"]', ctx.raiz);
+      if (select) select.value = f.ordem;
+      guardarConsulta(f);
+      mostrar();
+    },
     imprimir: () => {
       fecharDescricoes();
       const fechadas = [...ctx.raiz.querySelectorAll('details:not([open])')];
@@ -125,6 +143,7 @@ export default async function telaPrazos(ctx) {
     },
   });
   return () => {
+    removeEventListener('fhl:tarefas', aoMudarTempo);
     limpar();
     limparAcoes();
     fecharDescricoes();

@@ -1,6 +1,7 @@
 // RFC 5545: texto escapado, CRLF e linhas de até 75 octetos UTF-8.
 import { FUSO, noFuso } from '../nucleo/formato.js';
 import { ENDERECO, CIDADE, CONTA_GOOGLE } from '../escritorio.js';
+import { lembretesDe } from './lembretes.js';
 
 export const escaparIcs = (texto) => String(texto ?? '').replace(/\\/g, '\\\\')
   .replace(/\r\n|\r|\n/g, '\\n').replace(/;/g, '\\;').replace(/,/g, '\\,');
@@ -54,9 +55,12 @@ export function gerarIcs(compromissos, { nome = 'Fonseca Lisboa Advocacia', agor
       `DTSTART${tipoData}:${e.datas[0]}`, `DTEND${tipoData}:${e.datas[1]}`,
       `SUMMARY:${escaparIcs(e.titulo)}`, `LOCATION:${escaparIcs(e.local)}`, `DESCRIPTION:${escaparIcs(e.descricao)}`,
       'TRANSP:OPAQUE', 'STATUS:CONFIRMED', `CLASS:${c.particular || c.mascarado ? 'PRIVATE' : 'PUBLIC'}`);
-    if (!c.mascarado && Number.isInteger(c.lembrete_minutos) && c.lembrete_minutos > 0) {
-      linhas.push('BEGIN:VALARM', `TRIGGER:-PT${c.lembrete_minutos}M`, 'ACTION:DISPLAY',
-        `DESCRIPTION:${escaparIcs(e.titulo)}`, 'END:VALARM');
+    // Um alarme por lembrete (12/11/2026: até 5 por compromisso).
+    if (!c.mascarado) {
+      for (const minutos of lembretesDe(c)) {
+        linhas.push('BEGIN:VALARM', `TRIGGER:-PT${minutos}M`, 'ACTION:DISPLAY',
+          `DESCRIPTION:${escaparIcs(e.titulo)}`, 'END:VALARM');
+      }
     }
     linhas.push('END:VEVENT');
   }

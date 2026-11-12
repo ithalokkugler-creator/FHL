@@ -12,8 +12,10 @@ import { ESPERA, esqueleto } from './nucleo/esqueleto.js';
 import { aoMudarSessao, db, emailDaSessao, sair, sessaoAtual, sessaoDoLink } from './nucleo/supabase.js';
 import { atualizarAvisos, mudaContadores } from './nucleo/avisos-do-dia.js';
 import { ligarCronometro } from './telas/atualizacoes/cronometro.js';
+import { ligarCronometroTarefa } from './telas/tarefas/cronometro.js';
 import { ligarValidacaoFormularios } from './nucleo/formularios.js';
 import { ligarInatividade } from './nucleo/inatividade.js';
+import { ligarNotificacoes } from './nucleo/notificacoes.js';
 import { ligarRegistroDeErros } from './nucleo/erros.js';
 
 ligarValidacaoFormularios();
@@ -167,6 +169,37 @@ async function abrirBusca() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Menu recolhível no computador (12/11/2026)
+// ---------------------------------------------------------------------------
+// Recolhido, o computador fica como o celular: topo com "Menu" e o menu por
+// cima do conteúdo. O navegador lembra a escolha.
+
+const CHAVE_MENU = 'fhl.menu-recolhido';
+
+function menuRecolhido() {
+  try {
+    return localStorage.getItem(CHAVE_MENU) === 'sim';
+  } catch {
+    return false;
+  }
+}
+
+function aplicarMenuRecolhido(recolher) {
+  const casca = $('.casca', app);
+  if (!casca) return;
+  casca.classList.toggle('menu-recolhido', recolher);
+  const botao = $('.lateral__recolher', app);
+  if (botao) {
+    botao.setAttribute('aria-pressed', String(recolher));
+    botao.title = recolher ? 'Deixar o menu sempre aberto ao lado' : 'Recolher o menu para ganhar espaço na tela';
+    $('.lateral__recolher-texto', botao).textContent = recolher ? 'Fixar o menu ao lado' : 'Recolher menu';
+  }
+  try {
+    localStorage.setItem(CHAVE_MENU, recolher ? 'sim' : 'nao');
+  } catch { /* armazenamento bloqueado: vale até recarregar */ }
+}
+
 const marca = () => html`
   <a class="marca" href="#/inicio">
     <img class="marca__monograma" src="/sistema/img/monograma.svg" alt="FL — Fonseca Lisboa Advocacia" width="31" height="26">
@@ -179,14 +212,18 @@ const marca = () => html`
 
 let saindo = false;
 let desligarCronometro = () => {};
+let desligarCronometroTarefa = () => {};
 let desligarInatividade = () => {};
+let desligarNotificacoes = () => {};
 
 async function mostrarEntrada(opcoes) {
   ++geracao;
   limparTela?.();
   limparTela = null;
   desligarCronometro();
+  desligarCronometroTarefa();
   desligarInatividade();
+  desligarNotificacoes();
   moduloBusca?.esquecerBuscaRapida();
   estado.membro = null;
   const { default: telaEntrada } = await import('./telas/entrar.js');
@@ -198,6 +235,8 @@ function mostrarMensagem(titulo, texto, { tentar = false } = {}) {
   limparTela?.();
   limparTela = null;
   desligarCronometro();
+  desligarCronometroTarefa();
+  desligarNotificacoes();
   app.dataset.tela = 'mensagem';
   desenhar(app, html`
     <div class="entrada">
@@ -219,18 +258,26 @@ function mostrarMensagem(titulo, texto, { tentar = false } = {}) {
 
 function desenharCasca() {
   desligarCronometro();
+  desligarCronometroTarefa();
   app.dataset.tela = 'sistema';
   const m = estado.membro;
 
   desenhar(app, html`
-    <div class="casca">
+    <div class="casca${menuRecolhido() ? ' menu-recolhido' : ''}">
       <header class="topo-movel">
         <button type="button" class="topo-movel__menu" data-acao="menu" aria-expanded="false" aria-controls="lateral">Menu</button>
         ${marca()}
         ${pode.clientes() ? html`<button type="button" class="topo-movel__buscar" data-acao="buscar" aria-label="Buscar cliente ou processo">${LUPA}</button>` : ''}
       </header>
       <aside class="lateral" id="lateral">
-        ${marca()}
+        <div class="lateral__topo">
+          ${marca()}
+          <button type="button" class="lateral__recolher" data-acao="recolher-menu" aria-pressed="${menuRecolhido()}"
+            title="${menuRecolhido() ? 'Deixar o menu sempre aberto ao lado' : 'Recolher o menu para ganhar espaço na tela'}">
+            <span class="lateral__recolher-icone" aria-hidden="true"></span>
+            <span class="lateral__recolher-texto">${menuRecolhido() ? 'Fixar o menu ao lado' : 'Recolher menu'}</span>
+          </button>
+        </div>
         ${pode.clientes() ? html`
           <button type="button" class="busca-atalho" data-acao="buscar" aria-keyshortcuts="Control+K" title="Buscar cliente, processo ou tela — atalho: ${NO_MAC ? '⌘K' : 'Ctrl+K'} ou a barra /">
             ${LUPA}<span class="busca-atalho__texto">Buscar cliente ou processo</span>
@@ -256,8 +303,11 @@ function desenharCasca() {
       <main class="conteudo" id="conteudo" tabindex="-1"></main>
     </div>`);
   desligarCronometro = ligarCronometro(app);
+  desligarCronometroTarefa = ligarCronometroTarefa(app);
   desligarInatividade();
   desligarInatividade = ligarInatividade();
+  desligarNotificacoes();
+  desligarNotificacoes = ligarNotificacoes();
   atualizarAvisos(app);
 }
 
@@ -397,6 +447,12 @@ aoClicar(app, {
     fecharMenu();
     abrirBusca();
   },
+  'recolher-menu': () => {
+    const recolher = !$('.casca', app)?.classList.contains('menu-recolhido');
+    fecharMenu();
+    aplicarMenuRecolhido(recolher);
+    if (!recolher) $('#conteudo', app)?.focus({ preventScroll: true });
+  },
   sair: async () => {
     saindo = true;
     await sair();
@@ -414,6 +470,17 @@ addEventListener('keydown', (e) => {
   if (app.dataset.tela !== 'sistema' || !pode.clientes()) return;
   e.preventDefault();
   abrirBusca();
+});
+
+// Menu aberto por cima do conteúdo (celular ou recolhido): clique fora ou Esc fecha.
+app.addEventListener('click', (e) => {
+  if (!$('.casca.menu-aberto', app) || e.target.closest('.lateral, .topo-movel__menu')) return;
+  fecharMenu();
+});
+addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || !$('.casca.menu-aberto', app) || document.querySelector('dialog[open]')) return;
+  fecharMenu();
+  $('.topo-movel__menu', app)?.focus();
 });
 
 addEventListener('hashchange', () => {

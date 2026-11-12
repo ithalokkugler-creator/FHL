@@ -9,7 +9,7 @@ import { documento, documentoValido, limparDocumento, numeroCnj, soDigitos, tele
 import { desenhar, html } from '../nucleo/html.js';
 import { pode } from '../nucleo/estado.js';
 import { db } from '../nucleo/supabase.js';
-import { acharCliente, buscarClientes } from '../dominio/clientes.js';
+import { acharCliente, anexarPartes, buscarClientes, COLUNAS_PARTE, COLUNAS_PROCESSO } from '../dominio/clientes.js';
 
 /** Quem lê o cadastro de clientes (privado.le_clientes no banco). Os demais
  *  — Agenda e Tarefas — escolhem o cliente pela lista mínima clientes_agenda. */
@@ -27,14 +27,29 @@ export const carregarClientes = async ({ inativos = false } = {}) => {
   });
 };
 
+/**
+ * Processos com as partes representadas (12/11/2026): p.partes. `consulta`
+ * vai para a leitura de processos (select padrão: COLUNAS_PROCESSO). Sem as
+ * partes (falha de leitura), segue só com o cliente principal.
+ */
+export async function carregarProcessos(consulta = {}) {
+  const [processos, partes] = await Promise.all([
+    db.todos('processos', { select: COLUNAS_PROCESSO, ...consulta }),
+    db.todos('processos_partes', { select: COLUNAS_PARTE, filtros: [['cancelado_em', 'is', null]] }).catch(() => []),
+  ]);
+  return anexarPartes(processos, partes);
+}
+
 export const rotuloCliente = (c) => (c.documento ? `${c.nome} — ${documento(c.documento)}` : c.nome);
 
 let lista = 0;
 const MOSTRAR = 50;
 const controles = new WeakMap();
 
-/** Campo com sugestões enquanto digita. O id escolhido vai em cliente_id. */
-export function campoCliente(clientes, { rotulo = 'Cliente', obrigatorio = true, atual = null, classe = '' } = {}) {
+/** Campo com sugestões enquanto digita. O id escolhido vai em cliente_id.
+ *  `nome` (12/11/2026) permite mais de um no mesmo formulário — as partes de um
+ *  processo: os campos viram `${nome}_texto` e `${nome}_id`. */
+export function campoCliente(clientes, { rotulo = 'Cliente', obrigatorio = true, atual = null, classe = '', nome = 'cliente' } = {}) {
   const inicial = atual ? clientes.find((c) => c.id === atual) : null;
   const id = `clientes-${++lista}`;
   return html`
@@ -42,14 +57,14 @@ export function campoCliente(clientes, { rotulo = 'Cliente', obrigatorio = true,
       <span>${rotulo}</span>
       <div class="campo-cliente">
         <div class="combo">
-          <input name="cliente_texto" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}"
+          <input name="${nome}_texto" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${id}"
             autocomplete="off" spellcheck="false" aria-label="${rotulo}"
             value="${inicial ? rotuloCliente(inicial) : ''}" placeholder="${podeLerClientes() ? 'Nome, parte do nome ou CPF/CNPJ' : 'Nome ou parte do nome'}" ${obrigatorio ? 'required' : ''}>
           <ul class="combo__lista" id="${id}" role="listbox" aria-label="${rotulo}" hidden></ul>
         </div>
         <button type="button" class="botao" data-papel="novo-cliente">Novo</button>
       </div>
-      <input type="hidden" name="cliente_id" value="${inicial?.id ?? ''}">
+      <input type="hidden" name="${nome}_id" value="${inicial?.id ?? ''}">
     </div>`;
 }
 
@@ -61,9 +76,9 @@ export function campoCliente(clientes, { rotulo = 'Cliente', obrigatorio = true,
  * novo: a tela pode ter sido aberta antes de o cliente ser cadastrado.
  * `aoMudar(cliente, { processo })` recebe o processo quando foi ele que achou.
  */
-export function ligarCampoCliente(form, clientes, { aoMudar, processos = [] } = {}) {
-  const texto = form.cliente_texto;
-  const oculto = form.cliente_id;
+export function ligarCampoCliente(form, clientes, { aoMudar, processos = [], nome = 'cliente' } = {}) {
+  const texto = form.elements[`${nome}_texto`];
+  const oculto = form.elements[`${nome}_id`];
   const caixa = document.getElementById(texto.getAttribute('aria-controls'));
   let itens = [];
   let ativo = -1;
@@ -229,7 +244,8 @@ export function ligarCampoCliente(form, clientes, { aoMudar, processos = [] } = 
   };
   controles.set(texto, definir);
 
-  form.querySelector('[data-papel="novo-cliente"]').addEventListener('click', async () => {
+  // O "Novo" do próprio campo (pode haver mais de um campo de cliente no formulário).
+  (texto.closest('.campo')?.querySelector('[data-papel="novo-cliente"]') ?? form.querySelector('[data-papel="novo-cliente"]')).addEventListener('click', async () => {
     const novo = await cadastrarCliente({ nome: oculto.value ? '' : texto.value.trim() });
     if (novo) definir(novo);
   });
@@ -239,8 +255,8 @@ export function ligarCampoCliente(form, clientes, { aoMudar, processos = [] } = 
 }
 
 /** Põe no campo um cliente que acabou de ser cadastrado por outro caminho. */
-export function definirCliente(form, cliente) {
-  controles.get(form.cliente_texto)?.(cliente);
+export function definirCliente(form, cliente, nome = 'cliente') {
+  controles.get(form.elements[`${nome}_texto`])?.(cliente);
 }
 
 export const cadastrarCliente = ({ nome = '', email = '', telefone = '' } = {}) => formularioCliente({ nome, email, telefone });

@@ -13,7 +13,9 @@ test('Posição: as que o Guilherme listou estão todas na lista', () => {
   }
   assert.equal(new Set(todas).size, todas.length, 'sem repetição');
   assert.ok(posicaoConhecida('Exequente'));
-  assert.ok(!posicaoConhecida('Inventariante'));
+  // Inventariante entrou na lista em 12/11/2026 (inventários com várias partes); Vítima continua em "Outra".
+  assert.ok(posicaoConhecida('Inventariante'));
+  assert.ok(!posicaoConhecida('Vítima'));
 });
 
 test('Posição: da lista, de "Outra" (texto livre) ou não informada', () => {

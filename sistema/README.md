@@ -56,6 +56,10 @@ site" na lateral e "Voltar ao site" na tela de entrada.
 - **21/10:** [pedidos dos advogados](#pedidos-dos-advogados-2110): campo
   Cliente que acha por parte do nome e pelo CPF, processos que o escritório
   não acompanha (as intimações do Marlon) e filiação em mãe e pai.
+- **12/11:** [pedidos dos advogados](#pedidos-dos-advogados-1211): números nas
+  listas, menu recolhível, sessão de 60 min, tarefas em colunas com
+  cronômetro, vários lembretes, avisos e notificações, vários clientes no
+  mesmo processo.
 - **22/10:** [pedidos do Vinícius](#pedidos-do-vinícius-2210): antecipação de
   parcelas (o que passa do total abate as últimas do contrato, de trás para
   frente) e documentos solicitados/entregues no processo, com o retorno
@@ -640,10 +644,110 @@ entender, sem mexer em regra nenhuma. Nada de banco: só `sistema/css` e
   Ficou como estava: em telas entre 761 e 1260 px a tabela de Tarefas rola de
   lado dentro do painel (já rolava; a coluna de ações manteve a largura).
 
+## Pedidos dos advogados (12/11)
+
+Migração `20261112120000_pedidos_1211` (a 46), testes
+`supabase/testes/pedidos-1211.sql`, `sistema/testes/pedidos-1211.test.mjs`
+e `sistema/testes/pedidos-1211-funcoes.test.mjs`. Preparação (com os pedidos
+na íntegra e as decisões): `docs/historico/preparacao-pedidos-1211.md`.
+
+- **Números no alto de Contratos, Clientes e Processos** ("não criar um novo
+  painel"). Painel recolhível (`telas/numeros.js`; o navegador lembra se está
+  aberto, por tela) com o período — este mês, 3, 4, 5, 6 ou 12 meses, na URL
+  como `?periodo=` — os indicadores e as barras mês a mês. Contratos: fechados
+  no mês, no período e a média, pela **data de formalização**, sem os
+  cancelados; "data a confirmar" aparece à parte. Clientes: ativos (inativos e
+  total na nota) e novos. Processos: cadastrados, **ativos** (tudo menos
+  suspenso e encerrado, com a quebra), suspensos, encerrados e novos — cada um
+  leva ao filtro (há um filtro novo, "Ativos"). Os números são do escritório
+  inteiro, não do filtro da lista. "Novo" é pela **data do cadastro no
+  sistema**: 94 clientes e 88 processos foram cadastrados em out/2026, quando o
+  uso começou — a nota diz isso. Conta em `dominio/indicadores.js`.
+- **Menu recolhível no computador.** Botão « ao lado da marca: recolhido, a
+  tela fica como a do celular (topo com "Menu", o menu por cima, cronômetro e
+  lupa no topo); "Fixar o menu ao lado" volta. O navegador lembra
+  (`fhl.menu-recolhido`). Clique fora ou Esc fecham o menu aberto por cima
+  (também no celular). CSS no fim de `sistema.css`: cada regra repete uma do
+  celular — mudou lá, mudar aqui.
+- **Sessão.** Os registros do Auth de 11 e 12/11 mostraram saídas ~30 min
+  depois de entrar, com a aba escondida (o advogado trabalhando no Projudi e no
+  Word): era a regra de inatividade, não falha de sessão. Agora: padrão **60
+  min** (Operação e LGPD continua ajustando); aviso **5 min antes**, com
+  contagem, "Continuar conectado" e "Sair agora"; com a aba escondida o título
+  pisca e, se ligadas em Minha conta, sai uma notificação do computador
+  (clicar mantém a sessão); **cronômetro aberto** (atendimento ou tarefa)
+  segura a sessão por até 3 h desde o último uso; mexer o mouse conta como
+  uso. Conta em `dominio/sessao.js`; tela em `nucleo/inatividade.js`.
+- **Tarefas em colunas** (referência: a tela de prazos do Projudi). Cliente /
+  processo (número, cliente e vara — `v_tarefas.processo_orgao`), Tarefa,
+  Responsável, Datas (criada, entrega, fatal, "em 2 dias"), Situação (com o
+  tempo dedicado) e Ações. Ordena pelos cabeçalhos (Datas inverte; Responsável
+  e Situação) ou pelo "Ordenar por"; filtro Responsável; a cor por prazo
+  continua. Tarefas, Prazos e a ficha do cliente usam a mesma tabela; no
+  celular, cartões.
+- **Cronômetro da tarefa.** Iniciar → Pausar / Finalizar → Retomar. Cada
+  trecho é um período em `tarefas_tempos` (hora do servidor); o total é a
+  soma ("30 min, pausa, mais 20 = 50 min"). Uma tarefa rodando por pessoa:
+  iniciar outra pergunta se pausa a que está rodando. **"Pausada" não é
+  situação nova no banco** (o CHECK e as abas antigas ficam iguais): é "em
+  andamento" com tempo e sem relógio aberto (`situacaoDaTarefa`). Concluir ou
+  cancelar por qualquer caminho fecha o relógio (gatilho `y_fechar_tempos`).
+  Rodando há mais de 8 h, Pausar/Finalizar perguntam a hora real
+  (`fim_informado`). Indicador fixo na lateral (e no topo do celular, quando
+  não há atendimento rodando), com Pausar e Finalizar
+  (`telas/tarefas/cronometro.js`). O detalhe da tarefa mostra os períodos.
+  Ninguém grava `tarefas_tempos` direto: `iniciar_tarefa`, `pausar_tarefa`,
+  `finalizar_tarefa` e `meu_cronometro_tarefa`. **Decidido sem perguntar
+  (recomendação):** o tempo da tarefa não vira Atualização do cliente.
+- **Vários lembretes por compromisso.** `compromissos.lembretes integer[]`:
+  até 5, sem repetir, de 0 a 40320 min (os limites do Google Agenda). A coluna
+  antiga `lembrete_minutos` continua, para a tela antiga aberta num navegador
+  e para a função do Google anterior: o gatilho `b_lembretes`
+  (`privado.sincronizar_lembretes`) faz quem mudou mandar — a lista nova
+  atualiza o campo antigo (o menor valor que ele aceita) e o campo antigo,
+  mudado por uma aba velha, vira a lista. A migração preencheu a lista a partir
+  do campo antigo **sem disparar gatilhos** (sem carimbo, histórico nem
+  reenvio ao Google). No formulário: uma linha por lembrete (número +
+  unidade + Remover), "Adicionar lembrete" e os atalhos +1 semana, +1 dia,
+  +1 hora, +10 min. Vão todos para o Google (`lembretesDoEvento`) e para o
+  `.ics` (um `VALARM` cada); Remarcar e "Lançar audiência" da intimação os
+  levam junto; `agenda_periodo` devolve `lembretes` (vazio no particular
+  alheio). Regras em `dominio/lembretes.js`.
+- **Notificações.** Com o sistema aberto em alguma aba (mesmo minimizado),
+  a cada 30 s: cada lembrete dos **meus** compromissos na hora dele (se vários
+  venceram com o sistema fechado, sai um só — o mais perto do início);
+  prazo em horas 2 h e 30 min antes; e, a partir das 7h, o resumo do dia das
+  minhas tarefas (para hoje e atrasadas). Aparecem no canto da tela, em todas
+  as abas, até "Dispensar" (`avisarFixo` em `nucleo/avisos.js`) e, se a pessoa
+  ligou em **Minha conta → Avisos de compromissos e tarefas**, também como
+  notificação do computador (`nucleo/notificar.js`; a permissão só é pedida
+  por esse botão). Uma aba confere por vez (`navigator.locks`); o que já foi
+  avisado fica neste navegador, por pessoa (`fhl.notificacoes.avisadas.<id>`).
+  **Sem servidor:** com o navegador fechado não chega nada (o Google Agenda
+  continua avisando quem o usa); no Chrome do Android a notificação do
+  computador não existe sem service worker — lá fica só o cartão.
+- **Vários clientes no mesmo processo.** `processos_partes`: os outros
+  clientes representados (herdeiros de um inventário), cada um com a sua
+  condição; o cliente do processo continua sendo o **principal**. No
+  formulário, "Outras partes representadas" com "Adicionar mais partes
+  representadas" (escolher ou cadastrar com "Novo"), a condição (as do
+  Projudi e, novas, Inventariante, Herdeiro(a), Meeiro(a), Legatário(a),
+  Litisconsorte) e "Retirar" (pede o motivo; nada se apaga). Processo e partes
+  se gravam juntos (`salvar_processo`, security invoker). A lista de Processos
+  mostra o principal e "+ …"; a ficha de cada cliente mostra os processos em
+  que ele é parte ("Em conjunto com…", com a condição dele). Tarefas,
+  atualizações, documentos e intimações aceitam a parte
+  (`privado.processo_do_cliente` nas quatro conferências) e só conferem quando
+  o vínculo muda — retirar a parte não trava o que já estava ligado a ela;
+  parte com tarefa aberta no processo não se retira. Mesmo número CNJ em
+  outro cliente: o formulário oferece "Acrescentar como parte do processo que
+  já existe". Os 3 números que já estavam duplicados em produção (7 linhas)
+  **não foram juntados** — cada linha pode ter tarefas e documentos próprios.
+
 ## Operação, segurança e LGPD (08/10)
 
-- **Saída por inatividade**: minutos em Operação e LGPD (padrão 30), com
-  aviso um minuto antes.
+- **Saída por inatividade**: minutos em Operação e LGPD (padrão 60 desde
+  12/11; antes 30), com aviso 5 minutos antes — ver [pedidos de 12/11](#pedidos-dos-advogados-1211).
 - **Convite** (Membros → Enviar convite): `administrar-usuarios` confere com
   o token de quem pede que é o administrador e manda o convite pelo Auth. A
   pessoa cria a própria senha. Depende de SMTP configurado no Supabase.
@@ -880,7 +984,9 @@ quem não é sócio.
 | 20261021200000 | `pedidos_guilherme_2110` | Tarefa a partir da intimação (`criar_prazo_intimacao` aceita `tarefa`), `processos.posicao_cliente` e `iniciar_cronometro` que liga o cliente ao atendimento sem cliente |
 | 20261021120000 | `pedidos_advogados_2110` | Filiação em mãe e pai (`clientes_detalhes.filiacao_mae/_pai`, `salvar_cliente`) e processos que o escritório não acompanha (`processos_nao_acompanhados`, `nao_acompanhar_processo()`, `importar_intimacoes` arquiva na chegada) |
 | 20261023130752 | `ajustes_financeiro_integridade` **(somente local)** | Precisão e valores finitos, estornos seguros, contratos arquivados e coordenação das operações financeiras |
-| 20261023130757 | `ajustes_cronometro_google` **(somente local)** | Anotações com versão, limpeza explícita ao parar e preservação do vínculo em transferência comprovada do Google |
+| 20261023130757 | `ajustes_cronometro_google` | Anotações com versão, limpeza explícita ao parar e preservação do vínculo em transferência comprovada do Google |
+| 20261111120000 | `areas_atuacao` | Áreas de atuação do site editáveis no sistema |
+| 20261112120000 | `pedidos_1211` | Sessão de 60 min; cronômetro das tarefas (`tarefas_tempos`, `iniciar/pausar/finalizar_tarefa`, `v_tarefas` com vara e tempo); vários lembretes (`compromissos.lembretes`, gatilho `b_lembretes`, `agenda_periodo` recriada); vários clientes no processo (`processos_partes`, `salvar_processo`, `privado.processo_do_cliente`) |
 
 O quadro é um resumo histórico; a lista completa está em `supabase/migrations/`.
 Na auditoria de 23/10 foram conferidas **42 versões remotas**, até
@@ -1048,7 +1154,7 @@ painel). O Hobby da Vercel é só para uso não comercial.
 | Importação | Modelo próprio (a planilha oficial ainda não chegou) | `dominio/importacao.js` |
 | Contagem de prazos e datas móveis | Regras do CPC/CLT/CPP descritas em `dominio/prazos.js`; móveis só cadastradas | Feriados e prazos |
 | Busca automática no DJEN | Ligada; 7 dias na primeira busca; entrega 3 dias úteis antes | Feriados e prazos |
-| Inatividade | 30 minutos | Operação e LGPD |
+| Inatividade | 60 minutos (era 30 até 12/11) | Operação e LGPD |
 | 2FA | Não implementado, por decisão do Ithalo | — |
 
 ### Parado — depende de algo que ainda não existe

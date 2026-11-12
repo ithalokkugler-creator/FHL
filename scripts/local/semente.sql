@@ -307,6 +307,37 @@ begin
     ('00000000-0000-4000-8000-000000000502', 'Comprovantes de posse (contas de luz)', 'solicitado', hoje - 20,
      'Rosana (a cliente)', hoje - 10, hoje - 9);
 
+  -- Pedidos de 12/11: um inventário com o espólio como cliente principal e
+  -- duas herdeiras representadas; uma tarefa já com tempo contado (pausada);
+  -- uma audiência com quatro lembretes; um atendimento daqui a 50 minutos com
+  -- lembrete de 1 hora (o aviso aparece ao abrir a prévia).
+  insert into public.clientes (id, nome) values ('00000000-0000-4000-8000-000000000207', 'Espólio de Fulano Fictício');
+  insert into public.processos (id, cliente_id, numero, titulo, area, tribunal, orgao, responsavel_id, situacao, posicao_cliente) values
+    ('00000000-0000-4000-8000-000000000503', '00000000-0000-4000-8000-000000000207', '00010355820258160208',
+     'Inventário fictício', 'sucessoes', 'TJPR', '1ª Vara de Família e Sucessões (fictícia)', m_socia, 'em_andamento', 'Inventariante');
+  insert into public.processos_partes (processo_id, cliente_id, posicao) values
+    ('00000000-0000-4000-8000-000000000503', c_maria, 'Herdeiro(a)'),
+    ('00000000-0000-4000-8000-000000000503', c_ana, 'Herdeiro(a)');
+  insert into public.processos (cliente_id, titulo, area, responsavel_id, situacao, criado_em) values
+    (c_emp, 'Consultoria fictícia suspensa', 'empresarial', m_admin, 'suspenso', now() - interval '40 days');
+
+  insert into public.tarefas (tipo, titulo, ato, responsavel_id, prioridade, entrega, cliente_id, processo_id, descricao, situacao) values
+    ('tarefa', 'Primeiras declarações do inventário fictício', 'Manifestação', m_admin, 'alta', hoje + 3,
+     c_maria, '00000000-0000-4000-8000-000000000503', 'Levantar os bens e as certidões dos herdeiros.', 'em_andamento');
+  insert into public.tarefas_tempos (tarefa_id, membro_id, inicio, fim)
+    select id, m_admin, now() - interval '3 hours', now() - interval '150 minutes' from public.tarefas
+     where titulo = 'Primeiras declarações do inventário fictício';
+  insert into public.tarefas_tempos (tarefa_id, membro_id, inicio, fim)
+    select id, m_admin, now() - interval '100 minutes', now() - interval '80 minutes' from public.tarefas
+     where titulo = 'Primeiras declarações do inventário fictício';
+
+  insert into public.compromissos (membro_id, tipo, modalidade, titulo, inicio, fim, cliente_id, processo, lembretes) values
+    (m_admin, 'audiencia', 'presencial', 'Audiência fictícia do inventário', ((hoje + 8)::text || ' 14:00:00-03')::timestamptz,
+     ((hoje + 8)::text || ' 15:00:00-03')::timestamptz, '00000000-0000-4000-8000-000000000207', '00010355820258160208',
+     array[10080, 1440, 60, 10]),
+    (m_admin, 'atendimento', 'online', 'Atendimento fictício com lembrete', now() + interval '50 minutes',
+     now() + interval '80 minutes', c_ana, null, array[60]);
+
   perform set_config('request.jwt.claims', '', false);
 end
 $$;

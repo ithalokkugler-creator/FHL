@@ -82,7 +82,8 @@ const selo = ([rotulo, tom]) => html`<span class="selo${tom ? ` selo--${tom}` : 
 
 const SITUACOES_TAREFA = {
   pendente: ['Pendente', ''],
-  em_andamento: ['Em andamento', 'alerta'],
+  em_andamento: ['Em andamento', 'ok'],
+  pausada: ['Pausada', 'alerta'],
   concluida: ['Concluída', 'ok'],
   cancelada: ['Cancelada', 'escuro'],
 };

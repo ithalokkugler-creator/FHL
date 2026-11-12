@@ -15,7 +15,10 @@ import { centavos, data, dataHora, documento, duracao, hoje, linkWhatsApp, moeda
 import { aoClicar, desenhar, html } from '../../nucleo/html.js';
 import { guardarConsulta } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
-import { COLUNAS_CLIENTE, COLUNAS_DETALHES, COLUNAS_PROCESSO, diasParaAniversario, ESTADOS_CIVIS, TIPOS_PESSOA } from '../../dominio/clientes.js';
+import {
+  anexarPartes, clientesDoProcesso, COLUNAS_CLIENTE, COLUNAS_DETALHES, COLUNAS_PARTE, COLUNAS_PROCESSO, diasParaAniversario,
+  ESTADOS_CIVIS, TIPOS_PESSOA,
+} from '../../dominio/clientes.js';
 import { origemContato } from '../../dominio/contatos.js';
 import { COLUNAS_TAREFA } from '../../dominio/tarefas.js';
 import { COLUNAS_ATUALIZACAO, totais } from '../../dominio/tempo.js';
@@ -23,7 +26,7 @@ import { COLUNAS_LISTA_DOCUMENTO } from '../../documentos/acoes.js';
 import { abrirAnexos } from '../anexos.js';
 import { cabecalho, opcoes, seloCompromisso, seloContrato, vazio } from '../comum.js';
 import { abrirHistorico } from '../historico.js';
-import { formularioProcesso, tabelaProcessos } from '../processos.js';
+import { abrirHistoricoProcesso, formularioProcesso, tabelaProcessos } from '../processos.js';
 import { abrirDocumentosProcesso, COLUNAS_RESUMO_DOCUMENTOS, documentosPorProcesso } from '../documentos-processo.js';
 import { iniciarCronometro } from '../atualizacoes/cronometro.js';
 import { formularioAtualizacao } from '../atualizacoes/formulario.js';
@@ -225,6 +228,30 @@ function painelOrigem(contatos) {
 // Tela
 // ---------------------------------------------------------------------------
 
+/**
+ * Os processos da ficha: os do cliente (principal) e aqueles em que ele é
+ * parte representada (12/11/2026), com as partes e o nome de quem mais está
+ * em cada um. Os documentos do processo vão por processo, não por cliente.
+ */
+async function processosDaFicha(id) {
+  const [principais, minhasPartes] = await Promise.all([
+    db.todos('processos', { select: COLUNAS_PROCESSO, filtros: [['cliente_id', 'eq', id]] }),
+    db.todos('processos_partes', { select: COLUNAS_PARTE, filtros: [['cliente_id', 'eq', id], ['cancelado_em', 'is', null]] }).catch(() => []),
+  ]);
+  const deParte = minhasPartes.map((x) => x.processo_id).filter((pid) => !principais.some((p) => p.id === pid));
+  const extras = deParte.length ? await db.todos('processos', { select: COLUNAS_PROCESSO, filtros: [['id', 'in', deParte]] }) : [];
+  const todos = [...principais, ...extras].sort((a, b) => String(b.criado_em).localeCompare(String(a.criado_em)) || a.id.localeCompare(b.id));
+  const ids = todos.map((p) => p.id);
+  const [partes, docs] = ids.length ? await Promise.all([
+    db.todos('processos_partes', { select: COLUNAS_PARTE, filtros: [['processo_id', 'in', ids], ['cancelado_em', 'is', null]] }).catch(() => []),
+    db.todos('processos_documentos', { select: COLUNAS_RESUMO_DOCUMENTOS, filtros: [['processo_id', 'in', ids], ['cancelado_em', 'is', null]] }).catch(() => []),
+  ]) : [[], []];
+  const processos = anexarPartes(todos, partes);
+  const outros = [...new Set(processos.flatMap(clientesDoProcesso))].filter((x) => x !== id);
+  const nomes = outros.length ? await db.todos('clientes', { select: 'id,nome', filtros: [['id', 'in', outros]] }).catch(() => []) : [];
+  return { processos, docs, nomes };
+}
+
 async function carregarFicha(id) {
   const agora = new Date().toISOString();
   const doCliente = [['cliente_id', 'eq', id]];
@@ -232,10 +259,10 @@ async function carregarFicha(id) {
     ? db.listar('compromissos', { select: 'id,titulo,inicio,fim,membro_id,situacao', filtros: [...doCliente, ['cancelado_em', 'is', null], ...filtros], ordem, limite: 5 })
     : []);
 
-  const [cliente, detalhes, processos, contatos, futuros, anteriores, contratos, atualizacoes, documentos, tarefas, pessoas, docsProcessos] = await Promise.all([
+  const [cliente, detalhes, daFicha, contatos, futuros, anteriores, contratos, atualizacoes, documentos, tarefas, pessoas] = await Promise.all([
     db.um('clientes', { select: COLUNAS_CLIENTE, filtros: [['id', 'eq', id]] }),
     db.um('clientes_detalhes', { select: COLUNAS_DETALHES, filtros: doCliente }),
-    db.todos('processos', { select: COLUNAS_PROCESSO, filtros: doCliente, ordem: 'criado_em.desc,id.desc' }),
+    processosDaFicha(id),
     db.todos('contatos', { select: 'id,nome,canal,pagina,campanha,recebido_em,convertido_em', filtros: doCliente, ordem: 'recebido_em.desc,id.desc' }),
     agenda([['fim', 'gte', agora]], 'inicio.asc,id.asc'),
     agenda([['fim', 'lt', agora]], 'inicio.desc,id.desc'),
@@ -250,11 +277,10 @@ async function carregarFicha(id) {
       ordem: 'fatal_em.asc,id.asc',
     }),
     db.todos('clientes_contatos', { select: '*', filtros: doCliente, ordem: 'principal.desc,nome.asc,id.asc' }).catch(() => []),
-    db.todos('processos_documentos', { select: COLUNAS_RESUMO_DOCUMENTOS, filtros: [...doCliente, ['cancelado_em', 'is', null]] }).catch(() => []),
   ]);
   return {
-    cliente, detalhes, processos, contatos, futuros, anteriores, contratos, atualizacoes, documentos, tarefas, pessoas,
-    docsProcessos: documentosPorProcesso(docsProcessos),
+    cliente, detalhes, processos: daFicha.processos, contatos, futuros, anteriores, contratos, atualizacoes, documentos, tarefas, pessoas,
+    docsProcessos: documentosPorProcesso(daFicha.docs), nomesProcessos: daFicha.nomes,
   };
 }
 
@@ -297,7 +323,7 @@ function tela(id, f) {
     ])}
 
     ${painel('Processos e casos', html`<button type="button" class="botao botao--pequeno" data-acao="novo-processo">Novo processo</button>`,
-      tabelaProcessos(f.processos, [], { mostrarCliente: false, documentos: f.docsProcessos }), 'processos')}
+      tabelaProcessos(f.processos, f.nomesProcessos, { mostrarCliente: false, documentos: f.docsProcessos, clienteDaFicha: id }), 'processos')}
     ${painelTempo(id, cliente, f.atualizacoes, f.processos)}
     ${painel('Tarefas e prazos abertos', html`<a class="botao botao--pequeno" href="#/tarefas?visao=todas&cliente=${id}">Abrir Tarefas</a>`,
       tabelaTarefas(f.tarefas, { vazio: 'Nenhuma tarefa ou prazo em aberto para este cliente.' }), 'tarefas')}
@@ -351,6 +377,8 @@ export default async function telaCliente(ctx) {
     if (ctx.ativa()) recarregar().catch(avisarErro);
   };
   addEventListener('fhl:atualizacoes', sincronizar);
+  // O mesmo para o cronômetro das tarefas (12/11/2026).
+  addEventListener('fhl:tarefas', sincronizar);
 
   const depois = async (promessa) => {
     try {
@@ -412,7 +440,7 @@ export default async function telaCliente(ctx) {
     atividade: () => depois(alternarAtividade()),
     'novo-processo': () => depois(formularioProcesso({ cliente_id: id })),
     'editar-processo': (el) => depois(formularioProcesso({ processo: processo(el) })),
-    'historico-processo': (el) => abrirHistorico({ titulo: processo(el).titulo, registros: [el.dataset.id] }),
+    'historico-processo': (el) => abrirHistoricoProcesso(processo(el)).catch(avisarErro),
     'documentos-processo': (el) => depois(abrirDocumentosProcesso({ processo: processo(el), clienteNome: f.cliente.nome })),
   });
 
@@ -426,6 +454,7 @@ export default async function telaCliente(ctx) {
 
   return () => {
     removeEventListener('fhl:atualizacoes', sincronizar);
+    removeEventListener('fhl:tarefas', sincronizar);
     limpar();
     limparAtualizacoes();
     limparTarefas();

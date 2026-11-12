@@ -29,6 +29,39 @@ export function lerEtiquetas(v) {
   return unicas.sort();
 }
 export const COLUNAS_PROCESSO = 'id,cliente_id,numero,referencia,titulo,area,tribunal,orgao,responsavel_id,situacao,observacoes,posicao_cliente,criado_em,alterado_em';
+export const COLUNAS_PARTE = 'id,processo_id,cliente_id,posicao,cancelado_em,criado_em';
+
+// ---------------------------------------------------------------------------
+// Vários clientes no mesmo processo (12/11/2026)
+// ---------------------------------------------------------------------------
+// O cliente do processo (cliente_id) é o principal; os outros representados
+// — herdeiros num inventário, por exemplo — são as partes (processos_partes),
+// cada um com a sua condição. O processo aparece na ficha de todos.
+
+/** Junta a cada processo as partes ainda vinculadas: p.partes = [{ id, cliente_id, posicao }]. */
+export function anexarPartes(processos, partes) {
+  const porProcesso = new Map();
+  for (const x of partes ?? []) {
+    if (x.cancelado_em) continue;
+    if (!porProcesso.has(x.processo_id)) porProcesso.set(x.processo_id, []);
+    porProcesso.get(x.processo_id).push(x);
+  }
+  return (processos ?? []).map((p) => ({ ...p, partes: porProcesso.get(p.id) ?? [] }));
+}
+
+/** Todos os clientes do processo: o principal primeiro. */
+export const clientesDoProcesso = (p) => [p.cliente_id, ...(p.partes ?? []).map((x) => x.cliente_id)];
+
+/** O processo é deste cliente? O principal ou uma das partes. */
+export const processoDoCliente = (p, clienteId) => Boolean(clienteId) && clientesDoProcesso(p).includes(clienteId);
+
+/** A condição desta pessoa no processo (autor, herdeiro…), seja ela o principal ou uma parte. */
+export function posicaoNoProcesso(p, clienteId) {
+  if (p.cliente_id === clienteId) return p.posicao_cliente ?? null;
+  return (p.partes ?? []).find((x) => x.cliente_id === clienteId)?.posicao ?? null;
+}
+
+
 
 /**
  * Como o nosso cliente figura no processo (pedido do Guilherme, 21/10) — os
@@ -38,7 +71,8 @@ export const COLUNAS_PROCESSO = 'id,cliente_id,numero,referencia,titulo,area,tri
 export const POSICOES_CLIENTE = [
   ['Polo ativo', ['Autor(a)', 'Requerente', 'Reclamante', 'Exequente', 'Recorrente', 'Apelante', 'Agravante', 'Embargante', 'Impetrante']],
   ['Polo passivo', ['Réu/Ré', 'Requerido(a)', 'Reclamado(a)', 'Executado(a)', 'Recorrido(a)', 'Apelado(a)', 'Agravado(a)', 'Embargado(a)']],
-  ['Outros', ['Terceiro(a) interessado(a)']],
+  ['Inventário e sucessões', ['Inventariante', 'Herdeiro(a)', 'Meeiro(a)', 'Legatário(a)']],
+  ['Outros', ['Terceiro(a) interessado(a)', 'Litisconsorte']],
 ];
 export const POSICAO_OUTRA = '__outra';
 const POSICOES_CONHECIDAS = new Set(POSICOES_CLIENTE.flatMap(([, lista]) => lista));
@@ -207,7 +241,7 @@ export function buscarClientes(clientes, texto, { processos = [] } = {}) {
       else if (termos.every((t) => nome.includes(t))) nota = 2;
     }
     if (nota == null && digitos.length >= 7) {
-      processo = processos.find((p) => p.cliente_id === cliente.id && (p.numero ?? '').includes(digitos)) ?? null;
+      processo = processos.find((p) => processoDoCliente(p, cliente.id) && (p.numero ?? '').includes(digitos)) ?? null;
       if (processo) nota = 2;
     }
     if (nota != null) achados.push({ cliente, processo, nota });
@@ -261,11 +295,14 @@ export function clientesDosDestinatarios(destinatarios, clientes) {
   return sugestoes.sort((a, b) => b.exato - a.exato);
 }
 
+/** Cliente → os processos dele, inclusive aqueles em que é parte (12/11/2026). */
 export function agruparProcessos(processos) {
   const grupos = new Map();
   for (const p of processos) {
-    if (!grupos.has(p.cliente_id)) grupos.set(p.cliente_id, []);
-    grupos.get(p.cliente_id).push(p);
+    for (const cliente of new Set(clientesDoProcesso(p))) {
+      if (!grupos.has(cliente)) grupos.set(cliente, []);
+      grupos.get(cliente).push(p);
+    }
   }
   return grupos;
 }
@@ -292,11 +329,14 @@ export function filtrarProcessos(processos, clientes, f) {
   const busca = semAcento(f.busca).toLocaleLowerCase('pt-BR').trim();
   return processos.filter((p) => {
     if ((f.situacao || 'abertos') === 'abertos' && p.situacao === 'encerrado') return false;
-    if (f.situacao && !['abertos', 'todos'].includes(f.situacao) && p.situacao !== f.situacao) return false;
+    // "Ativos" (12/11/2026): sem suspensos e sem encerrados, como no número do alto.
+    if (f.situacao === 'ativos' && ['suspenso', 'encerrado'].includes(p.situacao)) return false;
+    if (f.situacao && !['abertos', 'ativos', 'todos'].includes(f.situacao) && p.situacao !== f.situacao) return false;
     if ((f.area && p.area !== f.area) || (f.responsavel && p.responsavel_id !== f.responsavel) || (f.tribunal && p.tribunal !== f.tribunal)) return false;
     // "sem" = posição do cliente ainda não informada.
     if (f.posicao && (f.posicao === 'sem' ? p.posicao_cliente : p.posicao_cliente !== f.posicao)) return false;
-    return !busca || corresponde(busca, [p.numero, p.referencia, p.titulo, p.tribunal, p.orgao, nomes.get(p.cliente_id), p.posicao_cliente]);
+    return !busca || corresponde(busca, [p.numero, p.referencia, p.titulo, p.tribunal, p.orgao, p.posicao_cliente,
+      ...clientesDoProcesso(p).map((id) => nomes.get(id)), ...(p.partes ?? []).map((x) => x.posicao)]);
   });
 }
 

@@ -5,6 +5,9 @@ import { ErroCampo, mostrarErroFormulario } from '../nucleo/formularios.js';
 import { estado, NIVEIS_AGENDA, NIVEIS_FINANCEIRO, PAPEIS } from '../nucleo/estado.js';
 import { $, desenhar, html, lerFormulario } from '../nucleo/html.js';
 import { emailDaSessao, trocarSenha } from '../nucleo/supabase.js';
+import {
+  guardarPreferencia, notificacoesLigadas, notificarComputador, pedirPermissao, permissaoNotificacao,
+} from '../nucleo/notificar.js';
 import { cabecalho } from './comum.js';
 
 export default function telaConta({ raiz, consulta }) {
@@ -41,7 +44,60 @@ export default function telaConta({ raiz, consulta }) {
           <div class="campo"><button class="botao botao--primario" type="submit">Salvar senha</button></div>
         </form>
       </section>
-    </div>`);
+    </div>
+
+    <section class="painel secao" data-papel="notificacoes">
+      <header class="painel__topo"><h2 class="painel__titulo">Avisos de compromissos e tarefas</h2></header>
+      <div class="painel__corpo" data-notificacoes></div>
+    </section>`);
+
+  // Notificações do computador (12/11/2026): só com a permissão do navegador,
+  // pedida por este botão — nunca sozinha.
+  const caixaNotificacoes = $('[data-notificacoes]', raiz);
+  const desenharNotificacoes = () => {
+    const permissao = permissaoNotificacao();
+    const ligadas = notificacoesLigadas();
+    desenhar(caixaNotificacoes, html`
+      <p>Com o sistema aberto em alguma aba (mesmo minimizado), os lembretes dos seus compromissos, os prazos em horas e o
+        resumo das suas tarefas do dia aparecem <strong>no canto da tela</strong>, até você dispensar.</p>
+      <p class="secao--curta">Também podem aparecer <strong>nas notificações do computador</strong> (a barra do Windows), mesmo com
+        outra janela na frente. Vale para este computador e este navegador.</p>
+      <p class="secao--curta">${
+        permissao === 'indisponivel' ? html`<span class="selo">Indisponível</span> Este navegador não mostra notificações do computador. No celular os avisos ficam só na tela do sistema.`
+          : permissao === 'denied' ? html`<span class="selo selo--perigo">Bloqueadas no navegador</span> Para liberar: clique no cadeado ao lado do endereço do site → Notificações → Permitir, e recarregue a página.`
+            : ligadas ? html`<span class="selo selo--ok">Ligadas neste computador</span>`
+              : html`<span class="selo">Desligadas neste computador</span>`}</p>
+      <p class="grupo-botoes secao--curta">
+        ${permissao === 'default' || (permissao === 'granted' && !ligadas)
+          ? html`<button type="button" class="botao botao--primario" data-acao-notificacao="ligar">Ligar notificações do computador</button>` : ''}
+        ${ligadas ? html`
+          <button type="button" class="botao" data-acao-notificacao="testar">Testar</button>
+          <button type="button" class="botao botao--discreto" data-acao-notificacao="desligar">Desligar neste computador</button>` : ''}
+      </p>
+      <p class="sub">Com o navegador fechado (ou depois de sair por falta de uso) não chega aviso — quem tem o Google Agenda continua
+        recebendo o alerta dele. Os lembretes de cada compromisso se escolhem em Agenda → Editar.</p>`);
+  };
+  desenharNotificacoes();
+  caixaNotificacoes.addEventListener('click', async (e) => {
+    const alvo = e.target.closest('[data-acao-notificacao]');
+    if (!alvo) return;
+    const acao = alvo.dataset.acaoNotificacao;
+    if (acao === 'ligar') {
+      if (permissaoNotificacao() === 'granted') guardarPreferencia(true);
+      else {
+        const resposta = await pedirPermissao();
+        if (resposta === 'denied') avisar('O navegador bloqueou as notificações. Veja como liberar logo abaixo.', 'erro', 7000);
+      }
+      if (notificacoesLigadas()) avisar('Notificações do computador ligadas.');
+    } else if (acao === 'desligar') {
+      guardarPreferencia(false);
+      avisar('Notificações do computador desligadas neste computador. Os avisos continuam no canto da tela.');
+    } else if (acao === 'testar') {
+      const n = notificarComputador({ titulo: 'Teste do sistema FL', corpo: 'É assim que os lembretes vão aparecer.', tag: 'fl-teste' });
+      avisar(n ? 'Notificação de teste enviada. Se não apareceu, confira o "Não perturbe" do Windows.' : 'Não foi possível mostrar a notificação neste navegador.', n ? 'ok' : 'erro');
+    }
+    desenharNotificacoes();
+  });
 
   const form = $('form', raiz);
   const erro = $('[role="alert"]', form);

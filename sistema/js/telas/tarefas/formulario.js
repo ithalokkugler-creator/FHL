@@ -18,11 +18,11 @@ import { estado, membrosAtivos, pode } from '../../nucleo/estado.js';
 import { data, hoje, horaDoMinuto, instante, noFuso } from '../../nucleo/formato.js';
 import { $, desenhar, html } from '../../nucleo/html.js';
 import { db } from '../../nucleo/supabase.js';
-import { COLUNAS_CLIENTE, COLUNAS_PROCESSO } from '../../dominio/clientes.js';
+import { COLUNAS_CLIENTE, processoDoCliente } from '../../dominio/clientes.js';
 import { diasNaoUteis } from '../../dominio/feriados.js';
 import { anosDaContagem, calcularPrazo, dataDeEntrega } from '../../dominio/prazos.js';
 import { PRIORIDADES, SITUACOES_TAREFA } from '../../dominio/tarefas.js';
-import { campoCliente, carregarClientes, ligarCampoCliente } from '../clientes.js';
+import { campoCliente, carregarClientes, carregarProcessos, ligarCampoCliente } from '../clientes.js';
 import { opcoes } from '../comum.js';
 
 // Versão das regras de contagem gravada na memória do prazo: se a regra
@@ -74,7 +74,7 @@ export async function formularioTarefa({ tarefa = null, cliente_id = null, inici
   let feriadosDisponiveis = true;
   const [clientes, processos, feriados, configPrazos] = await Promise.all([
     carregarClientes({ inativos: true }),
-    db.todos('processos', { select: COLUNAS_PROCESSO }),
+    carregarProcessos(),
     pode.prazos() ? db.todos('feriados', { select: 'id,data,nome,tribunal,ativo' }).catch(() => { feriadosDisponiveis = false; return []; }) : [],
     pode.prazos() ? db.um('config_prazos', { select: 'entrega_dias_uteis' }).catch(() => null) : null,
   ]);
@@ -130,7 +130,7 @@ export async function formularioTarefa({ tarefa = null, cliente_id = null, inici
       const ajustarProcessos = () => {
         const anterior = primeiroAjuste ? t.processo_id : form.processo_id.value;
         primeiroAjuste = false;
-        const casos = processos.filter((p) => p.cliente_id === form.cliente_id.value);
+        const casos = processos.filter((p) => processoDoCliente(p, form.cliente_id.value));
         desenhar(form.processo_id, opcoes(casos.map((p) => [p.id, p.titulo]), anterior, { vazio: 'Sem processo' }));
         form.processo_id.disabled = !form.cliente_id.value || !casos.length;
       };

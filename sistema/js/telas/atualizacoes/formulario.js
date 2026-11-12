@@ -7,9 +7,9 @@ import { estado, membrosAtivos, nomeDe, pode } from '../../nucleo/estado.js';
 import { hoje, horaDoMinuto, noFuso } from '../../nucleo/formato.js';
 import { html } from '../../nucleo/html.js';
 import { db } from '../../nucleo/supabase.js';
-import { COLUNAS_CLIENTE, COLUNAS_PROCESSO, SITUACOES_PROCESSO } from '../../dominio/clientes.js';
+import { COLUNAS_CLIENTE, processoDoCliente, SITUACOES_PROCESSO } from '../../dominio/clientes.js';
 import { COLUNAS_ATUALIZACAO, prepararAtualizacao, TIPOS_ATUALIZACAO } from '../../dominio/tempo.js';
-import { campoCliente, ligarCampoCliente } from '../clientes.js';
+import { campoCliente, carregarProcessos, ligarCampoCliente } from '../clientes.js';
 import { opcoes } from '../comum.js';
 
 /** Avisa o cronômetro global e as telas abertas (ficha, linha do tempo, Hoje). */
@@ -32,14 +32,15 @@ export const campoSituacao = () => html`
 
 export const apoioAtualizacao = () => Promise.all([
   db.todos('clientes', { select: COLUNAS_CLIENTE, ordem: 'nome.asc,id.asc' }),
-  db.todos('processos', { select: COLUNAS_PROCESSO, ordem: 'titulo.asc,id.asc' }),
+  carregarProcessos({ ordem: 'titulo.asc,id.asc' }),
 ]);
 
 /** Campo de cliente que preenche a lista de processos daquele cliente. */
 export function ligarProcesso(form, clientes, processos, atual = null) {
   let escolhido = atual;
   const atualizar = () => {
-    const casos = processos.filter((p) => p.cliente_id === form.cliente_id.value);
+    // Também os processos em que o cliente é parte representada (12/11/2026).
+    const casos = processos.filter((p) => processoDoCliente(p, form.cliente_id.value));
     form.processo_id.innerHTML = String(opcoes(casos.map((p) => [p.id, p.titulo]), escolhido, { vazio: 'Sem processo' }));
     escolhido = null; // a escolha inicial só vale para o primeiro preenchimento
   };

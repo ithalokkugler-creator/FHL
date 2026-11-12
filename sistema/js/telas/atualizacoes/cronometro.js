@@ -23,6 +23,7 @@ import { dataHora, duracao, horaDoMinuto, instante, noFuso } from '../../nucleo/
 import { html } from '../../nucleo/html.js';
 import { navegar } from '../../nucleo/rotas.js';
 import { db } from '../../nucleo/supabase.js';
+import { marcarCronometro } from '../../nucleo/inatividade.js';
 import { COLUNAS_ATUALIZACAO, minutosDe, TIPOS_ATUALIZACAO } from '../../dominio/tempo.js';
 import { camposDasAnotacoes, criarGravadorAnotacoes, textosDaAtividade } from '../../dominio/anotacoes-cronometro.js';
 import { campoCliente } from '../clientes.js';
@@ -79,6 +80,8 @@ export function ligarCronometro(raiz) {
       const resposta = await db.rpc('meu_cronometro');
       if (!vivo || estado.membro?.id !== membroId) return;
       atual = resposta.atualizacao;
+      // Cronômetro aberto segura a sessão (nucleo/inatividade.js).
+      marcarCronometro('atendimento', Boolean(atual));
       base = atual ? Math.max(0, Date.parse(resposta.agora) - Date.parse(atual.inicio)) : 0;
       sincronizado = performance.now();
       if (atual) {
@@ -115,6 +118,7 @@ export function ligarCronometro(raiz) {
 
   return () => {
     vivo = false;
+    marcarCronometro('atendimento', false);
     clearInterval(tic);
     clearInterval(conferencia);
     canal?.close();

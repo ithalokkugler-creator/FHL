@@ -22,12 +22,12 @@ import { data, dataHora, hoje, instante, numeroCnj, numeroCnjValido, semAcento, 
 import { $, aoClicar, desenhar, html } from '../nucleo/html.js';
 import { guardarConsulta } from '../nucleo/rotas.js';
 import { db } from '../nucleo/supabase.js';
-import { clientesDosDestinatarios, COLUNAS_CLIENTE, COLUNAS_PROCESSO } from '../dominio/clientes.js';
+import { clientesDosDestinatarios, clientesDoProcesso, COLUNAS_CLIENTE, processoDoCliente } from '../dominio/clientes.js';
 import { lerOab, linkDaCertidao, membrosNaComunicacao, periodoDaBusca, sugerirAudiencia, sugerirPrazo } from '../dominio/djen.js';
 import { contagemDaArea } from '../dominio/prazos.js';
 import { COLUNAS_TAREFA } from '../dominio/tarefas.js';
 import { cabecalho, indicador, opcoes, seloIntimacao, vazio } from './comum.js';
-import { campoCliente, definirCliente, ligarCampoCliente } from './clientes.js';
+import { campoCliente, carregarProcessos, definirCliente, ligarCampoCliente } from './clientes.js';
 import { editarCompromisso } from './agenda.js';
 import { buscarNoDiario, oabsDosMembros } from './djen.js';
 import { abrirHistorico } from './historico.js';
@@ -45,7 +45,7 @@ const juntar = (...partes) => partes.filter(Boolean).join(' · ');
 
 // A posição do cliente ajuda a ler a intimação (quem é intimado de quê).
 const preencherProcessos = (form, processos, atual) => desenhar(form.processo_id, opcoes(
-  processos.filter((p) => p.cliente_id === form.cliente_id.value)
+  processos.filter((p) => processoDoCliente(p, form.cliente_id.value))
     .map((p) => [p.id, p.posicao_cliente ? `${p.titulo} (nosso cliente: ${p.posicao_cliente})` : p.titulo]), atual, { vazio: 'Sem processo' }));
 
 /** Advogados do escritório na comunicação — "Guilherme, Marlon (saiu)". */
@@ -172,12 +172,17 @@ async function conferirIntimacao(i, clientes, processos, naoAcompanhados = []) {
   // Nome igual ao do destinatário: só ele. "Parecido" só quando não há igual.
   const doDestinatario = clienteInicial ? [] : clientesDosDestinatarios(i.destinatarios, clientes.filter((c) => c.ativo !== false))
     .filter((s, _n, todas) => s.exato || !todas.some((x) => x.exato));
+  // Processo com várias partes representadas (12/11/2026): cada uma é uma sugestão.
+  const doNumeroComPartes = doNumero.flatMap((p) => clientesDoProcesso(p).map((id) => ({ cliente: clientes.find((c) => c.id === id), processo: p })));
   if (!clienteInicial) {
     const candidatos = [
-      ...doNumero.map((p) => ({ cliente: clientes.find((c) => c.id === p.cliente_id), processo: p })),
+      ...doNumeroComPartes,
       ...doDestinatario.map(({ cliente, destinatario, exato }) => ({ cliente, processo: null, nota: exato ? 'destinatário' : `parecido com ${destinatario}` })),
     ];
     for (const s of candidatos) if (s.cliente && !sugestoes.some((x) => x.cliente.id === s.cliente.id)) sugestoes.push(s);
+  } else if (!i.cliente_id && doNumeroComPartes.length > 1) {
+    // Preenchido com o cliente principal; as outras partes ficam a um clique.
+    for (const s of doNumeroComPartes) if (s.cliente && !sugestoes.some((x) => x.cliente.id === s.cliente.id)) sugestoes.push(s);
   }
   const escritorio = doEscritorio(i);
 
@@ -405,7 +410,7 @@ export default async function telaIntimacoes(ctx) {
       db.todos('intimacoes', { select: COLUNAS, ordem: 'disponibilizada_em.desc,id.desc' }),
       db.listar('intimacoes_consultas', { select: COLUNAS_CONSULTAS, ordem: 'criado_em.desc', limite: 30 }),
       db.todos('clientes', { select: COLUNAS_CLIENTE }),
-      db.todos('processos', { select: COLUNAS_PROCESSO }),
+      carregarProcessos(),
       db.todos('v_tarefas', { select: COLUNAS_TAREFA }),
       db.um('config_prazos', { select: '*' }).catch(() => null),
       db.todos('processos_nao_acompanhados', { select: COLUNAS_NAO_ACOMPANHADOS, filtros: [['cancelado_em', 'is', null]], ordem: 'criado_em.desc' }),

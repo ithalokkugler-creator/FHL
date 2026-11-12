@@ -19,7 +19,7 @@ import { garantirContasDoMes, rotuloParcela } from './financeiro/base.js';
 import { iniciarCronometro } from './atualizacoes/cronometro.js';
 import { aniversariantes } from '../dominio/aniversarios.js';
 import { tarefasParaHoje } from '../dominio/avisos-do-dia.js';
-import { diaDaTarefa, prazoRestante, PRIORIDADES, urgenciaTarefa } from '../dominio/tarefas.js';
+import { cronometrosDaTarefa, diaDaTarefa, prazoRestante, PRIORIDADES, situacaoDaTarefa, urgenciaTarefa } from '../dominio/tarefas.js';
 import { mensagemAniversario, mensagemLembrete } from '../dominio/mensagens.js';
 import { MOVIMENTOS, situacaoDocumento } from '../dominio/documentos-processo.js';
 import { seloDocumento } from './documentos-processo.js';
@@ -45,6 +45,7 @@ export default async function telaInicio(ctx) {
     if (ctx.ativa()) carregarEDesenhar().catch(avisarErro);
   };
   addEventListener('fhl:atualizacoes', sincronizar);
+  addEventListener('fhl:tarefas', sincronizar);
 
   const alterar = async (id, mudanca, mensagem) => {
     try {
@@ -97,6 +98,7 @@ export default async function telaInicio(ctx) {
 
   return () => {
     removeEventListener('fhl:atualizacoes', sincronizar);
+    removeEventListener('fhl:tarefas', sincronizar);
     desligar();
     clearInterval(relogio);
   };
@@ -105,7 +107,7 @@ export default async function telaInicio(ctx) {
 async function carregar(dia) {
   const tarefas = {
     minhasTarefas: db.todos('v_tarefas', {
-      select: 'id,titulo,tipo,cliente_nome,entrega,fatal_em,contagem,prioridade,situacao,cancelado_em',
+      select: 'id,titulo,tipo,cliente_nome,entrega,fatal_em,contagem,prioridade,situacao,cancelado_em,tempo_segundos,cronometros',
       filtros: [['responsavel_id', 'eq', estado.membro.id], ['situacao', 'in', ['pendente', 'em_andamento']], ['cancelado_em', 'is', null]],
     }).then((lista) => tarefasParaHoje(lista)),
     avisos: db.rpc('avisos_do_dia'),
@@ -382,7 +384,8 @@ function itemTarefa(t, quando) {
       <a class="dia-item__corpo" href="#/tarefas?visao=minhas&busca=${encodeURIComponent(t.titulo)}">
         <span class="dia-item__tipo">${t.tipo === 'prazo' ? 'Prazo' : 'Tarefa'}${['alta', 'urgente'].includes(t.prioridade) ? ` · prioridade ${PRIORIDADES[t.prioridade].toLowerCase()}` : ''}</span>
         <strong class="dia-item__titulo">${t.titulo}</strong>
-        <span class="sub">${t.cliente_nome || 'Sem cliente'}${t.entrega ? ` · entrega ${dataCurta(t.entrega)}` : ''}</span>
+        <span class="sub">${t.cliente_nome || 'Sem cliente'}${t.entrega ? ` · entrega ${dataCurta(t.entrega)}` : ''}${
+          cronometrosDaTarefa(t).length ? ' · contando o tempo' : situacaoDaTarefa(t) === 'pausada' ? ' · pausada' : ''}</span>
         ${restante || t.fatal_em ? html`<span class="dia-item__selos">
           ${restante ? html`<span class="selo tarefa-quando tarefa-quando--${nivel}">${restante}</span>` : ''}
           ${t.fatal_em ? html`<span class="selo ${t.grupo === 'atrasadas' ? 'selo--perigo' : 'selo--alerta'}">Fatal · ${dataHora(t.fatal_em)}</span>` : ''}
