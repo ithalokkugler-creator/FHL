@@ -86,7 +86,7 @@ export function validarComplementos(modeloId, d) {
   }
 }
 
-function pagamentoContrato(d) {
+export function pagamentoContrato(d) {
   const tipo = modalidade(d);
   // 12,5% e não "12.5%": o número vem do banco com ponto.
   const exito = numeroValido(d.exito) && d.exito !== '' ? percentual(d.exito).replace('%', '') : dado(d.exito, 'ÊXITO');
@@ -110,7 +110,7 @@ function pagamentoContrato(d) {
 
 /** Contrato do Financeiro em que o valor fixo é um acordo: parte de cada
  *  parcela é do cliente (cota do escritório abaixo de 100%). */
-function ehAcordo(d) {
+export function ehAcordo(d) {
   const parcelas = parcelasValidas(d).filter((p) => p.parte !== 'exito');
   return modalidade(d) !== 'exito' && parcelas.length > 0 && parcelas.every((p) => Number(p.cota_escritorio_pct ?? 100) < 100);
 }

@@ -62,6 +62,8 @@ export function descreverErroBanco(d, status) {
   if (['P0001', '22023'].includes(codigo) || (codigo === '42501' && !/permission denied|row-level security/i.test(texto))) {
     if (texto) return { mensagem: texto };
   }
+  // Conflito explicado pela própria função (ex.: "O modelo mudou ou foi arquivado").
+  if (codigo === '40001' && /^[A-ZÀ-Ú][a-zà-ú]* /.test(texto) && !/serializ|deadlock/i.test(texto)) return { mensagem: `${texto} Seus dados continuam no formulário.` };
   if (status === 401) return { mensagem: 'Sua sessão expirou. Entre de novo para continuar.' };
   const mensagens = {
     40001: 'Este registro mudou em outra operação ou está sendo alterado. Seus dados continuam no formulário; copie o rascunho e atualize a tela antes de tentar novamente.',

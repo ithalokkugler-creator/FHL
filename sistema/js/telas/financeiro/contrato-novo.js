@@ -46,7 +46,6 @@ export default async function telaNovoContrato(ctx) {
   const eu = advogados.some((m) => m.id === estado.membro.id) ? estado.membro.id : '';
 
   desenhar(ctx.raiz, html`
-    <a class="pagina__voltar" href="#/financeiro/contratos">← Contratos</a>
     ${cabecalho('Novo contrato', 'Contrato financeiro de honorários, ou acordo com repasse ao cliente')}
 
     <form class="painel" novalidate>

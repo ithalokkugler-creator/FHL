@@ -37,13 +37,35 @@ const comConsulta = (caminho, consulta = {}) => {
   return `#${caminho}${busca ? `?${busca}` : ''}`;
 };
 
+// Navegação pedida pela própria tela: já decidida por ela, sem nova confirmação.
+let navegacaoInterna = false;
 export function navegar(caminho, consulta) {
-  location.hash = comConsulta(caminho, consulta);
+  const destino = comConsulta(caminho, consulta);
+  navegacaoInterna = '#' + destino !== location.hash;
+  location.hash = destino;
+}
+
+export function consumirNavegacaoInterna() {
+  const interna = navegacaoInterna;
+  navegacaoInterna = false;
+  return interna;
+}
+
+/** Marca também a primeira entrada da aba, que pode ter vindo de um link externo. */
+export function registrarEntrada(anterior = '') {
+  if (Object.hasOwn(history.state ?? {}, 'fhlAnterior')) return;
+  const url = anterior && new URL(anterior);
+  const interno = url && url.origin === location.origin && url.pathname === location.pathname && url.search === location.search;
+  history.replaceState({ ...history.state, fhlAnterior: interno ? url.hash : '' }, '');
+}
+
+export function rotaAnterior() {
+  return history.state?.fhlAnterior ? resolver(history.state.fhlAnterior) : null;
 }
 
 /** Guarda filtros no endereço sem recarregar a tela: recarregar a página ou
  *  mandar o link para alguém mantém o que estava filtrado. */
 export function guardarConsulta(consulta) {
   const [caminho] = location.hash.replace(/^#/, '').split('?');
-  history.replaceState(null, '', comConsulta(caminho || '/inicio', consulta));
+  history.replaceState(history.state, '', comConsulta(caminho || '/inicio', consulta));
 }

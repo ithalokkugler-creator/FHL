@@ -38,11 +38,12 @@ const AVULSAS = {
  * @param {object} p.cliente       { nome, documento }
  * @param {number|null} p.saldoDepois  centavos que restaram na parcela depois desta baixa
  * @param {string} p.emitente      nome de quem emite
+ * @param {string} [p.oab]        identificação profissional do emitente, quando cadastrada
  * @param {string} p.dia           'AAAA-MM-DD' da emissão
  * @param {{ numero: number, vencimento?: string, valor: number, saldoDepois?: number|null }[]} [p.antecipacoes]
  *   as partes antecipadas deste pagamento (centavos), da última parcela para a primeira
  */
-export function montarRecibo({ recebimento: r, parcela, contrato, cliente, saldoDepois, emitente, dia, antecipacoes = [] }) {
+export function montarRecibo({ recebimento: r, parcela, contrato, cliente, saldoDepois, emitente, oab, dia, antecipacoes = [] }) {
   const antecipado = antecipacoes.reduce((soma, a) => soma + a.valor, 0);
   const valor = centavos(r.valor) + antecipado;
   const referente = r.parcela_id
@@ -65,8 +66,8 @@ export function montarRecibo({ recebimento: r, parcela, contrato, cliente, saldo
   const direto = centavos(r.valor_direto_cliente ?? 0);
   const cotas = r.cota_encargos_pct != null && Number(r.cota_encargos_pct) !== Number(r.cota_escritorio_pct)
     ? `${percentual(r.cota_escritorio_pct)}; multa e juros, ${percentual(r.cota_encargos_pct)}` : percentual(r.cota_escritorio_pct);
-  if (direto > 0) return folha('Recibo', reciboDireto({ r, valor, direto, cotas, a, referente, comDoc, cliente, saldoDepois }), dia,
-    [['Fonseca Lisboa Advocacia', emitente]]);
+  const assinaturas = [['Fonseca Lisboa Advocacia', [emitente, oab].filter(Boolean).join(' · ')]];
+  if (direto > 0) return folha('Recibo', reciboDireto({ r, valor, direto, cotas, a, referente, comDoc, cliente, saldoDepois }), dia, assinaturas);
   const corpo = html`
     <p>Recebemos${repasse > 0 ? ', na qualidade de procuradores de' : ' de'} <strong>${dado(cliente.nome?.toUpperCase(), 'CLIENTE')}</strong>${comDoc}, a importância de
       <strong>${moeda(valor)}</strong> (${valorPorExtenso(valor)}), referente ${a} ${referente}${antecipado ? ', e à antecipação de parcelas vincendas do mesmo contrato' : ''}, paga em ${data(r.data)}${r.forma_nome ? `, por ${r.forma_nome}` : ''}.</p>
@@ -90,7 +91,7 @@ export function montarRecibo({ recebimento: r, parcela, contrato, cliente, saldo
     <p>Este recibo se refere exclusivamente ao valor acima e não dá quitação de outras parcelas ou obrigações${antecipado ? ', além das indicadas neste recibo' : ''}.</p>
     <p class="doc-nota">Recibo nº ${r.id.slice(0, 8).toUpperCase()} · lançamento de ${data(String(r.criado_em).slice(0, 10))}</p>`;
 
-  return folha('Recibo', corpo, dia, [['Fonseca Lisboa Advocacia', emitente]]);
+  return folha('Recibo', corpo, dia, assinaturas);
 }
 
 /** "as parcelas 6 e 5 ficam quitadas e a parcela 4 fica com R$ 300,00 em aberto". */

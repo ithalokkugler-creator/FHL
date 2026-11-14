@@ -20,7 +20,7 @@
 
 import { cru, html } from '../nucleo/html.js';
 import {
-  ALINHAMENTOS, categoriaDaClasse, CATEGORIAS, classeDe, CORES, FONTES, REALCES, RECUOS, TAMANHOS,
+  ALINHAMENTOS, categoriaDaClasse, CATEGORIAS, classeDe, CORES, FONTES, REALCES, RECUOS, RECUO_PRIMEIRA_LINHA, TAMANHOS,
 } from './formatacao.js';
 
 const MARCA = 'fhlfmt';
@@ -44,6 +44,7 @@ const ICONES = {
   numerada: '<path d="M3.5 4.5h1.2v4M3.3 8.5h2.6M3.2 12.6c.3-.6.9-.9 1.4-.9.7 0 1.2.4 1.2 1 0 .9-1.4 1.4-2.6 2.8h2.7M8.5 6.5h8.5M8.5 14h8.5"/>',
   menosRecuo: '<path d="M3 4h14M9 8h8M9 12h8M3 16h14"/><path d="M6 8 3.5 10 6 12"/>',
   maisRecuo: '<path d="M3 4h14M9 8h8M9 12h8M3 16h14"/><path d="m3.5 8 2.5 2-2.5 2"/>',
+  primeiraLinha: '<path d="M10 5h7M3 10h14M3 15h14M3 5h4m-2-2 2 2-2 2"/>',
   limpar: '<path d="M4 5h9M8.5 5 6 16"/><path d="m12 12 5 5M17 12l-5 5"/>',
   realce: '<path d="m11.5 3.5 4 4-6.5 6.5H5v-4z"/><path d="M4 17h12"/>',
 };
@@ -52,7 +53,7 @@ const icone = (nome) => html`<svg viewBox="0 0 20 20" width="18" height="18" fil
   stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${cru(ICONES[nome])}</svg>`;
 
 const botao = (comando, titulo, conteudo, extra = '') => html`
-  <button type="button" class="editor-botao" data-comando="${comando}" ${cru(extra)}
+    <button type="button" class="editor-botao" data-comando="${comando}" ${cru(extra)}
     title="${titulo}" aria-label="${titulo}">${conteudo}</button>`;
 
 function paleta(tipo, titulo, rotuloSem, itens) {
@@ -113,6 +114,8 @@ export function barraDeFormatacao() {
         ${botao('numerada', 'Lista numerada', icone('numerada'))}
         ${botao('menos-recuo', 'Diminuir recuo', icone('menosRecuo'))}
         ${botao('mais-recuo', 'Aumentar recuo', icone('maisRecuo'))}
+        ${botao('recuo-primeira-linha', 'Recuo de primeira linha (Tab no início do parágrafo)',
+          html`${icone('primeiraLinha')} <span>1ª linha</span>`, 'aria-pressed="false" aria-keyshortcuts="Tab"')}
       </div>
       <div class="editor-grupo">
         ${botao('limpar', 'Limpar formatação', icone('limpar'))}
@@ -230,7 +233,9 @@ function normalizar(folha) {
     el.removeAttribute('style');
   }
   for (const el of folha.querySelectorAll('font:not([face="fhlfmt"])')) desembrulhar(el);
-  for (const el of folha.querySelectorAll('span:not([class]), span[class=""]')) desembrulhar(el);
+  for (const el of folha.querySelectorAll('span:not([class]), span[class=""]')) {
+    if (!el.matches('[data-modelo-condicao], [data-modelo-exemplo]')) desembrulhar(el);
+  }
   // O espaço de largura zero só serve enquanto o cursor está num trecho vazio.
   const andar = document.createTreeWalker(folha, NodeFilter.SHOW_TEXT);
   const sel = getSelection();
@@ -350,6 +355,15 @@ const recuoDe = (el) => Number([...el.classList].find((c) => /^doc-recuo-\d$/.te
 function trocarClasse(el, padrao, nova) {
   el.classList.remove(...[...el.classList].filter((c) => padrao.test(c)));
   if (nova) el.classList.add(nova);
+}
+
+const paragrafo = (el) => Boolean(el?.matches('p, div:not(:has(p, div, h1, h2, h3, ul, ol, table))'));
+
+function noInicioDoParagrafo(r, bloco) {
+  const prefixo = r.cloneRange();
+  prefixo.setStart(bloco, 0);
+  return !prefixo.toString().replaceAll(ESPACO_ZERO, '').trim() &&
+    !prefixo.cloneContents().querySelector('br, img, [contenteditable="false"]');
 }
 
 // ---------------------------------------------------------------------------
@@ -478,6 +492,28 @@ export function ligarEditor(barra, folha, { aoEditar = () => {} } = {}) {
     }
   };
 
+  const recuarPrimeiraLinha = () => {
+    let paragrafos = blocosDaSelecao(folha).filter(paragrafo);
+    const sel = selecao();
+    if (!paragrafos.length && sel.isCollapsed && !blocoDe(folha, sel.anchorNode)) {
+      const r = sel.getRangeAt(0);
+      if (r.startContainer === folha && folha.children.length) {
+        const p = [...folha.children].find((el) => paragrafo(el) &&
+          !el.matches('.doc-cabecalho, .doc-rodape, .doc-data, .doc-rubrica, .doc-linha-assinatura') && el.textContent.trim());
+        if (p) {
+          sel.collapse(p, 0);
+          paragrafos = [p];
+        }
+      } else if (!sel.anchorNode.parentElement?.closest('table, ul, ol')) {
+        // O navegador pode deixar texto direto na raiz de um modelo novo.
+        document.execCommand('formatBlock', false, 'p');
+        paragrafos = blocosDaSelecao(folha).filter(paragrafo);
+      }
+    }
+    const aplicar = paragrafos.some((b) => !b.classList.contains(RECUO_PRIMEIRA_LINHA));
+    for (const p of paragrafos) p.classList.toggle(RECUO_PRIMEIRA_LINHA, aplicar);
+  };
+
   const limpar = () => {
     if (!selecao().isCollapsed) {
       for (const categoria of Object.keys(CATEGORIAS)) aplicarTrecho(categoria, '');
@@ -495,6 +531,7 @@ export function ligarEditor(barra, folha, { aoEditar = () => {} } = {}) {
     numerada: () => document.execCommand('insertOrderedList'),
     'menos-recuo': () => recuar(-1),
     'mais-recuo': () => recuar(1),
+    'recuo-primeira-linha': recuarPrimeiraLinha,
     limpar,
     estilo: (v) => ESTILOS.some(([e]) => e === v) && document.execCommand('formatBlock', false, v),
     fonte: (v) => aplicarTrecho('fonte', v),
@@ -558,6 +595,7 @@ export function ligarEditor(barra, folha, { aoEditar = () => {} } = {}) {
     marcar('riscado', document.queryCommandState('strikeThrough'));
 
     const bloco = blocoDe(folha, el);
+    marcar('recuo-primeira-linha', Boolean(paragrafo(bloco) && bloco.classList.contains(RECUO_PRIMEIRA_LINHA)));
     const alinhado = bloco ? getComputedStyle(bloco).textAlign : 'left';
     const atual = { center: 'centro', right: 'direita', end: 'direita', justify: 'justificar' }[alinhado] ?? 'esquerda';
     for (const [id] of ALINHAMENTOS) marcar(`alinhar-${id}`, id === atual);
@@ -632,6 +670,20 @@ export function ligarEditor(barra, folha, { aoEditar = () => {} } = {}) {
     }
   };
   const atalho = (e) => {
+    const shiftTab = e.key === 'Tab' && e.shiftKey;
+    if ((e.key === 'Tab' || e.key === 'Backspace') && (!e.shiftKey || shiftTab) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const sel = selecao();
+      if (!sel.rangeCount || !sel.isCollapsed) return;
+      const bloco = blocoDe(folha, sel.anchorNode);
+      const recuado = paragrafo(bloco) && bloco.classList.contains(RECUO_PRIMEIRA_LINHA);
+      const textoSolto = !bloco && !folha.children.length;
+      const aplicaTab = textoSolto || (paragrafo(bloco) && !recuado && !bloco.closest('td, th, li'));
+      if ((e.key === 'Backspace' || shiftTab ? recuado : aplicaTab) && noInicioDoParagrafo(sel.getRangeAt(0), bloco ?? folha)) {
+        e.preventDefault();
+        executar('recuo-primeira-linha');
+      }
+      return;
+    }
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
     const tecla = e.key.toLowerCase();
     const comando = tecla === 'z' && !e.shiftKey ? 'desfazer' : (tecla === 'y' || (tecla === 'z' && e.shiftKey)) ? 'refazer' : '';

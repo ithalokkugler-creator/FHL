@@ -214,6 +214,7 @@ function editarMembro(m) {
           <label class="campo campo--4"><span>Clientes</span><select name="acesso_clientes">${opcoes(Object.entries(NIVEIS_CLIENTES), m?.acesso_clientes ?? 'editar')}</select></label>
           <label class="campo campo--4"><span>Prazos</span><select name="acesso_prazos">${opcoes(Object.entries(NIVEIS_PRAZOS), m?.acesso_prazos ?? 'nenhum')}</select></label>
           <label class="campo campo--4"><span>Histórico (auditoria)</span><select name="acesso_auditoria">${opcoes(Object.entries(NIVEIS_AUDITORIA), m?.acesso_auditoria ?? 'nenhum')}</select></label>
+          <label class="marcar campo"><input type="checkbox" name="edita_modelos_documento" ${m?.edita_modelos_documento ? 'checked' : ''}> Edita modelos de documentos (requer acesso a Clientes)</label>
         </fieldset>
       </div>
       <p class="nota nota--info secao" data-papel="admin" hidden>Administrador vê e altera tudo, qualquer que seja o nível escolhido acima.</p>`,
@@ -248,6 +249,7 @@ function editarMembro(m) {
         acesso_clientes: form.acesso_clientes.value,
         acesso_prazos: form.acesso_prazos.value,
         acesso_auditoria: form.acesso_auditoria.value,
+        edita_modelos_documento: form.edita_modelos_documento.checked,
       };
       if (novo) await db.inserir('membros', registro, 'id');
       else await db.alterar('membros', [['id', 'eq', m.id]], registro, 'id');

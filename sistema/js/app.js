@@ -7,7 +7,7 @@
 
 import { carregarMembros, estado, iniciais, PAPEIS, pode } from './nucleo/estado.js';
 import { $, $$, aoClicar, cru, desenhar, html } from './nucleo/html.js';
-import { resolver, rota } from './nucleo/rotas.js';
+import { consumirNavegacaoInterna, registrarEntrada, resolver, rota, rotaAnterior } from './nucleo/rotas.js';
 import { ESPERA, esqueleto } from './nucleo/esqueleto.js';
 import { aoMudarSessao, db, emailDaSessao, sair, sessaoAtual, sessaoDoLink } from './nucleo/supabase.js';
 import { atualizarAvisos, mudaContadores } from './nucleo/avisos-do-dia.js';
@@ -36,10 +36,24 @@ rota('/clientes', () => import('./telas/clientes/lista.js'), { titulo: 'Clientes
 rota('/clientes/:id', () => import('./telas/clientes/cliente.js'), { titulo: 'Ficha do cliente', permitido: pode.clientes, esqueleto: 'painel' });
 rota('/processos', () => import('./telas/processos.js'), { titulo: 'Processos', permitido: pode.clientes, esqueleto: 'lista' });
 rota('/documentos', () => import('./telas/documentos/lista.js'), { titulo: 'Documentos', permitido: pode.clientes, esqueleto: 'lista' });
-rota('/documentos/novo', () => import('./telas/documentos/novo.js'), { titulo: 'Gerar documento', permitido: pode.clientes });
+rota('/documentos/novo', () => import('./telas/documentos/novo.js'), {
+  titulo: 'Gerar documento', permitido: pode.clientes,
+  retorno: ({ consulta }) => {
+    if (consulta.contrato && pode.financeiro()) return `/financeiro/contratos/${encodeURIComponent(consulta.contrato)}`;
+    if (consulta.compromisso && pode.agenda()) return '/agenda';
+    if (consulta.atualizacao) return '/atualizacoes';
+    return consulta.modelo_catalogo ? '/documentos/modelos' : '/documentos';
+  },
+});
+rota('/documentos/modelos', () => import('./telas/documentos/modelos.js').then((m) => ({ default: m.telaCatalogo })), { titulo: 'Modelos de documentos', permitido: pode.clientes });
+rota('/documentos/modelos/novo', () => import('./telas/documentos/modelos.js').then((m) => ({ default: m.telaEditorModelo })), { titulo: 'Novo modelo', permitido: pode.clientes });
+rota('/documentos/modelos/:id', () => import('./telas/documentos/modelos.js').then((m) => ({ default: m.telaEditorModelo })), { titulo: 'Editar modelo', permitido: pode.clientes });
 // O recibo (Financeiro) também abre aqui para quem não tem Clientes; o banco
 // só entrega a essa pessoa os documentos do tipo recibo.
-rota('/documentos/:id', () => import('./telas/documentos/documento.js'), { titulo: 'Documento', permitido: () => pode.clientes() || pode.financeiro() });
+rota('/documentos/:id', () => import('./telas/documentos/documento.js'), {
+  titulo: 'Documento', permitido: () => pode.clientes() || pode.financeiro(),
+  retorno: () => pode.clientes() ? '/documentos' : '/financeiro/relatorios',
+});
 rota('/atualizacoes', () => import('./telas/atualizacoes/lista.js'), { titulo: 'Atualizações', permitido: pode.clientes, esqueleto: 'lista' });
 rota('/atualizacoes/relatorio', () => import('./telas/atualizacoes/relatorio.js'), { titulo: 'Relatório de atividades', permitido: pode.clientes });
 rota('/tarefas', () => import('./telas/tarefas/lista.js'), { titulo: 'Tarefas', esqueleto: 'lista' });
@@ -55,7 +69,10 @@ rota('/financeiro/contratos/:id', () => import('./telas/financeiro/contrato.js')
 rota('/financeiro/contas', () => import('./telas/financeiro/contas.js'), { titulo: 'Contas do escritório', ...doFinanceiro, esqueleto: 'lista' });
 rota('/financeiro/contas-financeiras', () => import('./telas/financeiro/contas-financeiras.js'), { titulo: 'Contas financeiras', ...doFinanceiro });
 rota('/financeiro/alertas', () => import('./telas/financeiro/alertas.js'), { titulo: 'Alertas do Financeiro', ...doFinanceiro });
-rota('/financeiro/importacao', () => import('./telas/financeiro/importacao.js'), { titulo: 'Importar planilha', permitido: pode.lancar });
+rota('/financeiro/importacao', () => import('./telas/financeiro/importacao.js'), {
+  titulo: 'Importar planilha', permitido: pode.lancar,
+  retorno: ({ consulta }) => consulta.id ? '/financeiro/importacao' : '/financeiro',
+});
 rota('/financeiro/fechamento', () => import('./telas/financeiro/fechamento.js'), { titulo: 'Fechamento', permitido: pode.fechamento });
 rota('/financeiro/relatorios', () => import('./telas/financeiro/relatorios.js'), { titulo: 'Relatórios', ...doFinanceiro });
 rota('/financeiro/configuracoes', () => import('./telas/financeiro/configuracoes.js'), { titulo: 'Configurações do Financeiro', ...doFinanceiro });
@@ -300,7 +317,12 @@ function desenharCasca() {
           <button type="button" class="lateral__sair" data-acao="sair">Sair</button>
         </div>
       </aside>
-      <main class="conteudo" id="conteudo" tabindex="-1"></main>
+      <main class="conteudo" id="conteudo" tabindex="-1">
+        <button type="button" class="botao pagina__voltar nao-imprimir" data-acao="voltar-tela" disabled>
+          <span class="pagina__seta" aria-hidden="true">←</span> Voltar
+        </button>
+        <div data-tela-atual></div>
+      </main>
     </div>`);
   desligarCronometro = ligarCronometro(app);
   desligarCronometroTarefa = ligarCronometroTarefa(app);
@@ -339,8 +361,8 @@ function abrirSistema({ novaSenha = false } = {}) {
     }
 
     desenharCasca();
-    if (novaSenha) history.replaceState(null, '', '#/conta?nova=1');
-    else if (!resolver()) history.replaceState(null, '', '#/inicio');
+    if (novaSenha) history.replaceState(history.state, '', '#/conta?nova=1');
+    else if (!resolver()) history.replaceState(history.state, '', '#/inicio');
     mostrarRota();
     // Captura diária do DJEN: depois da primeira tela, para não disputar com ela.
     if (pode.prazos()) {
@@ -358,6 +380,23 @@ function abrirSistema({ novaSenha = false } = {}) {
 
 let geracao = 0;
 let limparTela = null;
+let confirmarVoltar = null;
+// A saída já confirmada (botão ← Voltar ou link) não pergunta de novo no hashchange.
+let saidaConfirmada = false;
+let retornoDaTela = null;
+
+function destinoDeRetorno(r) {
+  const anterior = rotaAnterior();
+  if (anterior && liberado(anterior)) return { historico: true };
+  const pai = r.caminho.slice(0, r.caminho.lastIndexOf('/'));
+  const candidatos = [retornoDaTela, liberado(r) && r.retorno?.(r), pai, '/inicio'];
+  const destino = candidatos.find((caminho) => {
+    if (!caminho || '#' + caminho === location.hash) return false;
+    const rotaDestino = resolver(caminho);
+    return rotaDestino && liberado(rotaDestino);
+  });
+  return destino ? { destino } : null;
+}
 
 async function mostrarRota() {
   if (app.dataset.tela !== 'sistema') return;
@@ -365,10 +404,14 @@ async function mostrarRota() {
 
   const r = resolver();
   if (!r) {
-    history.replaceState(null, '', '#/inicio');
+    history.replaceState(history.state, '', '#/inicio');
     mostrarRota();
     return;
   }
+  registrarEntrada();
+  confirmarVoltar = null;
+  retornoDaTela = null;
+  $('[data-acao="voltar-tela"]', app).disabled = !destinoDeRetorno(r);
 
   for (const link of $$('.menu a', app)) {
     const caminho = link.dataset.caminho;
@@ -386,7 +429,7 @@ async function mostrarRota() {
   // junto com ela.
   const raiz = document.createElement('div');
   raiz.className = 'tela';
-  $('#conteudo', app).replaceChildren(raiz);
+  $('[data-tela-atual]', app).replaceChildren(raiz);
   document.title = `${r.titulo ?? 'Área dos advogados'} — FL`;
 
   if (r.permitido && !r.permitido()) {
@@ -414,6 +457,12 @@ async function mostrarRota() {
       consulta: r.consulta,
       ativa: () => esta === geracao,
       recarregar: mostrarRota,
+      antesDeVoltar: (fn) => {
+        if (esta === geracao) confirmarVoltar = fn;
+      },
+      definirRetorno: (destino) => {
+        if (esta === geracao) retornoDaTela = destino;
+      },
     };
     const limpeza = await modulo.default(ctx);
     if (typeof limpeza !== 'function') return;
@@ -453,6 +502,20 @@ aoClicar(app, {
     aplicarMenuRecolhido(recolher);
     if (!recolher) $('#conteudo', app)?.focus({ preventScroll: true });
   },
+  'voltar-tela': () => {
+    const r = resolver();
+    const retorno = r && destinoDeRetorno(r);
+    if (!retorno || confirmarVoltar?.() === false) return;
+    $('#conteudo', app).focus({ preventScroll: true });
+    if (retorno.historico) {
+      saidaConfirmada = true;
+      history.back();
+    } else {
+      history.replaceState({ ...history.state, fhlAnterior: '' }, '', '#' + retorno.destino);
+      scrollTo(0, 0);
+      mostrarRota();
+    }
+  },
   sair: async () => {
     saindo = true;
     await sair();
@@ -483,7 +546,31 @@ addEventListener('keydown', (e) => {
   $('.topo-movel__menu', app)?.focus();
 });
 
-addEventListener('hashchange', () => {
+// Links internos passam pela confirmação de saída da tela (editor com alterações).
+app.addEventListener('click', (e) => {
+  const link = e.target.closest?.('a[href^="#/"]');
+  if (!link || e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+  if (link.getAttribute('href') === location.hash) return;
+  if (confirmarVoltar?.() === false) {
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
+  saidaConfirmada = true;
+}, true);
+
+const telaDoEndereco = (url) => new URL(url).hash.split('?')[0];
+
+addEventListener('hashchange', (e) => {
+  if (app.dataset.tela !== 'sistema' || e.newURL !== location.href) return;
+  const confirmada = consumirNavegacaoInterna() || saidaConfirmada;
+  saidaConfirmada = false;
+  // Voltar/avançar do navegador ou endereço editado à mão: a tela pode recusar.
+  if (!confirmada && confirmarVoltar && telaDoEndereco(e.oldURL) !== telaDoEndereco(e.newURL) && confirmarVoltar() === false) {
+    history.replaceState(history.state, '', e.oldURL);
+    return;
+  }
+  registrarEntrada(e.oldURL);
   scrollTo(0, 0);
   mostrarRota();
 });

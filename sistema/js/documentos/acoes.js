@@ -4,7 +4,7 @@
 // O texto final é gravado em `documentos` antes de sair da tela (F3): o que
 // foi entregue ao cliente fica guardado, com autor e data, e não se edita —
 // para corrigir, gera-se outro. Imprimir de novo e baixar de novo também
-// registram uma geração.
+// registram uma geração. A exportação de um rascunho pendente é só local.
 
 import { abrirDialogo } from '../nucleo/dialogo.js';
 import { higienizar } from '../nucleo/higienizar.js';
@@ -13,16 +13,22 @@ import { db } from '../nucleo/supabase.js';
 import { cssFormatacao } from './formatacao.js';
 
 export const COLUNAS_DOCUMENTO = 'id,modelo,titulo,cliente_id,processo_id,contrato_id,compromisso_id,atualizacao_id,'
-  + 'recebimento_id,dados,conteudo,cancelado_em,cancelado_por,motivo_cancelamento,criado_em,criado_por';
-export const COLUNAS_LISTA_DOCUMENTO = 'id,modelo,titulo,cliente_id,processo_id,criado_em,criado_por,cancelado_em';
+  + 'recebimento_id,dados,conteudo,cancelado_em,cancelado_por,motivo_cancelamento,criado_em,criado_por,modelo_catalogo_id,modelo_versao_id';
+export const COLUNAS_LISTA_DOCUMENTO = 'id,modelo,titulo,cliente_id,processo_id,criado_em,criado_por,cancelado_em,modelo_catalogo_id,modelo_versao_id';
 
 /** Aviso antes de imprimir com "[dados]" ainda entre colchetes. */
-export async function confirmarPendencias(elemento, acao) {
+export async function confirmarPendencias(elemento, acao, { forcar = false } = {}) {
   const n = elemento.querySelectorAll('.doc-falta').length;
-  if (!n) return true;
+  if (!n && !forcar) return true;
+  if (acao === 'word') return Boolean(await abrirDialogo({
+    titulo: 'Dados pendentes no documento',
+    rotuloOk: 'Sim',
+    rotuloFechar: 'Não',
+    corpo: html`<p>Nem todos os campos foram preenchidos devidamente, deseja baixar mesmo assim?</p>`,
+  }));
   return Boolean(await abrirDialogo({
     titulo: 'Dados pendentes no documento',
-    rotuloOk: acao === 'word' ? 'Baixar assim mesmo' : acao === 'salvar' ? 'Salvar com pendências' : 'Imprimir assim mesmo',
+    rotuloOk: acao === 'salvar' ? 'Salvar com pendências' : 'Imprimir assim mesmo',
     corpo: html`<p>${n === 1 ? 'Falta 1 dado' : `Faltam ${n} dados`}. Confira os trechos entre colchetes na folha e complete o cadastro ou edite o texto antes de entregar.</p>`,
   }));
 }
@@ -77,6 +83,8 @@ export function prepararImpressao(elemento) {
   caixa.className = 'documento-impressao';
   const folha = document.createElement('article');
   folha.className = 'documento-folha';
+  const padrao = elemento.classList.contains('doc-padrao-fl');
+  folha.classList.toggle('doc-padrao-fl', padrao);
   folha.innerHTML = higienizar(elemento.innerHTML);
 
   // O Chromium repete o elemento fixo a partir da página em que o encontra:
@@ -93,7 +101,7 @@ export function prepararImpressao(elemento) {
     try {
       const i = folhaDeEstilo.cssRules.length;
       const texto = JSON.stringify(rodape.textContent.replace(/\s+/g, ' ').trim());
-      folhaDeEstilo.insertRule(`@page documento { @bottom-center { content: ${texto}; font: 8pt "Times New Roman"; color: #333; } }`, i);
+      folhaDeEstilo.insertRule(`@page documento { @bottom-center { content: ${texto}; font: 8pt "Times New Roman"; color: ${padrao ? '#000' : '#333'}; } }`, i);
       const nova = folhaDeEstilo.cssRules[i];
       if ([...(nova.cssRules ?? [])].some((r) => r.name === 'bottom-center')) {
         regra = nova;
@@ -146,9 +154,11 @@ const ESTILO_WORD = [
   '@page{size:A4;margin:20mm}',
   'body{font:12pt "Times New Roman",Georgia,serif;color:#000}',
   'p{line-height:1.45;margin:0 0 12pt}',
-  '.doc-titulo{text-align:center;font-size:16pt}',
+  '.doc-titulo{text-align:left;font-size:16pt}',
   '.doc-cabecalho{text-align:center}.doc-cabecalho img{width:135pt;height:40.5pt}',
   '.doc-assinatura{text-align:center;margin-top:32pt;page-break-inside:avoid}',
+  '.doc-rubrica{text-align:center}.doc-linha-assinatura{border-bottom:1px solid #000}',
+  '.doc-clausula{padding-left:18pt;text-indent:-18pt}',
   '.doc-rodape{font-size:8pt;text-align:center;margin-top:24pt}',
   'table{border-collapse:collapse;width:100%;font-size:10pt}',
   'th,td{border:1px solid #999;padding:6pt;vertical-align:top}',
@@ -161,6 +171,13 @@ const ESTILO_WORD = [
   cssFormatacao(''),
 ].join('');
 
+const ESTILO_WORD_FL = '@page{size:A4;margin:18mm 18mm 25mm}'
+  + 'body{font:11pt "Palatino Linotype","Times New Roman",serif}'
+  + 'p{line-height:1.4;margin-bottom:9pt}'
+  + '.doc-data{text-align:center}.doc-rodape,.doc-nota{color:#000}'
+  + 'h2,h3{page-break-after:avoid}thead{display:table-header-group}'
+  + '.doc-ficha td,.doc-tabela td{overflow-wrap:break-word}';
+
 const nomeDeArquivo = (titulo) => titulo.normalize('NFD').replace(/[̀-ͯ]/g, '')
   .replace(/[^a-z0-9-]+/gi, '-').replace(/^-|-$/g, '');
 
@@ -170,7 +187,7 @@ const emBase64 = (bytes) => {
   return btoa(texto).match(/.{1,76}/g)?.join('\r\n') || '';
 };
 
-async function imagemParaWord(src) {
+async function imagemParaWord(src, largura) {
   const img = new Image();
   img.src = new URL(src, location.origin).href;
   try { await img.decode(); }
@@ -180,7 +197,7 @@ async function imagemParaWord(src) {
   canvas.height = Math.round(canvas.width * img.naturalHeight / img.naturalWidth);
   const ctx = canvas.getContext('2d');
   ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  return { base64: canvas.toDataURL('image/png').split(',')[1], altura: Math.round(180 * canvas.height / canvas.width) };
+  return { base64: canvas.toDataURL('image/png').split(',')[1], altura: Math.round(largura * canvas.height / canvas.width) };
 }
 
 /** MHTML inclui a imagem PNG no arquivo: o Word respeita as dimensões físicas
@@ -188,25 +205,33 @@ async function imagemParaWord(src) {
 export async function montarWord(elemento, titulo) {
   const caixa = document.createElement('div');
   caixa.innerHTML = higienizar(elemento.innerHTML);
+  const padrao = elemento.classList.contains('doc-padrao-fl');
   const imagens = [];
   const cache = new Map();
   for (const img of caixa.querySelectorAll('img')) {
     const src = img.getAttribute('src');
-    if (!cache.has(src)) cache.set(src, await imagemParaWord(src));
+    const largura = src === '/sistema/img/qr-notificacao.png' ? 90 : 180;
+    if (!cache.has(src)) cache.set(src, await imagemParaWord(src,largura));
     const imagem = cache.get(src);
     const caminho = `file:///fhl-documento/imagem-${imagens.length}.png`;
-    img.setAttribute('src', caminho);
-    img.setAttribute('width', '180');
+    // Troca só no HTML serializado. A imagem do DOM destacado não deve
+    // tentar abrir um file:/// que só existe dentro do pacote MHTML.
+    const marcador = 'fhl-imagem-' + crypto.randomUUID() + '.png';
+    img.removeAttribute('src');
+    img.setAttribute('data-mhtml', marcador);
+    img.setAttribute('width', String(largura));
     img.setAttribute('height', String(imagem.altura));
     // CSSOM evita aplicar um atributo inline na página com CSP restrita.
     // As propriedades são serializadas no HTML que só será aberto no Word.
-    img.style.width = '135pt';
+    img.style.width = `${largura * 0.75}pt`;
     img.style.height = `${imagem.altura * 0.75}pt`;
-    imagens.push({ caminho, base64: imagem.base64 });
+    imagens.push({ caminho, marcador, base64: imagem.base64 });
   }
 
+  let conteudo = caixa.innerHTML;
+  for (const { caminho, marcador } of imagens) conteudo = conteudo.replace('data-mhtml="' + marcador + '"', 'src="' + caminho + '"');
   const texto = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${titulo.replace(/[<>&]/g, '')}</title>`
-    + `<style>${ESTILO_WORD}</style></head><body>${caixa.innerHTML}</body></html>`;
+    + `<style>${ESTILO_WORD}${padrao ? ESTILO_WORD_FL : ''}</style></head><body>${conteudo}</body></html>`;
   const limite = '----FHL-documento-' + crypto.randomUUID();
   const partes = [
     'MIME-Version: 1.0',

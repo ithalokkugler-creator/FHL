@@ -89,7 +89,6 @@ export async function telaArea(ctx) {
   if (!ctx.ativa()) return;
 
   desenhar(ctx.raiz, html`
-    <a class="pagina__voltar" href="#${ROTA}">← Áreas de atuação</a>
     ${nova || area ? formulario(area) : cabecalho('Área não encontrada', 'Confira o endereço ou volte para a lista de áreas.')}`);
   if (!nova && !area) return;
 

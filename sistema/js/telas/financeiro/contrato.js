@@ -47,7 +47,6 @@ export default async function telaContrato(ctx) {
     dados = await carregar(id);
     if (!ctx.ativa()) return;
     desenhar(ctx.raiz, dados.contrato ? tela({ ...dados, paginaRecebimentos }) : html`
-      <a class="pagina__voltar" href="#/financeiro/contratos">← Contratos</a>
       <h1 class="pagina__titulo">Contrato não encontrado</h1>`);
   };
   await mostrar();
@@ -314,7 +313,6 @@ function tela({ contrato: c, parcelas, recebimentos, renegociacoes, ajustes, cob
     ${lanca ? html`<button type="button" class="botao-link" data-acao="editar-cliente">editar cliente</button>` : ''}`;
 
   return html`
-    <a class="pagina__voltar" href="#/financeiro/contratos">← Contratos</a>
     ${cabecalho(c.descricao, subtitulo, html`
       ${pode.clientes()?html`<a class="botao" href="#/documentos/novo?modelo=contrato_honorarios&cliente=${c.cliente_id}&contrato=${c.id}">Gerar contrato</a><a class="botao" href="#/documentos/novo?modelo=prestacao_contas&cliente=${c.cliente_id}&contrato=${c.id}">Prestação de contas</a>`:''}
       ${seloContrato(c.rotulo ?? c.situacao)}

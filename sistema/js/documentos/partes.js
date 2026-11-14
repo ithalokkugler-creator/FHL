@@ -89,12 +89,12 @@ export const assinatura = (rotulo, nome = '') =>
   html`<div class="doc-assinatura"><p>________________________________________</p><p>${nome ? html`${nome}<br>` : ''}${rotulo}</p></div>`;
 
 /** A folha inteira: logomarca, título, corpo, local e data, assinaturas e rodapé. */
-export function folha(titulo, corpo, dia, assinaturas = []) {
+export function folha(titulo, corpo, dia, assinaturas = [], folhaOrigem = false) {
   return html`
     <div class="doc-cabecalho"><img src="/sistema/img/logo-documento.svg" alt="Fonseca Lisboa Advocacia"></div>
-    <h1 class="doc-titulo">${titulo}</h1>
+    ${folhaOrigem ? '' : html`<h1 class="doc-titulo">${titulo}</h1>`}
     ${corpo}
-    <p class="doc-data">${localEData(dia)}</p>
+    ${folhaOrigem ? '' : html`<p class="doc-data">${localEData(dia)}</p>`}
     ${assinaturas.map(([rotulo, nome]) => assinatura(rotulo, nome))}
-    <div class="doc-rodape">${ENDERECO_DOCUMENTO} | ${TEL} | ${EMAIL}</div>`;
+    <div class="doc-rodape">${ENDERECO_DOCUMENTO} | ${TEL} | ${EMAIL}${folhaOrigem ? html`<br> www.advocaciafl.com.br` : ''}</div>`;
 }

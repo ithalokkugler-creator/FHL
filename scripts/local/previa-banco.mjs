@@ -15,6 +15,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { comoUsuario, criarBanco, dataApi, respostaDeErro } from './banco.mjs';
+import { semearModelosDocumento } from './semear-modelos.mjs';
 import { respostaCepFicticia, respostaDjenFicticia } from './djen-ficticio.mjs';
 import { criarRecebedor } from '../../supabase/functions/receber-contato/handler.js';
 import { criarFinalizador } from '../../supabase/functions/finalizar-anexo/handler.js';
@@ -40,6 +41,7 @@ export async function criarPreviaBanco({ origem }) {
   async function restaurar() {
     const novo = await criarBanco();
     await novo.exec(semente);
+    await semearModelosDocumento(novo);
     const { rows } = await novo.query("select m.user_id, m.email from public.membros m where m.email like '%@example.test' and m.user_id is not null");
     usuarios = new Map(rows.map((r) => [r.email.replace('@example.test', ''), { id: r.user_id, email: r.email }]));
     arquivos = new Map();

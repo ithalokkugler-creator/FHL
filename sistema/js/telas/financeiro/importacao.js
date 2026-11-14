@@ -165,7 +165,7 @@ async function detalhe(ctx) {
     ]);
     if (!ctx.ativa()) return;
     if (!imp) {
-      desenhar(ctx.raiz, html`<a class="pagina__voltar" href="#/financeiro/importacao">← Importações</a>${cabecalho('Importação não encontrada')}`);
+      desenhar(ctx.raiz, cabecalho('Importação não encontrada'));
       return;
     }
     desenhar(ctx.raiz, tela());
@@ -207,7 +207,6 @@ async function detalhe(ctx) {
     const aberta = ['rascunho', 'validada'].includes(imp.estado);
     const c = t.carregados;
     return html`
-      <a class="pagina__voltar" href="#/financeiro/importacao">← Importações</a>
       ${cabecalho(imp.nome_arquivo, html`Enviada em ${dataHora(imp.criado_em)} por ${nomeDe(imp.criado_por)} · ${selo(ESTADOS[imp.estado] ?? [imp.estado, ''])}`, html`
         ${aberta && pode.lancar() ? html`<button type="button" class="botao" data-acao="validar">Conferir de novo</button>` : ''}
         ${aberta && pode.lancar() ? html`<button type="button" class="botao botao--discreto" data-acao="cancelar">Cancelar importação</button>` : ''}

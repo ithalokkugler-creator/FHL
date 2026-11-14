@@ -8,7 +8,7 @@
 // script, formulário e imagem externa ficam de fora.
 
 // S e STRIKE: o riscado da barra de formatação (documentos/editor.js).
-const TAGS = new Set('P H1 H2 H3 STRONG B EM I U S STRIKE BR UL OL LI TABLE THEAD TBODY TR TH TD DIV SPAN HR IMG'.split(' '));
+const TAGS = new Set('P H1 H2 H3 STRONG B EM I U S STRIKE SUP BR UL OL LI TABLE THEAD TBODY TR TH TD DIV SPAN HR IMG'.split(' '));
 
 // Descartadas com todo o conteúdo. Uma tag fora das duas listas some, mas o
 // texto de dentro fica.
@@ -45,7 +45,7 @@ export function higienizar(texto) {
         const src = n.getAttribute('src') ?? '';
         if (!IMAGEM_PERMITIDA.test(src) || src.includes('..') || src.includes('//')) continue;
         e.setAttribute('src', src);
-        e.setAttribute('alt', 'Fonseca Lisboa Advocacia');
+        e.setAttribute('alt', src === '/sistema/img/qr-notificacao.png' ? 'QR Code de contato do escritório' : 'Fonseca Lisboa Advocacia');
       }
       const classes = [...n.classList].filter((c) => /^doc-[a-z0-9-]+$/.test(c));
       if (classes.length) e.className = classes.join(' ');
@@ -75,7 +75,7 @@ export function ligarColagem(folha, aoEditar) {
     const marcado = dados?.getData('text/html');
     const texto = marcado
       ? higienizar(marcado)
-      : higienizar((dados?.getData('text/plain') ?? '').split('\n').map((linha) => `<p>${escaparTexto(linha)}</p>`).join(''));
+      : higienizar((dados?.getData('text/plain') ?? '').split(/\r\n?|\n/).map((linha) => `<p>${escaparTexto(linha)}</p>`).join(''));
     document.execCommand('insertHTML', false, texto);
     aoEditar?.();
   };

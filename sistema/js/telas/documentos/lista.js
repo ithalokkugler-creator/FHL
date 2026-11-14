@@ -24,7 +24,7 @@ export function tabelaDocumentos(docs, clientes = [], processos = [], { vazio: s
       <tbody>${docs.map((d) => html`
         <tr class="${d.cancelado_em ? 'apagada' : ''}">
           <td>${dataHora(d.criado_em)}</td>
-          <td><a href="#/documentos/${d.id}">${TITULOS_MODELO[d.modelo] ?? d.titulo}</a></td>
+          <td><a href="#/documentos/${d.id}">${d.modelo_versao_id ? d.titulo : TITULOS_MODELO[d.modelo] ?? d.titulo}</a></td>
           <td><a href="#/clientes/${d.cliente_id}">${nomes.get(d.cliente_id) ?? 'Cliente'}</a></td>
           <td>${casos.get(d.processo_id) ?? '—'}</td>
           <td>${nomeDe(d.criado_por)}</td>
@@ -36,7 +36,7 @@ export function tabelaDocumentos(docs, clientes = [], processos = [], { vazio: s
 
 export default async function telaDocumentos(ctx) {
   const f = {
-    modelo: TITULOS_MODELO[ctx.consulta.modelo] ? ctx.consulta.modelo : '',
+    modelo: Object.hasOwn(TITULOS_MODELO,ctx.consulta.modelo) || ctx.consulta.modelo === 'personalizado' ? ctx.consulta.modelo : '',
     cliente: ctx.consulta.cliente ?? '',
     de: diaValido(ctx.consulta.de),
     ate: diaValido(ctx.consulta.ate),
@@ -52,9 +52,10 @@ export default async function telaDocumentos(ctx) {
 
   desenhar(ctx.raiz, html`
     ${cabecalho('Documentos', 'Texto final, cliente, autor e data de cada geração', html`
+      <a class="botao" href="#/documentos/modelos">Modelos</a>
       <a class="botao botao--primario" href="#/documentos/novo">Gerar documento</a>`)}
     <form class="filtros">
-      <label class="campo"><span>Modelo</span><select name="modelo">${opcoes(Object.entries(TITULOS_MODELO), f.modelo, { vazio: 'Todos' })}</select></label>
+      <label class="campo"><span>Modelo</span><select name="modelo">${opcoes([...Object.entries(TITULOS_MODELO),['personalizado','Outros modelos do catálogo']], f.modelo, { vazio: 'Todos' })}</select></label>
       <label class="campo"><span>Cliente</span><select name="cliente">${opcoes(clientes.map((c) => [c.id, c.nome]), f.cliente, { vazio: 'Todos' })}</select></label>
       <label class="campo"><span>De</span><input type="date" name="de" value="${f.de}"></label>
       <label class="campo"><span>Até</span><input type="date" name="ate" value="${f.ate}"></label>

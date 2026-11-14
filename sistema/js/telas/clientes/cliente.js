@@ -292,7 +292,6 @@ function tela(id, f) {
   const quandoAniversario = aniversario === 0 ? 'hoje' : aniversario === 1 ? 'amanhã' : `em ${aniversario} dias`;
 
   return html`
-    <a href="#/clientes" class="pagina__voltar">← Clientes</a>
     ${cabecalho(cliente.nome, `${d.nome_fantasia ? `${d.nome_fantasia} · ` : ''}${documento(cliente.documento) || 'Documento não informado'} · Responsável: ${nomeDe(d.responsavel_id)}`, html`
       <button type="button" class="botao botao--primario" data-acao="editar">Editar dados</button>
       <button type="button" class="botao" data-acao="anexos">Anexos</button>
@@ -353,7 +352,7 @@ export default async function telaCliente(ctx) {
     if (!ctx.ativa()) return;
     f = lidos;
     if (!f.cliente) {
-      desenhar(ctx.raiz, html`${cabecalho('Cliente não encontrado')}<a href="#/clientes">Voltar para Clientes</a>`);
+      desenhar(ctx.raiz, cabecalho('Cliente não encontrado'));
       return;
     }
     desenhar(ctx.raiz, tela(id, f));

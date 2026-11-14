@@ -987,6 +987,8 @@ quem não é sócio.
 | 20261023130757 | `ajustes_cronometro_google` | Anotações com versão, limpeza explícita ao parar e preservação do vínculo em transferência comprovada do Google |
 | 20261111120000 | `areas_atuacao` | Áreas de atuação do site editáveis no sistema |
 | 20261112120000 | `pedidos_1211` | Sessão de 60 min; cronômetro das tarefas (`tarefas_tempos`, `iniciar/pausar/finalizar_tarefa`, `v_tarefas` com vara e tempo); vários lembretes (`compromissos.lembretes`, gatilho `b_lembretes`, `agenda_periodo` recriada); vários clientes no processo (`processos_partes`, `salvar_processo`, `privado.processo_do_cliente`) |
+| 20261113230423 | `modelos_documento` | Catálogo versionado de modelos (`modelos_documento`, `modelos_documento_versoes`), autoria (`membros.edita_modelos_documento`, `modelo_documento_acao`), emissão pelo catálogo (`emitir_documento_modelo`, vínculo da versão em `documentos`) e proteção das fontes no histórico |
+| 20261114183000 | `modelos_documento_carga` | Carga dos 29 modelos convertidos dos DOCX do escritório (versão 1 publicada; idempotente) |
 
 O quadro é um resumo histórico; a lista completa está em `supabase/migrations/`.
 Na auditoria de 23/10 foram conferidas **42 versões remotas**, até

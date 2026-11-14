@@ -401,12 +401,6 @@ img { max-width: 100%; display: block; }
 }
 .pagina__sub { margin-top: 2px; color: var(--c-texto-m); }
 .pagina__acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
-.pagina__voltar {
-  display: inline-block;
-  margin-bottom: var(--s-2);
-  font-size: var(--t-pequeno);
-  text-decoration: none;
-}
 
 .secao { margin-top: var(--s-6); }
 .secao__titulo { margin-bottom: var(--s-3); font-size: 16px; font-weight: 700; }
@@ -461,6 +455,23 @@ img { max-width: 100%; display: block; }
 .botao--pequeno { min-height: 28px; padding: 0 10px; font-size: 12px; }
 .botao--largo { width: 100%; }
 .botao[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+.botao.pagina__voltar {
+  gap: 10px;
+  min-height: 44px;
+  padding: 0 var(--s-4);
+  margin-bottom: var(--s-4);
+  border-color: var(--c-acao);
+  border-radius: var(--r-pill);
+  color: var(--c-acao);
+  font-size: 15px;
+}
+.pagina__seta { font-size: 22px; line-height: 1; }
+.botao.pagina__voltar:hover:not(:disabled) {
+  border-color: var(--c-acao-hover);
+  background: var(--c-ok-fundo);
+  color: var(--c-acao-hover);
+}
 
 .grupo-botoes { display: inline-flex; flex-wrap: wrap; gap: var(--s-1); }
 /* Botões de um diálogo em fileiras: a ação principal em cima, o histórico embaixo. */
@@ -525,6 +536,7 @@ img { max-width: 100%; display: block; }
   cursor: pointer;
 }
 .botao-link::before { content: '· '; color: var(--c-texto-m); text-decoration: none; display: inline-block; white-space: pre; }
+.documento-pendencias [data-acao="ir-campo"]::before { content: none; }
 
 .opcao {
   display: flex;
@@ -1772,13 +1784,19 @@ a.dia-item__corpo:hover { background: var(--c-realce); }
 
 .doc-cabecalho { margin-bottom: 24pt; text-align: center; }
 .doc-cabecalho img { display: inline-block; width: 180px; height: auto; }
-.doc-titulo { margin: 0 0 22pt; font-size: 16pt; text-align: center; text-transform: uppercase; }
+.doc-titulo { margin: 0 0 22pt; font-size: 16pt; text-align: left; text-transform: uppercase; }
 .doc-data { margin-top: 22pt !important; text-align: right; }
 .doc-assinatura { margin-top: 30pt; text-align: center; break-inside: avoid; }
 .doc-assinatura p { margin-bottom: 2pt; }
 .doc-rodape { margin-top: 24pt; font-size: 8pt; text-align: center; color: #333; }
 .doc-nota { font-size: 10pt; color: #333; }
 .doc-num { white-space: nowrap; }
+.doc-padrao-fl .doc-titulo { text-align: left; margin: 0 0 22pt; }
+.doc-padrao-fl .doc-clausula { padding-left: 1.5em; text-indent: -1.5em; }
+.doc-padrao-fl .doc-rubrica { text-align: center; }
+.doc-linha-assinatura { border-bottom: 1px solid currentColor; min-height: 1.5em; }
+.doc-qr-notificacao { display: inline-block; width: 90px; height: 90px; vertical-align: middle; margin: 0 0 0 1em; }
+[data-modelo-exemplo] { text-decoration: underline dotted; text-underline-offset: .2em; }
 .doc-falta { background: #FFF0D5; color: #A42317; }
 
 /* Tabelas da folha. `overflow-wrap: anywhere` da folha deixava a coluna
@@ -1842,6 +1860,7 @@ a.dia-item__corpo:hover { background: var(--c-realce); }
 .documento-folha .doc-recuo-2 { margin-left: 2.50cm; }
 .documento-folha .doc-recuo-3 { margin-left: 3.75cm; }
 .documento-folha .doc-recuo-4 { margin-left: 5.00cm; }
+.documento-folha .doc-recuo-primeira-linha { text-indent: 1.25cm; }
 .documento-folha .doc-sem-negrito { font-weight: normal; }
 .documento-folha .doc-sem-italico { font-style: normal; }
 /* formatacao:fim */
@@ -1881,6 +1900,7 @@ a.dia-item__corpo:hover { background: var(--c-realce); }
 .editor-botao:focus-visible { outline-offset: -2px; }
 .editor-botao[aria-pressed='true'] { background: var(--c-ok-fundo); border-color: var(--c-acao); color: var(--c-acao); }
 .editor-botao s { font-size: 13px; }
+.editor-botao[data-comando='recuo-primeira-linha'] { gap: 4px; padding-inline: 7px; font: 600 12px/1 var(--fonte); }
 
 .editor-lista {
   height: 30px;
@@ -2569,3 +2589,38 @@ rect.grafico__barra { fill: var(--cor, var(--c-teal)); }
   .aviso--fixo .aviso__texto { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 }
 @media (max-width: 900px) { .aviso-inatividade { top: calc(var(--topo-movel-a) + 8px); } }
+
+/* Catálogo, edição e folha dos modelos versionados. */
+.modelos-catalogo, .modelo-controles-lista ul, .modelo-historico ul { list-style: none; padding: 0; margin: 0; }
+.modelos-catalogo { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 14px; }
+.modelo-cartao { display: flex; flex-direction: column; justify-content: space-between; min-width: 0; padding: 14px; }
+.modelo-cartao h2 { font-size: 1.1rem; margin: 5px 0; overflow-wrap: anywhere; }
+.modelo-cartao p { margin: 0; }
+.modelo-cartao .registro-acoes { margin-top: 16px; }
+.modelo-editor .documento-controles { min-width: 0; }
+.modelo-inserir .botao { width: 100%; }
+.modelo-inserir .sub { margin: 6px 0; }
+.modelo-atalho-movel { display: none; }
+@media (max-width: 1000px) { .modelo-atalho-movel { display: inline-block; margin-bottom: 8px; } }
+.modelo-cabecalho, .modelo-historico li, .modelo-controles-lista li {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+}
+.modelo-cabecalho { margin: 14px 0 6px; }
+.modelo-cabecalho h2 { font-size: 1rem; margin: 0; }
+.modelo-controles-lista li, .modelo-historico li { border-top: 1px solid var(--c-linha); padding: 6px 0; }
+.modelo-controles-lista li button + button { margin-left: 8px; }
+.modelo-historico small { display: block; }
+.modelo-corpo:empty::before { content: 'Escreva aqui o texto do modelo'; color: #4a534f; }
+.modelo-campo-chip { display: inline-flex; padding: 0 6px; border: 1px solid #b1ccc1; background: #e9f4ee; color: #245443; border-radius: 4px; font: 600 .85rem/1.6 system-ui, sans-serif; vertical-align: baseline; user-select: all; }
+.modelo-previsualizacao { overflow-wrap: anywhere; background: #fff; color: #000; padding: 18px; border: 1px solid #ddd; }
+.doc-padrao-fl { color: #000; font: 11pt/1.4 'Palatino Linotype', 'Times New Roman', serif; }
+.doc-padrao-fl p { margin-bottom: 9pt; }
+.doc-padrao-fl .doc-data { text-align: center; }
+.doc-padrao-fl .doc-rodape, .doc-padrao-fl .doc-nota { color: #000; }
+.modelo-previsualizacao img { max-width: 100%; }
+.modelo-previsualizacao .doc-recuo-primeira-linha { text-indent: 1.25cm; }
+.modelo-dados .campo + .campo, .modelo-editor .campo + .campo { margin-top: 10px; }
+@media (max-width: 720px) {
+  .modelo-cartao .registro-acoes > * { flex: 1 1 auto; }
+  .modelo-editor .modelo-corpo { min-height: 300px; }
+}

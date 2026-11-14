@@ -20,6 +20,8 @@ import { ajustarFolha, baixarWord, confirmarPendencias, imprimirDocumento, salva
 import { barraDeFormatacao, ligarEditor } from '../../documentos/editor.js';
 import { ErroCampo, mostrarErroFormulario, validarFormulario } from '../../nucleo/formularios.js';
 import { MODELOS, validarComplementos } from '../../documentos/modelos.js';
+import { carregarCatalogo, carregarVersao, legadoArquivado } from '../../documentos/catalogo.js';
+import { telaEmissaoModelo } from './emissao-modelo.js';
 import { AREAS_JURIDICAS, cabecalho, opcoes } from '../comum.js';
 import { campoCliente, carregarProcessos, ligarCampoCliente } from '../clientes.js';
 import { formularioCompleto } from '../clientes/formulario.js';
@@ -76,6 +78,25 @@ async function dadosDoContrato(id) {
 }
 
 export default async function telaNovoDocumento(ctx) {
+  const catalogo = await carregarCatalogo({ tolerarAusencia: true });
+  if (!ctx.ativa()) return;
+  const publicados = catalogo.filter((m) => m.atual && !m.arquivado_em);
+  const chavePedida = ctx.consulta.modelo || 'procuracao';
+  const catalogado = ctx.consulta.modelo_catalogo
+    ? publicados.find((m) => m.id === ctx.consulta.modelo_catalogo)
+    : publicados.find((m) => m.chave_oficial === chavePedida);
+  if (catalogado) {
+    const versao = await carregarVersao(catalogado.atual.id);
+    if (!ctx.ativa()) return;
+    if (!versao) throw new Error('O modelo mudou. Abra-o novamente no catálogo.');
+    return telaEmissaoModelo(ctx,catalogado,versao,catalogo,dadosDoContrato);
+  }
+  const arquivado = !ctx.consulta.modelo_catalogo && await legadoArquivado(chavePedida);
+  if (!ctx.ativa()) return;
+  if (ctx.consulta.modelo_catalogo || arquivado) {
+    desenhar(ctx.raiz, html`${cabecalho('Modelo indisponível', 'O modelo pode ter sido arquivado.', html`<a class="botao" href="#/documentos/modelos">Escolher outro modelo</a>`)}`);
+    return;
+  }
   let [[clientes, detalhes], processos] = await Promise.all([
     carregarCadastro(),
     carregarProcessos(),
@@ -83,7 +104,15 @@ export default async function telaNovoDocumento(ctx) {
   if (!ctx.ativa()) return;
 
   const advogados = membrosAtivos().filter((m) => m.oab);
-  let modelo = MODELOS[ctx.consulta.modelo] ? ctx.consulta.modelo : 'procuracao';
+  if (ctx.consulta.modelo && !Object.hasOwn(MODELOS,ctx.consulta.modelo)) {
+    desenhar(ctx.raiz, html`${cabecalho('Modelo indisponível', 'Escolha um modelo do catálogo.', html`<a class="botao" href="#/documentos/modelos">Modelos</a>`)}`);
+    return;
+  }
+  let modelo = Object.hasOwn(MODELOS,ctx.consulta.modelo) ? ctx.consulta.modelo : 'procuracao';
+  const legadosArquivados = new Set((await Promise.all(Object.keys(MODELOS)
+    .filter((chave) => !publicados.some((m) => m.chave_oficial === chave))
+    .map(async (chave) => await legadoArquivado(chave) ? chave : null))).filter(Boolean));
+  if (!ctx.ativa()) return;
   let clienteId = ctx.consulta.cliente ?? '';
   let processoId = processos.find((p) => p.id === ctx.consulta.processo)?.id ?? '';
   let dados = { data_emissao: hoje(), advogados_ids: advogados.map((m) => m.id) };
@@ -138,6 +167,7 @@ export default async function telaNovoDocumento(ctx) {
 
   desenhar(ctx.raiz, html`
     ${cabecalho('Gerar documento', 'Dados do cadastro, complementos e texto editável', html`
+      <a class="botao" href="#/documentos/modelos">Modelos</a>
       <a class="botao" href="#/documentos">Documentos gerados</a>`)}
     <div class="documento-editor">
       <aside class="documento-controles">
@@ -193,7 +223,7 @@ export default async function telaNovoDocumento(ctx) {
           <select name="processo_id">${opcoes(casos.map((p) => [p.id, p.titulo]), processoId, { vazio: 'Sem processo' })}</select></label>
         <fieldset class="campo documento-modelos">
           <legend>Modelo</legend>
-          ${Object.values(MODELOS).map((m) => html`
+          ${Object.values(MODELOS).filter((m) => !legadosArquivados.has(m.id)).map((m) => html`
             <button type="button" class="documento-modelo" data-modelo="${m.id}" aria-pressed="${m.id === modelo}">
               <strong>${m.nome}</strong><span>${m.descricao}</span>
             </button>`)}
@@ -326,7 +356,14 @@ export default async function telaNovoDocumento(ctx) {
   });
   form.addEventListener('click', (e) => {
     const botao = e.target.closest('[data-modelo]');
-    if (botao && botao.dataset.modelo !== modelo) refazer(botao.dataset.modelo);
+    if (!botao || botao.dataset.modelo === modelo) return;
+    if (publicados.some((m) => m.chave_oficial === botao.dataset.modelo)) {
+      (async () => {
+        if (sujo && !await abrirDialogo({titulo:'Trocar de modelo?', rotuloOk:'Trocar modelo',
+          corpo:html`<p>As edições na folha atual serão substituídas.</p>`})) return;
+        if (ctx.ativa()) navegar('/documentos/novo',{modelo:botao.dataset.modelo,cliente:clienteId,processo:processoId});
+      })().catch(avisarErro);
+    } else refazer(botao.dataset.modelo);
   });
 
   const editou = () => {
@@ -339,7 +376,9 @@ export default async function telaNovoDocumento(ctx) {
 
   const executar = async (acao) => {
     if (ocupado || alterando) return;
-    if (!validarFormulario(form)) return;
+    const word = acao === 'word';
+    const formularioValido = word ? form.checkValidity() : validarFormulario(form);
+    if (!word && !formularioValido) return;
     // Cliente ou processo escolhido sem a folha ter acompanhado (o campo não
     // perdeu o foco, por exemplo): atualiza agora e pede para conferir.
     const escolha = ler();
@@ -364,9 +403,22 @@ export default async function telaNovoDocumento(ctx) {
     botoes.forEach((b) => { b.disabled = true; });
     try {
       const v = ler();
-      validarComplementos(modelo, { ...dados, ...v });
+      let complementoInvalido = false;
+      try {
+        validarComplementos(modelo, { ...dados, ...v });
+      } catch (erro) {
+        if (!word) throw erro;
+        complementoInvalido = true;
+      }
       if (v.cliente_id !== clienteId || v.processo_id !== processoId) {
         throw new Error('Confirme a seleção de cliente e processo antes de salvar.');
+      }
+      if (word && (!clienteId || !formularioValido || complementoInvalido || folha.querySelector('.doc-falta'))) {
+        const rascunho = folha.cloneNode(true);
+        if (await confirmarPendencias(rascunho, acao, { forcar:true }) && ctx.ativa()) {
+          await baixarWord(rascunho, MODELOS[modelo].nome);
+        }
+        return;
       }
       if (!await confirmarPendencias(folha, acao) || !ctx.ativa()) return;
       const salvo = await salvarDocumento({

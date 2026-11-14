@@ -713,7 +713,11 @@ function detalhe(c, { google = null, estadoGoogle = null, remarcacao = null } = 
           ${c.pode_editar ? html`<button type="button" class="botao" data-papel="editar">Editar</button>` : ''}
           ${linkGoogle ? html`<a class="botao" href="${linkGoogle}" target="_blank" rel="noopener noreferrer">Pôr no Google Agenda</a>` : ''}
           ${lembrete ? html`<button type="button" class="botao" data-papel="lembrete">Preparar lembrete</button>` : ''}
-          ${pode.clientes() && c.cliente_id ? html`<button type="button" class="botao" data-papel="documento">Declaração de comparecimento</button>` : ''}
+          ${pode.clientes() && c.cliente_id && !c.cancelado_em && c.tipo === 'atendimento'
+            && (c.situacao === 'realizado' || (c.chegada_em && !['faltou','remarcado'].includes(c.situacao)))
+            ? html`<button type="button" class="botao" data-papel="documento">Declaração de comparecimento</button>` : ''}
+          ${pode.clientes() && c.cliente_id && !c.cancelado_em && c.tipo === 'audiencia' && !['faltou','remarcado'].includes(c.situacao)
+            ? html`<button type="button" class="botao" data-papel="intimar-testemunha">Intimação de testemunha</button>` : ''}
         </div>
         <div class="grupo-botoes">
           <button type="button" class="botao botao--pequeno botao--discreto" data-papel="historico">Histórico</button>
@@ -739,6 +743,9 @@ function detalhe(c, { google = null, estadoGoogle = null, remarcacao = null } = 
           } else if (alvo.dataset.papel === 'documento') {
             fechar(true);
             navegar('/documentos/novo', { modelo: 'declaracao_comparecimento', cliente: c.cliente_id, compromisso: c.id });
+          } else if (alvo.dataset.papel === 'intimar-testemunha') {
+            fechar(true);
+            navegar('/documentos/novo', { modelo: 'intimacao_testemunha', cliente: c.cliente_id, compromisso: c.id });
           } else if (alvo.dataset.papel === 'situacao') {
             const valor = alvo.dataset.valor;
             await db.alterar('compromissos', [['id', 'eq', c.id]], valor === 'chegou' ? { chegada_em: new Date().toISOString() } : { situacao: valor }, 'id');

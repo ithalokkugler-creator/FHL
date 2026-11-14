@@ -58,7 +58,6 @@ export default async function telaPublicacao(ctx) {
 
   if (!nova && !registro) {
     desenhar(ctx.raiz, html`
-      <a class="pagina__voltar" href="#/site/publicacoes">← Publicações</a>
       ${cabecalho('Artigo não encontrado', 'Ele pode ter sido aberto por um link antigo.')}`);
     return;
   }
@@ -259,7 +258,6 @@ function tela(p, nova) {
   const eu = estado.membro;
 
   return html`
-    <a class="pagina__voltar" href="#/site/publicacoes">← Publicações</a>
     ${cabecalho(
       nova ? 'Nova publicação' : 'Editar publicação',
       nova ? 'Um artigo do site' : p.titulo,

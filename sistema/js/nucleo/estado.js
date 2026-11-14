@@ -27,13 +27,14 @@ export const pode = {
   auditoria: () => estado.membro?.acesso_auditoria === 'ver' || estado.membro?.papel === 'admin',
   site: () => estado.membro?.acesso_site === 'editar',
   clientes: () => estado.membro?.acesso_clientes === 'editar',
+  editarModelos: () => pode.clientes() && (pode.administrar() || estado.porId.get(estado.membro?.id)?.edita_modelos_documento === true),
   prazos: () => estado.membro?.acesso_prazos === 'editar',
   administrar: () => estado.membro?.papel === 'admin',
 };
 
 export async function carregarMembros() {
   estado.membros = await db.listar('membros', {
-    select: 'id,nome,nome_curto,papel,oab,cor,email,user_id,acesso_agenda,acesso_financeiro,acesso_site,acesso_clientes,acesso_prazos,acesso_auditoria,google_agenda,ativo',
+    select: 'id,nome,nome_curto,papel,oab,cor,email,user_id,acesso_agenda,acesso_financeiro,acesso_site,acesso_clientes,acesso_prazos,acesso_auditoria,google_agenda,ativo,edita_modelos_documento',
     ordem: 'nome_curto.asc',
   });
   estado.porId = new Map(estado.membros.map((m) => [m.id, m]));

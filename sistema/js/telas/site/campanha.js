@@ -32,7 +32,6 @@ export default async function telaCampanha(ctx) {
 
   if (!nova && !c) {
     desenhar(ctx.raiz, html`
-      <a class="pagina__voltar" href="#/site/campanhas">← Campanhas</a>
       ${cabecalho('Campanha não encontrada', 'Ela pode ter sido aberta por um link antigo.')}`);
     return;
   }
@@ -105,7 +104,6 @@ function montar(d, form) {
 
 function tela(c, nova) {
   return html`
-    <a class="pagina__voltar" href="#/site/campanhas">← Campanhas</a>
     ${cabecalho(
       nova ? 'Nova campanha' : 'Editar campanha',
       nova ? 'Uma página de campanha do site' : c.titulo,

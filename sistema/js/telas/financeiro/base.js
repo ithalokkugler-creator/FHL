@@ -608,7 +608,8 @@ export async function emitirRecibo(recebimentoId) {
   const saldoDepois = parcela ? saldoDepoisDe(r, daParcela, centavos(parcela.valor), ajustes) : null;
   const antecipacoes = filhos.length ? await partesAntecipadas(filhos) : [];
   const antecipado = antecipacoes.reduce((soma, a) => soma + a.valor, 0);
-  const conteudo = String(montarRecibo({ recebimento: r, parcela, contrato, cliente, saldoDepois, emitente: estado.membro.nome, dia: hoje(), antecipacoes }));
+  const oab = estado.porId.get(estado.membro.id)?.oab;
+  const conteudo = String(montarRecibo({ recebimento: r, parcela, contrato, cliente, saldoDepois, emitente: estado.membro.nome, oab, dia: hoje(), antecipacoes }));
   const doc = await salvarDocumento({
     modelo: 'recibo',
     titulo: `Recibo — ${cliente.nome}`,

@@ -59,6 +59,7 @@ export const ALINHAMENTOS = [
 // Recuo do parágrafo em degraus de 1,25 cm — a tabulação padrão do Word.
 export const RECUOS = 4;
 const RECUO_CM = 1.25;
+export const RECUO_PRIMEIRA_LINHA = 'doc-recuo-primeira-linha';
 
 /**
  * Categorias de trecho: cada uma vira `doc-<prefixo>-<id>` num <span>. Um
@@ -92,6 +93,7 @@ export function cssFormatacao(escopo = '') {
     ...REALCES.map(([id, , cor]) => regra(classeDe('realce', id), `background-color: ${cor}`)),
     ...ALINHAMENTOS.map(([id, , valor]) => regra(`doc-alinhar-${id}`, `text-align: ${valor}`)),
     ...Array.from({ length: RECUOS }, (_, i) => regra(`doc-recuo-${i + 1}`, `margin-left: ${(RECUO_CM * (i + 1)).toFixed(2)}cm`)),
+    regra(RECUO_PRIMEIRA_LINHA, `text-indent: ${RECUO_CM}cm`),
     // Tirar o negrito de um título: o Chrome faria com style="", que a CSP bloqueia.
     regra('doc-sem-negrito', 'font-weight: normal'),
     regra('doc-sem-italico', 'font-style: normal'),
